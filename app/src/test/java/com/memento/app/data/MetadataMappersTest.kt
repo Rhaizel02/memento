@@ -24,7 +24,7 @@ import kotlinx.serialization.json.JsonPrimitive
 
 class MetadataMappersTest {
     @Test
-    fun `TMDB detail enriches search fields with runtime credits and named genres`() {
+    fun `TMDB movie detail only maps directors as creators`() {
         val result = TmdbMovieDetailsDto(
             id = 42,
             title = "La obra",
@@ -39,7 +39,7 @@ class MetadataMappersTest {
         ).toMetadataResult()
 
         assertEquals(141, result.runtimeMinutes)
-        assertEquals(listOf("Directora", "Intérprete"), result.creators)
+        assertEquals(listOf("Directora"), result.creators)
         assertEquals(listOf("Drama"), result.genres)
     }
 
@@ -51,6 +51,7 @@ class MetadataMappersTest {
             firstAirDate = "2020-01-02",
             genres = listOf(TmdbGenreDto("Drama")),
             createdBy = listOf(TmdbPersonDto("Creadora")),
+            credits = TmdbCreditsDto(cast = listOf(TmdbPersonDto("Intérprete"))),
             episodeRunTime = listOf(52),
             seasonCount = 4,
             episodeCount = 32,

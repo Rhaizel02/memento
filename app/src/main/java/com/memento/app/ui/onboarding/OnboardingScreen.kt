@@ -66,7 +66,7 @@ fun OnboardingScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(MementoSpacing.xLarge))
-        Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onStart, enabled = !state.isWorking, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.start))
         }
         TextButton(
@@ -92,7 +92,9 @@ fun OnboardingScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = onConfirmRestore) { Text(stringResource(R.string.restore_and_start)) }
+                TextButton(onClick = onConfirmRestore, enabled = !state.isWorking) {
+                    Text(stringResource(R.string.restore_and_start))
+                }
             },
             dismissButton = {
                 TextButton(onClick = onCancelRestore) { Text(stringResource(R.string.cancel)) }

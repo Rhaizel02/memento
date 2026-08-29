@@ -186,6 +186,16 @@ fun mediaTypeLabel(type: MediaType): String = stringResource(
     },
 )
 
+@Composable
+fun creatorRoleLabel(type: MediaType): String = stringResource(
+    when (type) {
+        MediaType.BOOK -> R.string.creator_role_author
+        MediaType.MOVIE -> R.string.creator_role_director
+        MediaType.SERIES -> R.string.creator_role_series_creator
+        MediaType.GAME -> R.string.creator_role_developer
+    },
+)
+
 fun MediaType.icon(): ImageVector = when (this) {
     MediaType.BOOK -> Icons.Outlined.AutoStories
     MediaType.MOVIE -> Icons.Outlined.Movie

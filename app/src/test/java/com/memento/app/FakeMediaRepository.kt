@@ -37,6 +37,7 @@ class FakeMediaRepository : MediaRepository {
     var deletedConsumptionId: String? = null
     var editedReflectionId: String? = null
     var editedReflectionContent: String? = null
+    var addManualInvocations: Int = 0
 
     override fun observeLibrary(query: String, type: MediaType?, filters: LibraryFilters): Flow<List<MediaItem>> {
         lastQuery = query
@@ -51,6 +52,7 @@ class FakeMediaRepository : MediaRepository {
     override fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>> = completedCounts
     override fun observeAllDetails(): Flow<List<MediaDetail>> = allDetails
     override suspend fun addManual(input: AddMediaInput, initialStatus: ConsumptionStatus): String {
+        addManualInvocations++
         addedInput = input
         addedStatus = initialStatus
         return "new-media"

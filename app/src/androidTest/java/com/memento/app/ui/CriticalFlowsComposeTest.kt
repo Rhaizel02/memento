@@ -1,14 +1,23 @@
 package com.memento.app.ui
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.domain.model.Consumption
 import com.memento.app.domain.model.ConsumptionStatus
@@ -20,6 +29,7 @@ import com.memento.app.ui.add.AddMediaScreen
 import com.memento.app.ui.add.AddMediaUiState
 import com.memento.app.ui.detail.MediaDetailScreen
 import com.memento.app.ui.detail.MediaDetailUiState
+import com.memento.app.ui.components.ExpandableText
 import com.memento.app.ui.theme.MementoTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -60,6 +70,64 @@ class CriticalFlowsComposeTest {
         composeRule.onNodeWithText("Añadir a pendientes").performScrollTo().performClick()
 
         composeRule.runOnIdle { assertEquals(ConsumptionStatus.PLANNED, savedStatus) }
+    }
+
+    @Test
+    fun addSearchClearRemovesQueryAndKeepsKeyboardFocus() {
+        lateinit var state: MutableState<AddMediaUiState>
+        composeRule.setContent {
+            state = remember { mutableStateOf(AddMediaUiState(query = "Dune")) }
+            MementoTheme(ThemeMode.LIGHT) {
+                AddMediaScreen(
+                    state = state.value,
+                    onBack = {},
+                    onTypeChanged = {},
+                    onQueryChanged = { state.value = state.value.copy(query = it) },
+                    onResultSelected = {},
+                    onShowManual = {},
+                    onReturnToSearch = {},
+                    onTitleChanged = {},
+                    onYearChanged = {},
+                    onCreatorChanged = {},
+                    onDescriptionChanged = {},
+                    onImageChanged = {},
+                    onPageCountChanged = {},
+                    onSave = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Borrar búsqueda").performClick()
+
+        composeRule.runOnIdle { assertEquals("", state.value.query) }
+        composeRule.onNodeWithContentDescription("Borrar búsqueda").assertDoesNotExist()
+        composeRule.onNode(hasSetTextAction()).assertIsFocused()
+    }
+
+    @Test
+    fun expandableTextOnlyOffersExpansionWhenContentOverflows() {
+        composeRule.setContent {
+            MementoTheme(ThemeMode.LIGHT) {
+                Column {
+                    ExpandableText(
+                        text = "Breve",
+                        modifier = Modifier.width(120.dp),
+                        collapsedMaxLines = 2,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    ExpandableText(
+                        text = "Una descripción deliberadamente larga que necesita muchas líneas para mostrarse completa en un espacio estrecho.",
+                        modifier = Modifier.width(120.dp),
+                        collapsedMaxLines = 2,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+
+        composeRule.onAllNodesWithText("Ver más").assertCountEquals(1)
+        composeRule.onNodeWithText("Ver más").assertExists().performClick()
+        composeRule.onNodeWithText("Ver menos").assertExists()
     }
 
     @Test

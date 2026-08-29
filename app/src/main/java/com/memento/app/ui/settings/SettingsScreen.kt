@@ -183,7 +183,9 @@ fun SettingsScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = onConfirmRestore) { Text(stringResource(R.string.replace_all_confirm)) }
+                TextButton(onClick = onConfirmRestore, enabled = !state.isWorking) {
+                    Text(stringResource(R.string.replace_all_confirm))
+                }
             },
             dismissButton = { TextButton(onClick = onCancelRestore) { Text(stringResource(R.string.cancel)) } },
         )

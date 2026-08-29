@@ -17,7 +17,6 @@ import com.memento.app.data.mapper.toDomain
 import com.memento.app.data.mapper.toEntity
 import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
-import com.memento.app.domain.model.CreatorRole
 import com.memento.app.domain.model.MediaDetail
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
@@ -28,6 +27,7 @@ import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.model.EditMediaInput
+import com.memento.app.domain.model.defaultCreatorRole
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.usecase.TimelineBuilder
 import com.memento.app.domain.usecase.ProgressValidator
@@ -354,10 +354,3 @@ class RoomMediaRepository @Inject constructor(
 private fun String.normalized(): String = Normalizer.normalize(lowercase(), Normalizer.Form.NFD)
     .replace("\\p{Mn}+".toRegex(), "")
     .trim()
-
-private fun MediaType.defaultCreatorRole(): CreatorRole = when (this) {
-    MediaType.BOOK -> CreatorRole.AUTHOR
-    MediaType.MOVIE -> CreatorRole.DIRECTOR
-    MediaType.SERIES -> CreatorRole.CREATOR
-    MediaType.GAME -> CreatorRole.DEVELOPER
-}

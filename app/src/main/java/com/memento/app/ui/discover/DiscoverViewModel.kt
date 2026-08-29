@@ -36,8 +36,8 @@ class DiscoverViewModel @Inject constructor(
 
     private fun refresh(force: Boolean) {
         if (refreshing.value) return
+        refreshing.value = true
         viewModelScope.launch {
-            refreshing.value = true
             runCatching { repository.refreshCandidates(force) }
             refreshing.value = false
         }

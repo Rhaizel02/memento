@@ -1,3 +1,5 @@
+@file:Suppress("ConfigurationScreenWidthHeight")
+
 package com.memento.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
@@ -20,9 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.memento.app.R
 import com.memento.app.data.preferences.ThemeMode
@@ -45,17 +49,20 @@ import com.memento.app.ui.stats.StatsViewModel
 import com.memento.app.ui.wrapped.WrappedScreen
 import com.memento.app.ui.wrapped.WrappedViewModel
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable sealed interface MementoKey : NavKey
 @Serializable data object HomeKey : MementoKey
 @Serializable data object LibraryKey : MementoKey
 @Serializable data object DiscoverKey : MementoKey
 @Serializable data object SettingsKey : MementoKey
-@Serializable data object AddMediaKey : MementoKey
+@Serializable data class AddMediaKey(val sessionId: String) : MementoKey
 @Serializable data class MediaDetailKey(val mediaId: String) : MementoKey
 @Serializable data class RememberKey(val consumptionId: String) : MementoKey
 @Serializable data object StatsKey : MementoKey
 @Serializable data class WrappedKey(val year: Int) : MementoKey
+
+private fun newAddMediaKey(): AddMediaKey = AddMediaKey(UUID.randomUUID().toString())
 
 private data class TopDestination(
     val key: MementoKey,
@@ -101,7 +108,7 @@ fun MementoApp(
         },
         floatingActionButton = {
             if (current == HomeKey || current == LibraryKey) {
-                FloatingActionButton(onClick = { backStack.add(AddMediaKey) }) {
+                FloatingActionButton(onClick = { backStack.add(newAddMediaKey()) }) {
                     Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_work))
                 }
             }
@@ -110,6 +117,10 @@ fun MementoApp(
         NavDisplay(
             modifier = Modifier.padding(padding),
             backStack = backStack,
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
             onBack = { backStack.removeLastOrNull() },
             entryProvider = { key ->
                 when (key) {
@@ -118,7 +129,7 @@ fun MementoApp(
                         val state by viewModel.state.collectAsStateWithLifecycle()
                         HomeScreen(
                             state = state,
-                            onAdd = { backStack.add(AddMediaKey) },
+                            onAdd = { backStack.add(newAddMediaKey()) },
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onOpenRemember = { backStack.add(RememberKey(it)) },
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
@@ -139,7 +150,7 @@ fun MementoApp(
                             onSortSelected = viewModel::setSort,
                             onClearFilters = viewModel::clearAdditionalFilters,
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
-                            onAdd = { backStack.add(AddMediaKey) },
+                            onAdd = { backStack.add(newAddMediaKey()) },
                         )
                     }
                     DiscoverKey -> NavEntry(key) {
@@ -165,7 +176,7 @@ fun MementoApp(
                             onDownloadAi = viewModel::downloadAiModel,
                         )
                     }
-                    AddMediaKey -> NavEntry(key) {
+                    is AddMediaKey -> NavEntry(key) {
                         val viewModel: AddMediaViewModel = hiltViewModel()
                         val state by viewModel.state.collectAsStateWithLifecycle()
                         state.savedMediaId?.let { mediaId ->
@@ -196,6 +207,9 @@ fun MementoApp(
                         val viewModel: MediaDetailViewModel = hiltViewModel()
                         LaunchedEffect(key.mediaId) { viewModel.load(key.mediaId) }
                         val state by viewModel.state.collectAsStateWithLifecycle()
+                        LaunchedEffect(state.wasDeleted) {
+                            if (state.wasDeleted) backStack.removeLastOrNull()
+                        }
                         MediaDetailScreen(
                             state = state,
                             onBack = { backStack.removeLastOrNull() },
@@ -208,10 +222,7 @@ fun MementoApp(
                             onUpdateMetadata = viewModel::updateMetadata,
                             onDeleteConsumption = viewModel::deleteConsumption,
                             onUpdateReflection = viewModel::updateReflection,
-                            onDelete = {
-                                viewModel.delete()
-                                backStack.removeLastOrNull()
-                            },
+                            onDelete = viewModel::delete,
                         )
                     }
                     is RememberKey -> NavEntry(key) {

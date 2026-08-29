@@ -19,12 +19,15 @@ import com.memento.app.ui.home.HomeViewModel
 import com.memento.app.ui.library.LibraryViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.time.Instant
@@ -108,6 +111,97 @@ class ViewModelsTest {
         assertEquals("new-media", viewModel.state.value.savedMediaId)
     }
 
+    @Test fun `a new add session starts clean after a previous form was used`() = runTest {
+        val repository = FakeMediaRepository()
+        val firstSession = AddMediaViewModel(repository, FakeMetadataRepository()).apply {
+            showManual()
+            setTitle("Primera obra")
+            setCreator("Autora")
+        }
+        assertEquals("Primera obra", firstSession.state.value.title)
+
+        val secondSession = AddMediaViewModel(repository, FakeMetadataRepository())
+
+        assertEquals("", secondSession.state.value.query)
+        assertEquals("", secondSession.state.value.title)
+        assertEquals(MediaType.BOOK, secondSession.state.value.type)
+        assertEquals(com.memento.app.ui.add.AddMediaMode.SEARCH, secondSession.state.value.mode)
+    }
+
+    @Test fun `double save gesture only starts one persistence operation`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = AddMediaViewModel(repository, FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Dune")
+
+        viewModel.save(ConsumptionStatus.PLANNED)
+        viewModel.save(ConsumptionStatus.PLANNED)
+        advanceUntilIdle()
+
+        assertEquals(1, repository.addManualInvocations)
+    }
+
+    @Test fun `newer search replaces an older in flight request`() = runTest {
+        val oldResult = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "old", null, MediaType.BOOK, "Antigua")
+        val newResult = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "new", null, MediaType.BOOK, "Nueva")
+        val metadata = FakeMetadataRepository().apply {
+            searchHandler = { _, query ->
+                delay(if (query == "antigua") 1_000 else 10)
+                com.memento.app.domain.model.MetadataSearchOutcome.Success(
+                    MetadataProvider.OPEN_LIBRARY,
+                    listOf(if (query == "antigua") oldResult else newResult),
+                )
+            }
+        }
+        val viewModel = AddMediaViewModel(FakeMediaRepository(), metadata)
+
+        viewModel.setQuery("antigua")
+        advanceTimeBy(351)
+        viewModel.setQuery("nueva")
+        advanceUntilIdle()
+
+        assertEquals(listOf(newResult), viewModel.state.value.searchResults)
+        assertFalse(viewModel.state.value.isSearching)
+    }
+
+    @Test fun `clearing search cancels pending work and removes results`() = runTest {
+        val metadata = FakeMetadataRepository().apply {
+            searchHandler = { _, _ ->
+                delay(1_000)
+                outcome
+            }
+        }
+        val viewModel = AddMediaViewModel(FakeMediaRepository(), metadata)
+
+        viewModel.setQuery("dune")
+        advanceTimeBy(351)
+        assertTrue(viewModel.state.value.isSearching)
+        viewModel.setQuery("")
+        advanceUntilIdle()
+
+        assertEquals(emptyList<MetadataSearchResult>(), viewModel.state.value.searchResults)
+        assertFalse(viewModel.state.value.isSearching)
+    }
+
+    @Test fun `latest selected result wins when detail requests overlap`() = runTest {
+        val first = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "first", null, MediaType.BOOK, "Primera")
+        val second = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "second", null, MediaType.BOOK, "Segunda")
+        val metadata = FakeMetadataRepository().apply {
+            detailsHandler = { result ->
+                delay(if (result.externalId == "first") 1_000 else 10)
+                MetadataDetailsOutcome.Complete(result.copy(title = "Detalle ${result.title}"))
+            }
+        }
+        val viewModel = AddMediaViewModel(FakeMediaRepository(), metadata)
+
+        viewModel.selectResult(first)
+        viewModel.selectResult(second)
+        advanceUntilIdle()
+
+        assertEquals("Detalle Segunda", viewModel.state.value.title)
+        assertEquals("second", viewModel.state.value.selectedExternal?.externalId)
+    }
+
     @Test fun `external selection fetches full detail before enabling persistence`() = runTest {
         val repository = FakeMediaRepository()
         val summary = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "OL1W", null, MediaType.BOOK, "Resumen")
@@ -160,7 +254,9 @@ class ViewModelsTest {
         val input = EditMediaInput("Dune revisado", 1965, "Descripción", listOf("Frank Herbert"), "https://image")
 
         viewModel.updateMetadata(input)
+        advanceUntilIdle()
         viewModel.deleteConsumption("c2")
+        advanceUntilIdle()
         viewModel.updateReflection("r1", "Texto corregido por la persona")
         advanceUntilIdle()
 

@@ -8,13 +8,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -39,8 +39,10 @@ import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.ui.components.EmptyState
+import com.memento.app.ui.components.MementoSearchField
 import com.memento.app.ui.components.PosterArtwork
 import com.memento.app.ui.components.mediaTypeLabel
+import com.memento.app.ui.components.creatorRoleLabel
 import com.memento.app.ui.theme.MementoSpacing
 
 @Composable
@@ -61,7 +63,7 @@ fun AddMediaScreen(
     onSave: (ConsumptionStatus) -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(MementoSpacing.normal),
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
     ) {
@@ -86,13 +88,11 @@ fun AddMediaScreen(
 
         if (state.mode == AddMediaMode.SEARCH) {
             item {
-                OutlinedTextField(
+                MementoSearchField(
                     value = state.query,
                     onValueChange = onQueryChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.search_external)) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                    singleLine = true,
+                    label = stringResource(R.string.search_external),
                 )
             }
             if (state.isSearching) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -224,7 +224,7 @@ private fun MediaForm(
             value = state.creator,
             onValueChange = onCreatorChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.creator)) },
+            label = { Text(creatorRoleLabel(state.type)) },
             singleLine = true,
         )
         OutlinedTextField(

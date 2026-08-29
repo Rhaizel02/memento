@@ -21,7 +21,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.memento.app.R
 import com.memento.app.domain.model.MediaType
@@ -29,6 +28,7 @@ import com.memento.app.domain.model.RecommendationFeedbackType
 import com.memento.app.domain.recommendation.Recommendation
 import com.memento.app.domain.recommendation.RecommendationReason
 import com.memento.app.ui.components.EmptyState
+import com.memento.app.ui.components.ExpandableText
 import com.memento.app.ui.components.PosterArtwork
 import com.memento.app.ui.components.mediaTypeLabel
 import com.memento.app.ui.theme.MementoSpacing
@@ -117,7 +117,11 @@ private fun RecommendationCard(
                     modifier = Modifier.width(88.dp).height(132.dp),
                 )
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                    Text(candidate.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    ExpandableText(
+                        text = candidate.title,
+                        collapsedMaxLines = 2,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
                     Text(
                         stringResource(R.string.affinity_format, recommendation.affinityScore),
                         style = MaterialTheme.typography.labelLarge,

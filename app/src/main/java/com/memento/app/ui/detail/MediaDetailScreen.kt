@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,6 +33,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -49,7 +51,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.memento.app.R
 import com.memento.app.domain.model.ConsumptionStatus
@@ -63,9 +64,11 @@ import com.memento.app.domain.model.Reflection
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.ui.components.PosterArtwork
+import com.memento.app.ui.components.ExpandableText
 import com.memento.app.ui.components.RatingText
 import com.memento.app.ui.components.formatHalfStars
 import com.memento.app.ui.components.mediaTypeLabel
+import com.memento.app.ui.components.creatorRoleLabel
 import com.memento.app.ui.components.StaticTag
 import com.memento.app.ui.theme.MementoSpacing
 import java.time.ZoneId
@@ -109,7 +112,7 @@ fun MediaDetailScreen(
     val latest = detail.latestConsumption
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(bottom = MementoSpacing.huge),
     ) {
         item {
@@ -131,7 +134,7 @@ fun MediaDetailScreen(
                 IconButton(onClick = { showEdit = true }) {
                     Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_work))
                 }
-                IconButton(onClick = onToggleFavorite) {
+                IconButton(onClick = onToggleFavorite, enabled = !state.isWorking) {
                     Icon(
                         if (detail.media.isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = stringResource(
@@ -165,18 +168,30 @@ fun MediaDetailScreen(
         }
         detail.media.description?.let { description ->
             item {
-                Text(
-                    description,
+                ExpandableText(
+                    text = description,
                     modifier = Modifier.padding(MementoSpacing.normal),
                     style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 7,
-                    overflow = TextOverflow.Ellipsis,
+                    collapsedMaxLines = 7,
+                )
+            }
+        }
+        if (state.isWorking) {
+            item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal)) }
+        }
+        state.message?.let { message ->
+            item {
+                Text(
+                    message,
+                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
         item {
             ActionSection(
                 detail = detail,
+                enabled = !state.isWorking,
                 onStart = onStart,
                 onProgress = { showProgress = true },
                 onNote = { showNote = true },
@@ -410,7 +425,7 @@ private fun EditMediaDialog(detail: MediaDetail, onDismiss: () -> Unit, onSave: 
                     OutlinedTextField(
                         value = creators,
                         onValueChange = { creators = it },
-                        label = { Text(stringResource(R.string.creators_comma_separated)) },
+                        label = { Text(creatorRoleLabel(detail.media.type)) },
                         singleLine = true,
                     )
                 }
@@ -478,6 +493,7 @@ private fun ReflectionEditDialog(reflection: Reflection, onDismiss: () -> Unit, 
 @Composable
 private fun ActionSection(
     detail: MediaDetail,
+    enabled: Boolean,
     onStart: () -> Unit,
     onProgress: () -> Unit,
     onNote: () -> Unit,
@@ -490,7 +506,7 @@ private fun ActionSection(
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
     ) {
         if (active == null || active.status == ConsumptionStatus.PLANNED) {
-            Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onStart, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.PlayArrow, contentDescription = null)
                 Text(
                     stringResource(if (active == null) R.string.consume_again else R.string.start_work),
@@ -500,20 +516,20 @@ private fun ActionSection(
         }
         if (active?.status == ConsumptionStatus.IN_PROGRESS) {
             Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                OutlinedButton(onClick = onProgress, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onProgress, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Outlined.Update, contentDescription = null)
                     Text(stringResource(R.string.update_progress), maxLines = 1)
                 }
-                OutlinedButton(onClick = onNote, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onNote, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Outlined.EditNote, contentDescription = null)
                     Text(stringResource(R.string.add_note), maxLines = 1)
                 }
             }
-            Button(onClick = onComplete, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onComplete, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.Flag, contentDescription = null)
                 Text(stringResource(R.string.finish_work), modifier = Modifier.padding(start = MementoSpacing.small))
             }
-            TextButton(onClick = onDrop, modifier = Modifier.align(Alignment.End)) {
+            TextButton(onClick = onDrop, enabled = enabled, modifier = Modifier.align(Alignment.End)) {
                 Text(stringResource(R.string.drop_work))
             }
         }

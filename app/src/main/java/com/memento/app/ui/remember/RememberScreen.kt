@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -27,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,12 +80,18 @@ fun RememberScreen(
     val scope = rememberCoroutineScope()
     var writing by rememberSaveable { mutableStateOf(false) }
     var thought by rememberSaveable(memory.consumptionId) { mutableStateOf("") }
+    LaunchedEffect(state.saved) {
+        if (state.saved) {
+            thought = ""
+            writing = false
+        }
+    }
     val later = state.detail?.reflections.orEmpty().filter {
         it.consumptionId == memory.consumptionId && it.type == ReflectionType.LATER_REFLECTION
     }.sortedBy { it.createdAt }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(bottom = MementoSpacing.huge),
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
     ) {
@@ -189,10 +197,12 @@ fun RememberScreen(
                         placeholder = { Text(stringResource(R.string.note_hint)) },
                     )
                     Button(
-                        onClick = { onSaveThought(thought); thought = ""; writing = false },
-                        enabled = thought.isNotBlank(),
+                        onClick = { onSaveThought(thought) },
+                        enabled = thought.isNotBlank() && !state.isSavingThought,
                         modifier = Modifier.fillMaxWidth().padding(top = MementoSpacing.medium),
-                    ) { Text(stringResource(R.string.save)) }
+                    ) {
+                        Text(stringResource(if (state.isSavingThought) R.string.saving else R.string.save))
+                    }
                 } else {
                     Button(
                         onClick = { writing = true },
@@ -204,6 +214,13 @@ fun RememberScreen(
                         stringResource(R.string.remember_saved),
                         modifier = Modifier.padding(top = MementoSpacing.medium),
                         color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                state.thoughtError?.let { error ->
+                    Text(
+                        error,
+                        modifier = Modifier.padding(top = MementoSpacing.medium),
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
@@ -261,7 +278,9 @@ private fun AiToolsCard(
                 Text(output, style = MaterialTheme.typography.bodyLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
                     TextButton(onClick = { onCopy(output) }) { Text(stringResource(R.string.copy)) }
-                    Button(onClick = onSaveInsight) { Text(stringResource(R.string.save_as_insight)) }
+                    Button(onClick = onSaveInsight, enabled = !state.isAiWorking) {
+                        Text(stringResource(R.string.save_as_insight))
+                    }
                     TextButton(onClick = onDiscard) { Text(stringResource(R.string.discard)) }
                 }
             }

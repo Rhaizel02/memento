@@ -10,8 +10,11 @@ import com.memento.app.data.repository.RoomMediaRepository
 import com.memento.app.data.repository.RoomRememberRepository
 import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.CreatorRole
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.MediaType
+import com.memento.app.domain.model.MetadataProvider
+import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.ReflectionType
 import kotlinx.coroutines.flow.first
@@ -26,6 +29,44 @@ import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
 class MediaRepositoryRoomTest {
+    @Test
+    fun externalCreatorsAreStoredWithTheRoleForTheirMediaType() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val expectedRoles = mapOf(
+                MediaType.BOOK to CreatorRole.AUTHOR,
+                MediaType.MOVIE to CreatorRole.DIRECTOR,
+                MediaType.SERIES to CreatorRole.CREATOR,
+                MediaType.GAME to CreatorRole.DEVELOPER,
+            )
+            val mediaIds = expectedRoles.keys.associateWith { type ->
+                repository.addExternal(
+                    MetadataSearchResult(
+                        provider = when (type) {
+                            MediaType.BOOK -> MetadataProvider.OPEN_LIBRARY
+                            MediaType.MOVIE, MediaType.SERIES -> MetadataProvider.TMDB
+                            MediaType.GAME -> MetadataProvider.RAWG
+                        },
+                        externalId = "external-${type.name}",
+                        externalUrl = null,
+                        type = type,
+                        title = "Obra ${type.name}",
+                        creators = listOf("Creador ${type.name}"),
+                    ),
+                    ConsumptionStatus.PLANNED,
+                ).mediaId
+            }
+
+            val storedRoles = database.backupDao().mediaCreators().associate { it.mediaItemId to it.role }
+
+            expectedRoles.forEach { (type, role) -> assertEquals(role, storedRoles[mediaIds.getValue(type)]) }
+        } finally {
+            database.close()
+        }
+    }
+
     @Test
     fun rememberExposureIsInsertedAtMostOncePerLogicalDay() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

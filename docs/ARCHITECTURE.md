@@ -42,4 +42,4 @@ El SAF elige destino/origen sin permisos generales de almacenamiento. `BackupCod
 
 ## Navegación e inyección
 
-Navigation 3 mantiene una pila de claves serializables con cuatro destinos principales. Hilt crea base de datos, DAOs, APIs, repositorios, procesador IA y ViewModels; KSP procesa Hilt y Room.
+Navigation 3 mantiene una pila de claves serializables con cuatro destinos principales. Cada `NavEntry` dispone de su propio estado guardable y `ViewModelStore`: las rotaciones conservan el flujo visible y retirar la entrada libera su ViewModel. Las altas usan una clave de sesión única para que abrir otra operación nunca recupere el formulario anterior. Hilt crea base de datos, DAOs, APIs, repositorios, procesador IA y ViewModels; KSP procesa Hilt y Room.

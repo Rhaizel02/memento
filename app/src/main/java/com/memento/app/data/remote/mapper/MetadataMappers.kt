@@ -90,10 +90,10 @@ fun TmdbMovieDetailsDto.toMetadataResult() = MetadataSearchResult(
     releaseYear = releaseDate.toLocalDateOrNull()?.year,
     posterUrl = posterPath?.let { "${TMDB_IMAGE_BASE}w500$it" },
     backdropUrl = backdropPath?.let { "${TMDB_IMAGE_BASE}w780$it" },
-    creators = (
-        credits?.crew.orEmpty().filter { it.job == "Director" }.map { it.name } +
-            credits?.cast.orEmpty().take(3).map { it.name }
-        ).distinct(),
+    creators = credits?.crew.orEmpty()
+        .filter { it.job == "Director" }
+        .map { it.name }
+        .distinct(),
     genres = genres.map { it.name },
     runtimeMinutes = runtime,
 )
@@ -110,7 +110,7 @@ fun TmdbSeriesDetailsDto.toMetadataResult() = MetadataSearchResult(
     releaseYear = firstAirDate.toLocalDateOrNull()?.year,
     posterUrl = posterPath?.let { "${TMDB_IMAGE_BASE}w500$it" },
     backdropUrl = backdropPath?.let { "${TMDB_IMAGE_BASE}w780$it" },
-    creators = (createdBy.map { it.name } + credits?.cast.orEmpty().take(3).map { it.name }).distinct(),
+    creators = createdBy.map { it.name }.distinct(),
     genres = genres.map { it.name },
     runtimeMinutes = episodeRunTime.firstOrNull(),
     seasonCount = seasonCount,

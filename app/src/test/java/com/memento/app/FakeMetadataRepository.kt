@@ -13,10 +13,16 @@ class FakeMetadataRepository : MetadataRepository {
     var detailRequests = 0
     var recommendationResult: List<MetadataSearchResult> = emptyList()
     var recommendationRequests = 0
-    override suspend fun search(type: MediaType, query: String): MetadataSearchOutcome = outcome
+    var searchHandler: (suspend (MediaType, String) -> MetadataSearchOutcome)? = null
+    var detailsHandler: (suspend (MetadataSearchResult) -> MetadataDetailsOutcome)? = null
+    val searchQueries = mutableListOf<String>()
+    override suspend fun search(type: MediaType, query: String): MetadataSearchOutcome {
+        searchQueries += query
+        return searchHandler?.invoke(type, query) ?: outcome
+    }
     override suspend fun fetchDetails(result: MetadataSearchResult): MetadataDetailsOutcome {
         detailRequests++
-        return detailOutcome ?: MetadataDetailsOutcome.Complete(result)
+        return detailsHandler?.invoke(result) ?: detailOutcome ?: MetadataDetailsOutcome.Complete(result)
     }
     override suspend fun recommendationCandidates(
         type: MediaType,

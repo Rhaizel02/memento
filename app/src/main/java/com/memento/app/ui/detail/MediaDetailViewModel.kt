@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.time.LocalDate
@@ -23,7 +24,15 @@ data class MediaDetailUiState(
     val detail: MediaDetail? = null,
     val timeline: List<TimelineEvent> = emptyList(),
     val isLoading: Boolean = true,
+    val isWorking: Boolean = false,
     val message: String? = null,
+    val wasDeleted: Boolean = false,
+)
+
+private data class DetailOperationState(
+    val isWorking: Boolean = false,
+    val message: String? = null,
+    val wasDeleted: Boolean = false,
 )
 
 @HiltViewModel
@@ -32,22 +41,32 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
     private val mediaId = MutableStateFlow<String?>(null)
     private val detail = mediaId.flatMapLatest { id -> id?.let(repository::observeMediaDetail) ?: flowOf(null) }
     private val timeline = mediaId.flatMapLatest { id -> id?.let(repository::observeTimeline) ?: flowOf(emptyList()) }
+    private val operation = MutableStateFlow(DetailOperationState())
 
-    val state = combine(detail, timeline) { item, events ->
-        MediaDetailUiState(item, events, isLoading = false)
+    val state = combine(detail, timeline, operation) { item, events, currentOperation ->
+        MediaDetailUiState(
+            detail = item,
+            timeline = events,
+            isLoading = false,
+            isWorking = currentOperation.isWorking,
+            message = currentOperation.message,
+            wasDeleted = currentOperation.wasDeleted,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MediaDetailUiState())
 
     fun load(id: String) { mediaId.value = id }
     fun toggleFavorite() = mediaAction { repository.toggleFavorite(it) }
     fun start() = mediaAction { repository.startConsumption(it) }
     fun drop() = mediaAction { repository.dropConsumption(it) }
-    fun delete() = mediaAction { repository.deleteMedia(it) }
+    fun delete() = mediaAction(onSuccess = { operation.update { it.copy(wasDeleted = true) } }) {
+        repository.deleteMedia(it)
+    }
     fun updateMetadata(input: EditMediaInput) = mediaAction { repository.updateMedia(it, input) }
     fun deleteConsumption(consumptionId: String) {
-        viewModelScope.launch { repository.deleteConsumption(consumptionId) }
+        runAction { repository.deleteConsumption(consumptionId) }
     }
     fun updateReflection(reflectionId: String, content: String) {
-        viewModelScope.launch { repository.updateReflection(reflectionId, content) }
+        runAction { repository.updateReflection(reflectionId, content) }
     }
 
     fun complete(date: LocalDate, ratingHalfStars: Int?, reflection: String?) = mediaAction {
@@ -56,7 +75,7 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
 
     fun addNote(content: String) {
         val consumptionId = state.value.detail?.activeConsumption?.id ?: return
-        viewModelScope.launch { repository.saveReflection(consumptionId, ReflectionType.NOTE, content) }
+        runAction { repository.saveReflection(consumptionId, ReflectionType.NOTE, content) }
     }
 
     fun addProgress(
@@ -67,11 +86,32 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
         episode: Int? = null,
     ) {
         val consumptionId = state.value.detail?.activeConsumption?.id ?: return
-        viewModelScope.launch { repository.addProgress(consumptionId, type, current, total, season, episode) }
+        runAction { repository.addProgress(consumptionId, type, current, total, season, episode) }
     }
 
-    private fun mediaAction(block: suspend (String) -> Unit) {
+    private fun mediaAction(onSuccess: () -> Unit = {}, block: suspend (String) -> Unit) {
         val id = mediaId.value ?: return
-        viewModelScope.launch { block(id) }
+        runAction(onSuccess) { block(id) }
+    }
+
+    private fun runAction(onSuccess: () -> Unit = {}, block: suspend () -> Unit) {
+        if (operation.value.isWorking) return
+        operation.update { it.copy(isWorking = true, message = null) }
+        viewModelScope.launch {
+            runCatching { block() }
+                .onSuccess {
+                    operation.update { it.copy(isWorking = false) }
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    operation.update {
+                        it.copy(
+                            isWorking = false,
+                            message = if (error is IllegalArgumentException) error.message
+                                else "No se pudo completar la acción. Inténtalo de nuevo.",
+                        )
+                    }
+                }
+        }
     }
 }

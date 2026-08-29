@@ -37,9 +37,13 @@
     <string name="series_singular">Serie</string>
     <string name="game">Juego</string>
     <string name="search_library">Buscar por título o creador</string>
+    <string name="clear_search">Borrar búsqueda</string>
+    <string name="show_more">Ver más</string>
+    <string name="show_less">Ver menos</string>
     <string name="library_empty_title">Tu biblioteca está vacía</string>
     <string name="library_empty_body">Añade la primera historia que quieras recordar.</string>
     <string name="no_search_results">No hay obras que coincidan con la búsqueda.</string>
+    <string name="no_library_filter_results_body">Prueba otra búsqueda o limpia los filtros activos.</string>
     <string name="manual_add_title">Añadir manualmente</string>
     <string name="confirm_work">Revisar y añadir</string>
     <string name="search_external">Buscar una obra</string>
@@ -57,7 +61,10 @@
     <string name="type">Tipo</string>
     <string name="title_required">Título *</string>
     <string name="year">Año</string>
-    <string name="creator">Creador</string>
+    <string name="creator_role_author">Autoría</string>
+    <string name="creator_role_director">Dirección</string>
+    <string name="creator_role_series_creator">Creación</string>
+    <string name="creator_role_developer">Desarrollo</string>
     <string name="description">Descripción</string>
     <string name="image_optional">URL de imagen opcional</string>
     <string name="page_count">Número de páginas</string>
@@ -88,7 +95,6 @@
     <string name="note_hint">Escribe una idea que quieras conservar…</string>
     <string name="delete">Eliminar</string>
     <string name="edit_work">Editar obra</string>
-    <string name="creators_comma_separated">Creadores, separados por comas</string>
     <string name="consumption_number">Consumo #%1$d</string>
     <string name="consumption_contents">%1$d progresos · %2$d reflexiones</string>
     <string name="consumption_status_date">%1$s · %2$s</string>

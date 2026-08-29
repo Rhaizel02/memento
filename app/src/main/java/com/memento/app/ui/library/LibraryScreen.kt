@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -14,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +41,7 @@ import com.memento.app.domain.model.LibrarySort
 import com.memento.app.domain.model.MediaType
 import com.memento.app.ui.components.EmptyState
 import com.memento.app.ui.components.MediaCard
+import com.memento.app.ui.components.MementoSearchField
 import com.memento.app.ui.theme.MementoSpacing
 
 @Composable
@@ -65,13 +66,11 @@ fun LibraryScreen(
             modifier = Modifier.padding(start = MementoSpacing.normal, top = MementoSpacing.normal),
             style = MaterialTheme.typography.headlineLarge,
         )
-        OutlinedTextField(
+        MementoSearchField(
             value = state.query,
             onValueChange = onQueryChanged,
             modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
-            label = { Text(stringResource(R.string.search_library)) },
-            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-            singleLine = true,
+            label = stringResource(R.string.search_library),
         )
         val types = listOf<MediaType?>(null, MediaType.BOOK, MediaType.MOVIE, MediaType.SERIES, MediaType.GAME)
         LazyRow(
@@ -106,14 +105,26 @@ fun LibraryScreen(
             )
         }
 
+        val hasConstraints = state.query.isNotBlank() || state.type != null || activeFilterCount(state) > 0
         if (!state.isLoading && state.items.isEmpty()) {
             EmptyState(
-                title = if (state.query.isBlank()) stringResource(R.string.library_empty_title)
+                title = if (!hasConstraints) stringResource(R.string.library_empty_title)
                     else stringResource(R.string.no_search_results),
-                body = if (state.query.isBlank()) stringResource(R.string.library_empty_body) else state.query,
+                body = if (!hasConstraints) stringResource(R.string.library_empty_body)
+                    else stringResource(R.string.no_library_filter_results_body),
                 modifier = Modifier.padding(MementoSpacing.normal),
             ) {
-                if (state.query.isBlank()) Button(onClick = onAdd) { Text(stringResource(R.string.add_first_work)) }
+                if (!hasConstraints) {
+                    Button(onClick = onAdd) { Text(stringResource(R.string.add_first_work)) }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            onQueryChanged("")
+                            onTypeSelected(null)
+                            onClearFilters()
+                        },
+                    ) { Text(stringResource(R.string.clear_filters)) }
+                }
             }
         } else {
             LazyVerticalGrid(
@@ -163,7 +174,7 @@ private fun LibraryFilterSheet(
     var yearText by remember(state.filters.year) { mutableStateOf(state.filters.year?.toString().orEmpty()) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = MementoSpacing.huge),
+            modifier = Modifier.fillMaxWidth().imePadding().padding(bottom = MementoSpacing.huge),
             verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
         ) {
             Text(

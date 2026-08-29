@@ -30,6 +30,8 @@ data class RememberUiState(
     val detail: MediaDetail? = null,
     val isLoading: Boolean = true,
     val saved: Boolean = false,
+    val isSavingThought: Boolean = false,
+    val thoughtError: String? = null,
     val aiAvailability: AiAvailability? = null,
     val isAiWorking: Boolean = false,
     val aiCapability: AiCapability? = null,
@@ -47,6 +49,12 @@ private data class AiPanelState(
     val sourceReflectionIds: List<String> = emptyList(),
 )
 
+private data class ThoughtState(
+    val saved: Boolean = false,
+    val isWorking: Boolean = false,
+    val error: String? = null,
+)
+
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
 class RememberViewModel @Inject constructor(
@@ -56,7 +64,7 @@ class RememberViewModel @Inject constructor(
     private val aiInsightRepository: AiInsightRepository,
 ) : ViewModel() {
     private val consumptionId = MutableStateFlow<String?>(null)
-    private val saved = MutableStateFlow(false)
+    private val thoughtState = MutableStateFlow(ThoughtState())
     private val aiPanel = MutableStateFlow(AiPanelState())
     private val memory = consumptionId.flatMapLatest { id -> id?.let(rememberRepository::observeRemember) ?: flowOf(null) }
     private val detail = memory.flatMapLatest { candidate ->
@@ -65,12 +73,14 @@ class RememberViewModel @Inject constructor(
     private val insights = memory.flatMapLatest { candidate ->
         candidate?.reflectionId?.let(aiInsightRepository::observe) ?: flowOf(emptyList())
     }
-    val state = combine(memory, detail, saved, aiPanel, insights) { candidate, mediaDetail, wasSaved, ai, storedInsights ->
+    val state = combine(memory, detail, thoughtState, aiPanel, insights) { candidate, mediaDetail, thought, ai, storedInsights ->
         RememberUiState(
             memory = candidate,
             detail = mediaDetail,
             isLoading = false,
-            saved = wasSaved,
+            saved = thought.saved,
+            isSavingThought = thought.isWorking,
+            thoughtError = thought.error,
             aiAvailability = ai.availability,
             isAiWorking = ai.isWorking,
             aiCapability = ai.capability,
@@ -92,21 +102,26 @@ class RememberViewModel @Inject constructor(
 
     fun saveCurrentThought(content: String) {
         val id = consumptionId.value ?: return
-        if (content.isBlank()) return
+        if (content.isBlank() || thoughtState.value.isWorking || thoughtState.value.saved) return
+        thoughtState.value = ThoughtState(isWorking = true)
         viewModelScope.launch {
-            mediaRepository.saveReflection(id, ReflectionType.LATER_REFLECTION, content)
-            saved.value = true
+            runCatching { mediaRepository.saveReflection(id, ReflectionType.LATER_REFLECTION, content) }
+                .onSuccess { thoughtState.value = ThoughtState(saved = true) }
+                .onFailure {
+                    thoughtState.value = ThoughtState(error = "No se pudo guardar la reflexión. Tu texto sigue aquí.")
+                }
         }
     }
 
     fun runAi(capability: AiCapability) {
+        if (aiPanel.value.isWorking) return
         val candidate = state.value.memory ?: return
         val laterReflection = state.value.detail?.reflections
             ?.filter { it.type == ReflectionType.LATER_REFLECTION }
             ?.maxByOrNull { it.createdAt }
         if (capability == AiCapability.COMPARE_REFLECTIONS && laterReflection == null) return
+        aiPanel.value = aiPanel.value.copy(isWorking = true, capability = capability, output = null, error = null)
         viewModelScope.launch {
-            aiPanel.value = aiPanel.value.copy(isWorking = true, capability = capability, output = null, error = null)
             val connection = if (capability == AiCapability.CONNECT_REFLECTIONS) {
                 ReflectionConnectionSelector.select(
                     candidate.mediaId,
@@ -130,17 +145,29 @@ class RememberViewModel @Inject constructor(
             }
             runCatching { aiProcessor.process(capability, candidate.reflectionContent, comparison) }
                 .onSuccess { aiPanel.value = aiPanel.value.copy(isWorking = false, output = it, sourceReflectionIds = sources) }
-                .onFailure { aiPanel.value = aiPanel.value.copy(isWorking = false, error = it.message) }
+                .onFailure {
+                    aiPanel.value = aiPanel.value.copy(
+                        isWorking = false,
+                        error = "No se pudo completar el procesamiento local. Inténtalo de nuevo.",
+                    )
+                }
         }
     }
 
     fun saveAiInsight() {
+        if (aiPanel.value.isWorking) return
         val memory = state.value.memory ?: return
         val capability = aiPanel.value.capability ?: return
         val output = aiPanel.value.output ?: return
+        aiPanel.value = aiPanel.value.copy(isWorking = true, error = null)
         viewModelScope.launch {
-            aiInsightRepository.save(aiPanel.value.sourceReflectionIds.ifEmpty { listOf(memory.reflectionId) }, capability, output)
-            aiPanel.value = aiPanel.value.copy(output = null, capability = null)
+            runCatching {
+                aiInsightRepository.save(aiPanel.value.sourceReflectionIds.ifEmpty { listOf(memory.reflectionId) }, capability, output)
+            }.onSuccess {
+                aiPanel.value = aiPanel.value.copy(isWorking = false, output = null, capability = null)
+            }.onFailure {
+                aiPanel.value = aiPanel.value.copy(isWorking = false, error = "No se pudo guardar el insight.")
+            }
         }
     }
 

@@ -90,3 +90,17 @@
 **Decisión.** Persistir el ID de Work; usar Edition únicamente para enriquecer páginas y portada durante el alta.
 **Motivo.** Work es la identidad cultural estable que Memento modela; una edición concreta no es hoy un concepto de dominio.
 **Consecuencias.** Se mantiene la clave primaria `(mediaItemId, provider)`. Si el producto modela ediciones en el futuro, deberá evolucionar explícitamente el dominio y esa clave.
+
+## ADR-014 — Estado de pantalla ligado a cada NavEntry
+
+**Contexto.** Sin decoradores de Navigation 3, `hiltViewModel()` resolvía un propietario más amplio y el formulario de un alta retirada de la pila podía reaparecer al iniciar otra.
+**Decisión.** Instalar los decoradores de estado guardable y `ViewModelStore` por entrada; representar cada alta mediante una clave serializable con UUID de sesión.
+**Motivo.** Una rotación debe conservar la operación actual, pero terminar o cancelar debe destruirla y la siguiente alta debe empezar limpia.
+**Consecuencias.** Los efectos que navegan al terminar una mutación esperan ahora su resultado antes de retirar la entrada, para no cancelar el `viewModelScope` a mitad de escritura.
+
+## ADR-015 — Creador significa contribución creativa principal
+
+**Contexto.** El detalle de TMDB mezclaba reparto con dirección o creación y después Room etiquetaba todos esos nombres con el rol principal del tipo.
+**Decisión.** Película importa únicamente dirección; serie únicamente `createdBy`; libro mantiene autoría y juego desarrollo. El rol persistido continúa determinado por `MediaType`.
+**Motivo.** Evita presentar intérpretes como directores o creadores y mantiene una semántica consistente en búsqueda, confirmación y detalle.
+**Consecuencias.** No se corrigen automáticamente filas antiguas: la versión persistida no conserva la procedencia necesaria para distinguir con certeza reparto y creador real. La persona puede corregirlas desde Editar obra; una limpieza automática sería potencialmente destructiva.

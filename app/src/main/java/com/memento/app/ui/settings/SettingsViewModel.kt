@@ -70,8 +70,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun downloadAiModel() {
+        if (mutableState.value.aiAvailability == AiAvailability.DOWNLOADING) return
+        mutableState.update { it.copy(aiAvailability = AiAvailability.DOWNLOADING, aiDownloadBytes = 0) }
         viewModelScope.launch {
-            mutableState.update { it.copy(aiAvailability = AiAvailability.DOWNLOADING, aiDownloadBytes = 0) }
             val result = aiProcessor.downloadModel { bytes ->
                 mutableState.update { it.copy(aiDownloadBytes = bytes) }
             }
@@ -80,8 +81,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun exportTo(uri: Uri) {
+        if (!beginBackupWork()) return
         viewModelScope.launch {
-            mutableState.update { it.copy(isWorking = true, error = null, notice = null) }
             runCatching {
                 val json = backupRepository.exportJson()
                 withContext(Dispatchers.IO) {
@@ -89,13 +90,17 @@ class SettingsViewModel @Inject constructor(
                         ?: error("No se pudo abrir el archivo de destino")
                 }
             }.onSuccess { mutableState.update { it.copy(isWorking = false, notice = BackupNotice.EXPORTED) } }
-                .onFailure { error -> mutableState.update { it.copy(isWorking = false, error = error.message) } }
+                .onFailure {
+                    mutableState.update {
+                        it.copy(isWorking = false, error = "No se pudo exportar el backup. Comprueba el destino e inténtalo de nuevo.")
+                    }
+                }
         }
     }
 
     fun prepareImport(uri: Uri) {
+        if (!beginBackupWork()) return
         viewModelScope.launch {
-            mutableState.update { it.copy(isWorking = true, error = null, notice = null) }
             runCatching {
                 val content = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.use { it.readUtf8Limited(BackupCodec.MAX_IMPORT_BYTES) }
@@ -105,26 +110,41 @@ class SettingsViewModel @Inject constructor(
                 pendingImport = content
                 preview
             }.onSuccess { preview -> mutableState.update { it.copy(isWorking = false, importPreview = preview) } }
-                .onFailure { error -> mutableState.update { it.copy(isWorking = false, error = error.message) } }
+                .onFailure {
+                    mutableState.update {
+                        it.copy(isWorking = false, error = "No se pudo leer o validar el backup seleccionado.")
+                    }
+                }
         }
     }
 
     fun confirmRestore() {
         val content = pendingImport ?: return
+        if (!beginBackupWork()) return
         viewModelScope.launch {
-            mutableState.update { it.copy(isWorking = true, importPreview = null, error = null) }
+            mutableState.update { it.copy(importPreview = null) }
             runCatching { backupRepository.restoreReplaceAll(content) }
                 .onSuccess {
                     pendingImport = null
                     mutableState.update { it.copy(isWorking = false, notice = BackupNotice.RESTORED) }
                 }
-                .onFailure { error -> mutableState.update { it.copy(isWorking = false, error = error.message) } }
+                .onFailure {
+                    mutableState.update {
+                        it.copy(isWorking = false, error = "No se pudo restaurar el backup. Tus datos actuales se conservan.")
+                    }
+                }
         }
     }
 
     fun cancelRestore() {
         pendingImport = null
         mutableState.update { it.copy(importPreview = null) }
+    }
+
+    private fun beginBackupWork(): Boolean {
+        if (mutableState.value.isWorking) return false
+        mutableState.update { it.copy(isWorking = true, error = null, notice = null) }
+        return true
     }
 }
 
