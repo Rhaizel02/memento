@@ -239,8 +239,8 @@ private fun AiToolsCard(
                 item { AiActionButton(AiCapability.REFLECTION_QUESTION, state, onAction) }
                 if (hasLaterReflection) {
                     item { AiActionButton(AiCapability.COMPARE_REFLECTIONS, state, onAction) }
-                    item { AiActionButton(AiCapability.CONNECT_REFLECTIONS, state, onAction) }
                 }
+                item { AiActionButton(AiCapability.CONNECT_REFLECTIONS, state, onAction) }
             }
             if (state.isAiWorking) {
                 Row(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium)) {
@@ -271,6 +271,16 @@ private fun AiToolsCard(
                 state.insights.forEach { insight ->
                     Text(aiCapabilityLabel(insight.capability), style = MaterialTheme.typography.labelMedium)
                     Text(insight.content, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(
+                            R.string.ai_insight_sources,
+                            insight.sources.joinToString { source ->
+                                "${source.mediaTitle} · ${source.reflectionCreatedAt.atZone(java.time.ZoneId.systemDefault()).year}"
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

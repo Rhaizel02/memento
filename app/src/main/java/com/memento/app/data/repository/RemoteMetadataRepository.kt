@@ -10,6 +10,7 @@ import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchOutcome
 import com.memento.app.domain.repository.MetadataRepository
+import com.memento.app.domain.repository.MetadataDetailsOutcome
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.text.Normalizer
@@ -20,6 +21,26 @@ class RemoteMetadataRepository @Inject constructor(
     private val openLibraryApi: OpenLibraryApi,
     private val rawgApi: RawgApi,
 ) : MetadataRepository {
+    override suspend fun fetchDetails(result: com.memento.app.domain.model.MetadataSearchResult): MetadataDetailsOutcome =
+        runCatching {
+            when (result.provider) {
+                MetadataProvider.TMDB -> when (result.type) {
+                    MediaType.MOVIE -> tmdbApi.movieDetails(result.externalId, BuildConfig.TMDB_API_KEY).toMetadataResult()
+                    MediaType.SERIES -> tmdbApi.seriesDetails(result.externalId, BuildConfig.TMDB_API_KEY).toMetadataResult()
+                    else -> error("Tipo incompatible con TMDB")
+                }
+                MetadataProvider.OPEN_LIBRARY -> {
+                    val work = openLibraryApi.workDetails(result.externalId)
+                    val edition = runCatching { openLibraryApi.workEditions(result.externalId).entries.firstOrNull() }.getOrNull()
+                    work.toMetadataResult(result, edition)
+                }
+                MetadataProvider.RAWG -> rawgApi.gameDetails(result.externalId, BuildConfig.RAWG_API_KEY).toMetadataResult()
+            }
+        }.fold(
+            onSuccess = { MetadataDetailsOutcome.Complete(it) },
+            onFailure = { MetadataDetailsOutcome.Partial(result) },
+        )
+
     override suspend fun search(type: MediaType, query: String): MetadataSearchOutcome {
         val cleanQuery = query.trim()
         require(cleanQuery.length >= 2)

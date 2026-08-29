@@ -207,15 +207,25 @@ data class RecommendationFeedbackEntity(
 
 @Entity(
     tableName = "ai_insights",
-    foreignKeys = [
-        ForeignKey(entity = ReflectionEntity::class, parentColumns = ["id"], childColumns = ["reflectionId"], onDelete = ForeignKey.CASCADE),
-    ],
-    indices = [Index("reflectionId"), Index("createdAt")],
+    indices = [Index("createdAt")],
 )
 data class AiInsightEntity(
     @PrimaryKey val id: String,
-    val reflectionId: String,
     val capability: String,
     val content: String,
     val createdAt: Instant,
+)
+
+@Entity(
+    tableName = "ai_insight_sources",
+    primaryKeys = ["aiInsightId", "reflectionId"],
+    foreignKeys = [
+        ForeignKey(entity = AiInsightEntity::class, parentColumns = ["id"], childColumns = ["aiInsightId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = ReflectionEntity::class, parentColumns = ["id"], childColumns = ["reflectionId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("aiInsightId"), Index("reflectionId")],
+)
+data class AiInsightSourceCrossRef(
+    val aiInsightId: String,
+    val reflectionId: String,
 )

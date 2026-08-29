@@ -122,6 +122,16 @@ fun AddMediaScreen(
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
+                if (state.isLoadingDetails) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                if (state.metadataIsPartial) {
+                    item {
+                        Text(
+                            stringResource(R.string.metadata_partial_notice),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             item { MediaForm(state, onTitleChanged, onYearChanged, onCreatorChanged, onDescriptionChanged, onImageChanged, onPageCountChanged) }
             state.error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }

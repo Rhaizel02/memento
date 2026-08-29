@@ -30,11 +30,10 @@ import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.usecase.TimelineBuilder
+import com.memento.app.domain.usecase.ProgressValidator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import java.text.Normalizer
 import java.time.Instant
 import java.time.LocalDate
@@ -43,7 +42,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-@OptIn(ExperimentalCoroutinesApi::class)
 class RoomMediaRepository @Inject constructor(
     private val database: MementoDatabase,
     private val mediaDao: MediaDao,
@@ -96,15 +94,30 @@ class RoomMediaRepository @Inject constructor(
         mediaDao.observeCompletedCounts(LocalDate.of(year, 1, 1), LocalDate.of(year + 1, 1, 1))
             .map { rows -> MediaType.entries.associateWith { type -> rows.firstOrNull { it.type == type }?.count ?: 0 } }
 
-    override fun observeAllDetails(): Flow<List<MediaDetail>> = mediaDao.observeAll().mapLatest { items ->
+    @Suppress("UNCHECKED_CAST")
+    override fun observeAllDetails(): Flow<List<MediaDetail>> = combine(
+        mediaDao.observeAll(),
+        mediaDao.observeAllCreatorNames(),
+        mediaDao.observeAllGenreNames(),
+        consumptionDao.observeAll(),
+        consumptionDao.observeAllProgress(),
+        consumptionDao.observeAllReflections(),
+    ) { values ->
+        val items = values[0] as List<MediaItemEntity>
+        val creatorsByMedia = (values[1] as List<com.memento.app.data.local.dao.MediaNameRow>).groupBy({ it.mediaItemId }, { it.name })
+        val genresByMedia = (values[2] as List<com.memento.app.data.local.dao.MediaNameRow>).groupBy({ it.mediaItemId }, { it.name })
+        val consumptionsByMedia = (values[3] as List<ConsumptionEntity>).groupBy { it.mediaItemId }
+        val progressByConsumption = (values[4] as List<ProgressEntryEntity>).groupBy { it.consumptionId }
+        val reflectionsByConsumption = (values[5] as List<ReflectionEntity>).groupBy { it.consumptionId }
         items.map { media ->
+            val consumptions = consumptionsByMedia[media.id].orEmpty()
             MediaDetail(
                 media = media.toDomain(),
-                creators = mediaDao.getCreatorNames(media.id),
-                genres = mediaDao.getGenreNames(media.id),
-                consumptions = consumptionDao.getForMedia(media.id).map { it.toDomain() },
-                progress = consumptionDao.getProgressForMedia(media.id).map { it.toDomain() },
-                reflections = consumptionDao.getReflectionsForMedia(media.id).map { it.toDomain() },
+                creators = creatorsByMedia[media.id].orEmpty(),
+                genres = genresByMedia[media.id].orEmpty(),
+                consumptions = consumptions.map { it.toDomain() },
+                progress = consumptions.flatMap { progressByConsumption[it.id].orEmpty() }.map { it.toDomain() },
+                reflections = consumptions.flatMap { reflectionsByConsumption[it.id].orEmpty() }.map { it.toDomain() },
             )
         }
     }
@@ -225,7 +238,11 @@ class RoomMediaRepository @Inject constructor(
         mediaDao.deleteOrphanCreators()
     }
 
-    override suspend fun deleteMedia(mediaId: String) = mediaDao.deleteById(mediaId)
+    override suspend fun deleteMedia(mediaId: String) = database.withTransaction {
+        mediaDao.deleteById(mediaId)
+        mediaDao.deleteOrphanCreators()
+        mediaDao.deleteOrphanGenres()
+    }
 
     override suspend fun toggleFavorite(mediaId: String) = mediaDao.toggleFavorite(mediaId, Instant.now())
 
@@ -287,10 +304,7 @@ class RoomMediaRepository @Inject constructor(
         season: Int?,
         episode: Int?,
     ) {
-        require(currentValue == null || currentValue >= 0)
-        require(totalValue == null || totalValue >= 0)
-        require(season == null || season >= 0)
-        require(episode == null || episode >= 0)
+        ProgressValidator.validate(type, currentValue, totalValue, season, episode)
         consumptionDao.insertProgress(
             ProgressEntryEntity(UUID.randomUUID().toString(), consumptionId, type, currentValue, totalValue, season, episode, Instant.now()),
         )

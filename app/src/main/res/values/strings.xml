@@ -218,6 +218,7 @@
     <string name="save_as_insight">Guardar como insight</string>
     <string name="discard">Descartar</string>
     <string name="saved_insights">Insights guardados</string>
+    <string name="ai_insight_sources">Generado a partir de: %1$s</string>
     <string name="metadata_providers">Fuentes de datos</string>
     <string name="tmdb_status">TMDB · requiere clave</string>
     <string name="open_library_status">Open Library · sin clave</string>
@@ -235,6 +236,7 @@
     <string name="open_library_name">Open Library</string>
     <string name="rawg_name">RAWG</string>
     <string name="provider_source_link">%1$s · Abrir fuente</string>
+    <string name="metadata_partial_notice">No se pudo completar la ficha. Puedes revisar y guardar los datos básicos del resultado.</string>
     <string name="unknown_date">Fecha sin especificar</string>
     <string name="pages_format">%1$s / %2$s páginas</string>
     <string name="episode_format">T%1$d · E%2$d</string>

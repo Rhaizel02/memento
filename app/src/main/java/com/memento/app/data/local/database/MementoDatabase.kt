@@ -22,6 +22,7 @@ import com.memento.app.data.local.entity.RememberExposureEntity
 import com.memento.app.data.local.entity.RecommendationCandidateEntity
 import com.memento.app.data.local.entity.RecommendationFeedbackEntity
 import com.memento.app.data.local.entity.AiInsightEntity
+import com.memento.app.data.local.entity.AiInsightSourceCrossRef
 import com.memento.app.data.local.dao.AiInsightDao
 
 @Database(
@@ -39,8 +40,9 @@ import com.memento.app.data.local.dao.AiInsightDao
         RecommendationCandidateEntity::class,
         RecommendationFeedbackEntity::class,
         AiInsightEntity::class,
+        AiInsightSourceCrossRef::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(RoomConverters::class)

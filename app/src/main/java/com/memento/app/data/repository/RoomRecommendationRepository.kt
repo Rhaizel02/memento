@@ -1,45 +1,39 @@
 package com.memento.app.data.repository
 
-import com.memento.app.data.local.dao.ConsumptionDao
-import com.memento.app.data.local.dao.MediaDao
 import com.memento.app.data.local.dao.RecommendationDao
 import com.memento.app.data.local.entity.RecommendationCandidateEntity
 import com.memento.app.data.local.entity.RecommendationFeedbackEntity
-import com.memento.app.data.mapper.toDomain
 import com.memento.app.domain.model.MediaDetail
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.model.RecommendationFeedbackType
 import com.memento.app.domain.recommendation.RecommendationEngine
 import com.memento.app.domain.recommendation.RecommendationKey
+import com.memento.app.domain.recommendation.RecommendationCachePolicy
+import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.repository.MetadataRepository
 import com.memento.app.domain.repository.RecommendationFeed
 import com.memento.app.domain.repository.RecommendationRepository
 import kotlinx.coroutines.async
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-@OptIn(ExperimentalCoroutinesApi::class)
 class RoomRecommendationRepository @Inject constructor(
-    private val mediaDao: MediaDao,
-    private val consumptionDao: ConsumptionDao,
+    private val mediaRepository: MediaRepository,
     private val recommendationDao: RecommendationDao,
     private val metadataRepository: MetadataRepository,
 ) : RecommendationRepository {
     private val json = Json { ignoreUnknownKeys = true }
-    private val history: Flow<List<MediaDetail>> = mediaDao.observeAll().mapLatest(::loadHistory)
+    private val history: Flow<List<MediaDetail>> = mediaRepository.observeAllDetails()
 
     override fun observeFeed(): Flow<RecommendationFeed> = combine(
         history,
@@ -60,8 +54,10 @@ class RoomRecommendationRepository @Inject constructor(
         )
     }
 
-    override suspend fun refreshCandidates() {
-        val profile = RecommendationEngine.buildTasteProfile(loadHistory(mediaDao.observeAll().first()))
+    override suspend fun refreshCandidates(force: Boolean) {
+        val now = Instant.now()
+        if (!force && !RecommendationCachePolicy.shouldRefresh(recommendationDao.latestCandidateFetchAt(), now)) return
+        val profile = RecommendationEngine.buildTasteProfile(history.first())
         if (!profile.isReady) return
         val genres = profile.genreWeights.filterValues { it > 0 }.entries.sortedByDescending { it.value }.map { it.key }.take(3)
         val creators = profile.creatorWeights.filterValues { it > 0 }.entries.sortedByDescending { it.value }.map { it.key }.take(3)
@@ -71,8 +67,10 @@ class RoomRecommendationRepository @Inject constructor(
                 async { metadataRepository.recommendationCandidates(type, genres, creators) }
             }.flatMap { it.await() }
         }.distinctBy { Triple(it.provider, it.externalId, it.type) }
-        if (candidates.isNotEmpty()) recommendationDao.upsertCandidates(candidates.map { it.toEntity() })
-        recommendationDao.deleteCandidatesOlderThan(Instant.now().minus(90, ChronoUnit.DAYS))
+        if (candidates.isNotEmpty()) {
+            recommendationDao.upsertCandidates(candidates.map { it.toEntity(now) })
+            recommendationDao.deleteCandidatesOlderThan(now.minus(RecommendationCachePolicy.retentionWindow))
+        }
     }
 
     override suspend fun setFeedback(key: RecommendationKey, feedback: RecommendationFeedbackType) {
@@ -87,18 +85,6 @@ class RoomRecommendationRepository @Inject constructor(
             ),
         )
     }
-
-    private suspend fun loadHistory(items: List<com.memento.app.data.local.entity.MediaItemEntity>): List<MediaDetail> =
-        items.map { media ->
-            MediaDetail(
-                media = media.toDomain(),
-                creators = mediaDao.getCreatorNames(media.id),
-                genres = mediaDao.getGenreNames(media.id),
-                consumptions = consumptionDao.getForMedia(media.id).map { it.toDomain() },
-                progress = emptyList(),
-                reflections = emptyList(),
-            )
-        }
 
     private fun RecommendationCandidateEntity.toDomain() = MetadataSearchResult(
         provider = provider,
@@ -120,7 +106,7 @@ class RoomRecommendationRepository @Inject constructor(
         episodeCount = episodeCount,
     )
 
-    private fun MetadataSearchResult.toEntity() = RecommendationCandidateEntity(
+    private fun MetadataSearchResult.toEntity(fetchedAt: Instant) = RecommendationCandidateEntity(
         provider = provider,
         externalId = externalId,
         mediaType = type,
@@ -138,6 +124,6 @@ class RoomRecommendationRepository @Inject constructor(
         pageCount = pageCount,
         seasonCount = seasonCount,
         episodeCount = episodeCount,
-        fetchedAt = Instant.now(),
+        fetchedAt = fetchedAt,
     )
 }

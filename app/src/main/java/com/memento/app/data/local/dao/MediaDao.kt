@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
 data class MediaTypeCountRow(val type: MediaType, val count: Int)
+data class MediaNameRow(val mediaItemId: String, val name: String)
 
 @Dao
 interface MediaDao {
@@ -90,6 +91,26 @@ interface MediaDao {
 
     @Query(
         """
+        SELECT mc.mediaItemId AS mediaItemId, c.name AS name
+        FROM media_creator_cross_ref mc
+        INNER JOIN creators c ON c.id = mc.creatorId
+        ORDER BY mc.mediaItemId, c.name
+        """,
+    )
+    fun observeAllCreatorNames(): Flow<List<MediaNameRow>>
+
+    @Query(
+        """
+        SELECT mg.mediaItemId AS mediaItemId, g.name AS name
+        FROM media_genre_cross_ref mg
+        INNER JOIN genres g ON g.id = mg.genreId
+        ORDER BY mg.mediaItemId, g.name
+        """,
+    )
+    fun observeAllGenreNames(): Flow<List<MediaNameRow>>
+
+    @Query(
+        """
         SELECT DISTINCT m.* FROM media_items m
         INNER JOIN consumptions c ON c.mediaItemId = m.id
         WHERE c.status = 'IN_PROGRESS'
@@ -135,6 +156,9 @@ interface MediaDao {
     @Query("DELETE FROM creators WHERE id NOT IN (SELECT DISTINCT creatorId FROM media_creator_cross_ref)")
     suspend fun deleteOrphanCreators()
 
+    @Query("DELETE FROM genres WHERE id NOT IN (SELECT DISTINCT genreId FROM media_genre_cross_ref)")
+    suspend fun deleteOrphanGenres()
+
     @Query("SELECT * FROM creators WHERE normalizedName = :normalizedName LIMIT 1")
     suspend fun findCreator(normalizedName: String): CreatorEntity?
 
@@ -150,16 +174,6 @@ interface MediaDao {
         """,
     )
     fun observeCreatorNames(mediaId: String): Flow<List<String>>
-
-    @Query(
-        """
-        SELECT c.name FROM creators c
-        INNER JOIN media_creator_cross_ref mc ON mc.creatorId = c.id
-        WHERE mc.mediaItemId = :mediaId
-        ORDER BY c.name
-        """,
-    )
-    suspend fun getCreatorNames(mediaId: String): List<String>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertGenre(genre: GenreEntity): Long
@@ -177,13 +191,4 @@ interface MediaDao {
     )
     fun observeGenreNames(mediaId: String): Flow<List<String>>
 
-    @Query(
-        """
-        SELECT g.name FROM genres g
-        INNER JOIN media_genre_cross_ref mg ON mg.genreId = g.id
-        WHERE mg.mediaItemId = :mediaId
-        ORDER BY g.name
-        """,
-    )
-    suspend fun getGenreNames(mediaId: String): List<String>
 }

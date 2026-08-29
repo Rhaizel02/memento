@@ -10,6 +10,7 @@ import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.RecommendationFeedbackType
 import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.usecase.ProgressValidator
 import java.time.Instant
 import java.time.LocalDate
 
@@ -63,12 +64,21 @@ data class BackupData(
 @Serializable data class BackupRecommendationFeedback(
     val id: String, val provider: String, val externalId: String, val mediaType: String, val feedbackType: String, val createdAt: String,
 )
-@Serializable data class BackupAiInsight(val id: String, val reflectionId: String, val capability: String, val content: String, val createdAt: String)
+@Serializable data class BackupAiInsight(
+    val id: String,
+    val capability: String,
+    val content: String,
+    val createdAt: String,
+    val sourceReflectionIds: List<String> = emptyList(),
+    val reflectionId: String? = null,
+) {
+    val resolvedSourceReflectionIds: List<String> get() = sourceReflectionIds.ifEmpty { listOfNotNull(reflectionId) }
+}
 
 data class BackupPreview(val mediaItems: Int, val consumptions: Int, val reflections: Int, val exportedAt: Instant)
 
 object BackupCodec {
-    const val SCHEMA_VERSION = 1
+    const val SCHEMA_VERSION = 2
     const val MAX_IMPORT_BYTES = 10 * 1024 * 1024
     private val json = Json { prettyPrint = true; encodeDefaults = true }
 
@@ -78,7 +88,7 @@ object BackupCodec {
         require(content.toByteArray(Charsets.UTF_8).size <= MAX_IMPORT_BYTES) { "El backup supera el límite de 10 MB" }
         val envelope = runCatching { json.decodeFromString<BackupEnvelope>(content) }
             .getOrElse { throw IllegalArgumentException("El archivo no es un backup JSON válido", it) }
-        require(envelope.schemaVersion == SCHEMA_VERSION) { "Versión de backup no compatible: ${envelope.schemaVersion}" }
+        require(envelope.schemaVersion in 1..SCHEMA_VERSION) { "Versión de backup no compatible: ${envelope.schemaVersion}" }
         validate(envelope.data)
         runCatching { Instant.parse(envelope.exportedAt) }
             .getOrElse { throw IllegalArgumentException("Fecha de exportación inválida", it) }
@@ -101,6 +111,14 @@ object BackupCodec {
         require(data.reflections.map { it.id }.allUnique()) { "Hay reflexiones duplicadas en el backup" }
         require(data.mediaItems.all { it.id.isNotBlank() && it.title.isNotBlank() }) { "Todas las obras necesitan id y título" }
         require(data.consumptions.all { it.ratingHalfStars == null || it.ratingHalfStars in 1..10 }) { "Hay una valoración fuera de rango" }
+        require(
+            data.consumptions
+                .filter { it.status == ConsumptionStatus.PLANNED.name || it.status == ConsumptionStatus.IN_PROGRESS.name }
+                .groupingBy { it.mediaItemId }
+                .eachCount()
+                .values
+                .all { it <= 1 },
+        ) { "Hay más de un consumo activo para una misma obra" }
 
         val mediaIds = data.mediaItems.mapTo(mutableSetOf()) { it.id }
         val creatorIds = data.creators.mapTo(mutableSetOf()) { it.id }
@@ -116,7 +134,9 @@ object BackupCodec {
         require(data.rememberExposures.all {
             it.consumptionId in consumptionIds && (it.reflectionId == null || it.reflectionId in reflectionIds)
         }) { "Un recuerdo contiene referencias inválidas" }
-        require(data.aiInsights.all { it.reflectionId in reflectionIds }) { "Un insight de IA apunta a una reflexión inexistente" }
+        require(data.aiInsights.all {
+            it.resolvedSourceReflectionIds.isNotEmpty() && it.resolvedSourceReflectionIds.all(reflectionIds::contains)
+        }) { "Un insight de IA apunta a una reflexión inexistente" }
 
         runCatching {
             data.mediaItems.forEach {
@@ -134,7 +154,11 @@ object BackupCodec {
                 Instant.parse(it.createdAt)
                 Instant.parse(it.updatedAt)
             }
-            data.progressEntries.forEach { ProgressType.valueOf(it.progressType); Instant.parse(it.recordedAt) }
+            data.progressEntries.forEach {
+                val type = ProgressType.valueOf(it.progressType)
+                ProgressValidator.validate(type, it.currentValue, it.totalValue, it.season, it.episode)
+                Instant.parse(it.recordedAt)
+            }
             data.reflections.forEach {
                 ReflectionType.valueOf(it.type)
                 Instant.parse(it.createdAt)

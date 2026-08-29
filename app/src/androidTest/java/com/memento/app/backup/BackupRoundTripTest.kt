@@ -9,6 +9,7 @@ import com.memento.app.data.local.entity.ConsumptionEntity
 import com.memento.app.data.local.entity.MediaItemEntity
 import com.memento.app.data.local.entity.ReflectionEntity
 import com.memento.app.data.local.entity.AiInsightEntity
+import com.memento.app.data.local.entity.AiInsightSourceCrossRef
 import com.memento.app.data.repository.RoomBackupRepository
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.MediaType
@@ -32,7 +33,8 @@ class BackupRoundTripTest {
         dao.insertMediaItems(listOf(MediaItemEntity("m1", MediaType.BOOK, "Libro", null, null, null, 2026, null, null, true, true, null, 320, null, null, now, now)))
         dao.insertConsumptions(listOf(ConsumptionEntity("c1", "m1", ConsumptionStatus.COMPLETED, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 10), 9, now, now)))
         dao.insertReflections(listOf(ReflectionEntity("r1", "c1", ReflectionType.FINAL_REFLECTION, "Idea", now, now)))
-        dao.insertAiInsights(listOf(AiInsightEntity("ai1", "r1", "SUMMARIZE", "Idea resumida", now)))
+        dao.insertAiInsights(listOf(AiInsightEntity("ai1", "SUMMARIZE", "Idea resumida", now)))
+        dao.insertAiInsightSources(listOf(AiInsightSourceCrossRef("ai1", "r1")))
 
         val exported = repository.exportJson()
         val before = BackupCodec.decodeAndValidate(exported).data

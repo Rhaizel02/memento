@@ -34,8 +34,8 @@ interface ConsumptionDao {
     @Query("SELECT * FROM consumptions WHERE mediaItemId = :mediaId ORDER BY createdAt DESC")
     fun observeForMedia(mediaId: String): Flow<List<ConsumptionEntity>>
 
-    @Query("SELECT * FROM consumptions WHERE mediaItemId = :mediaId ORDER BY createdAt DESC")
-    suspend fun getForMedia(mediaId: String): List<ConsumptionEntity>
+    @Query("SELECT * FROM consumptions ORDER BY mediaItemId, createdAt DESC")
+    fun observeAll(): Flow<List<ConsumptionEntity>>
 
     @Query("DELETE FROM consumptions WHERE id = :consumptionId")
     suspend fun deleteById(consumptionId: String)
@@ -53,15 +53,8 @@ interface ConsumptionDao {
     )
     fun observeProgressForMedia(mediaId: String): Flow<List<ProgressEntryEntity>>
 
-    @Query(
-        """
-        SELECT p.* FROM progress_entries p
-        INNER JOIN consumptions c ON c.id = p.consumptionId
-        WHERE c.mediaItemId = :mediaId
-        ORDER BY p.recordedAt DESC
-        """,
-    )
-    suspend fun getProgressForMedia(mediaId: String): List<ProgressEntryEntity>
+    @Query("SELECT * FROM progress_entries ORDER BY consumptionId, recordedAt DESC")
+    fun observeAllProgress(): Flow<List<ProgressEntryEntity>>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertReflection(reflection: ReflectionEntity)
@@ -85,13 +78,6 @@ interface ConsumptionDao {
     )
     fun observeReflectionsForMedia(mediaId: String): Flow<List<ReflectionEntity>>
 
-    @Query(
-        """
-        SELECT r.* FROM reflections r
-        INNER JOIN consumptions c ON c.id = r.consumptionId
-        WHERE c.mediaItemId = :mediaId
-        ORDER BY r.createdAt DESC
-        """,
-    )
-    suspend fun getReflectionsForMedia(mediaId: String): List<ReflectionEntity>
+    @Query("SELECT * FROM reflections ORDER BY consumptionId, createdAt DESC")
+    fun observeAllReflections(): Flow<List<ReflectionEntity>>
 }

@@ -1,13 +1,21 @@
 package com.memento.app.data.remote.mapper
 
 import com.memento.app.data.remote.api.OpenLibraryBookDto
+import com.memento.app.data.remote.api.OpenLibraryEditionDto
+import com.memento.app.data.remote.api.OpenLibraryWorkDto
 import com.memento.app.data.remote.api.RawgGameDto
+import com.memento.app.data.remote.api.RawgGameDetailsDto
 import com.memento.app.data.remote.api.TmdbMovieDto
+import com.memento.app.data.remote.api.TmdbMovieDetailsDto
 import com.memento.app.data.remote.api.TmdbSeriesDto
+import com.memento.app.data.remote.api.TmdbSeriesDetailsDto
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchResult
 import java.time.LocalDate
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 private const val TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/"
 
@@ -41,10 +49,12 @@ fun TmdbSeriesDto.toMetadataResult() = MetadataSearchResult(
     genres = genreIds.mapNotNull(tvGenres::get),
 )
 
-fun OpenLibraryBookDto.toMetadataResult() = MetadataSearchResult(
+fun OpenLibraryBookDto.toMetadataResult(): MetadataSearchResult {
+    val workId = key.substringAfterLast('/')
+    return MetadataSearchResult(
     provider = MetadataProvider.OPEN_LIBRARY,
-    externalId = key.removePrefix("/works/"),
-    externalUrl = "https://openlibrary.org$key",
+    externalId = workId,
+    externalUrl = "https://openlibrary.org/works/$workId",
     type = MediaType.BOOK,
     title = title,
     releaseYear = firstPublishYear,
@@ -53,6 +63,7 @@ fun OpenLibraryBookDto.toMetadataResult() = MetadataSearchResult(
     genres = subject.take(5),
     pageCount = pageCount,
 )
+}
 
 fun RawgGameDto.toMetadataResult() = MetadataSearchResult(
     provider = MetadataProvider.RAWG,
@@ -66,6 +77,81 @@ fun RawgGameDto.toMetadataResult() = MetadataSearchResult(
     backdropUrl = backgroundImage,
     genres = genres.map { it.name },
 )
+
+fun TmdbMovieDetailsDto.toMetadataResult() = MetadataSearchResult(
+    provider = MetadataProvider.TMDB,
+    externalId = id.toString(),
+    externalUrl = "https://www.themoviedb.org/movie/$id",
+    type = MediaType.MOVIE,
+    title = title,
+    originalTitle = originalTitle?.takeUnless { it == title },
+    description = overview?.takeIf(String::isNotBlank),
+    releaseDate = releaseDate.toLocalDateOrNull(),
+    releaseYear = releaseDate.toLocalDateOrNull()?.year,
+    posterUrl = posterPath?.let { "${TMDB_IMAGE_BASE}w500$it" },
+    backdropUrl = backdropPath?.let { "${TMDB_IMAGE_BASE}w780$it" },
+    creators = (
+        credits?.crew.orEmpty().filter { it.job == "Director" }.map { it.name } +
+            credits?.cast.orEmpty().take(3).map { it.name }
+        ).distinct(),
+    genres = genres.map { it.name },
+    runtimeMinutes = runtime,
+)
+
+fun TmdbSeriesDetailsDto.toMetadataResult() = MetadataSearchResult(
+    provider = MetadataProvider.TMDB,
+    externalId = id.toString(),
+    externalUrl = "https://www.themoviedb.org/tv/$id",
+    type = MediaType.SERIES,
+    title = name,
+    originalTitle = originalName?.takeUnless { it == name },
+    description = overview?.takeIf(String::isNotBlank),
+    releaseDate = firstAirDate.toLocalDateOrNull(),
+    releaseYear = firstAirDate.toLocalDateOrNull()?.year,
+    posterUrl = posterPath?.let { "${TMDB_IMAGE_BASE}w500$it" },
+    backdropUrl = backdropPath?.let { "${TMDB_IMAGE_BASE}w780$it" },
+    creators = (createdBy.map { it.name } + credits?.cast.orEmpty().take(3).map { it.name }).distinct(),
+    genres = genres.map { it.name },
+    runtimeMinutes = episodeRunTime.firstOrNull(),
+    seasonCount = seasonCount,
+    episodeCount = episodeCount,
+)
+
+fun OpenLibraryWorkDto.toMetadataResult(
+    summary: MetadataSearchResult,
+    edition: OpenLibraryEditionDto?,
+) = summary.copy(
+    title = title,
+    description = description.toPlainText() ?: summary.description,
+    releaseYear = firstPublishDate?.take(4)?.toIntOrNull() ?: summary.releaseYear,
+    posterUrl = (edition?.covers?.firstOrNull() ?: covers.firstOrNull())
+        ?.let { "https://covers.openlibrary.org/b/id/$it-M.jpg" } ?: summary.posterUrl,
+    genres = subjects.take(8).ifEmpty { summary.genres },
+    pageCount = edition?.pageCount ?: summary.pageCount,
+)
+
+fun RawgGameDetailsDto.toMetadataResult() = MetadataSearchResult(
+    provider = MetadataProvider.RAWG,
+    externalId = id.toString(),
+    externalUrl = slug?.let { "https://rawg.io/games/$it" },
+    type = MediaType.GAME,
+    title = name,
+    description = descriptionRaw?.takeIf(String::isNotBlank) ?: description?.stripHtml()?.takeIf(String::isNotBlank),
+    releaseDate = released.toLocalDateOrNull(),
+    releaseYear = released.toLocalDateOrNull()?.year,
+    posterUrl = backgroundImage,
+    backdropUrl = backgroundImage,
+    creators = developers.map { it.name },
+    genres = genres.map { it.name },
+)
+
+private fun kotlinx.serialization.json.JsonElement?.toPlainText(): String? = when (this) {
+    is JsonPrimitive -> contentOrNull
+    is JsonObject -> (get("value") as? JsonPrimitive)?.contentOrNull
+    else -> null
+}?.takeIf(String::isNotBlank)
+
+private fun String.stripHtml(): String = replace("<[^>]+>".toRegex(), " ").replace("\\s+".toRegex(), " ").trim()
 
 private fun String?.toLocalDateOrNull(): LocalDate? = this?.takeIf(String::isNotBlank)?.let {
     runCatching { LocalDate.parse(it) }.getOrNull()

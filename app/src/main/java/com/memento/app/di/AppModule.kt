@@ -10,6 +10,8 @@ import com.memento.app.data.local.dao.BackupDao
 import com.memento.app.data.local.database.MementoDatabase
 import com.memento.app.data.local.database.MIGRATION_1_2
 import com.memento.app.data.local.database.MIGRATION_2_3
+import com.memento.app.data.local.database.MIGRATION_3_4
+import com.memento.app.data.local.database.HARDENING_DATABASE_CALLBACK
 import com.memento.app.data.local.dao.AiInsightDao
 import com.memento.app.data.repository.RoomMediaRepository
 import com.memento.app.data.repository.RoomRememberRepository
@@ -49,7 +51,8 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MementoDatabase =
         Room.databaseBuilder(context, MementoDatabase::class.java, "memento.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addCallback(HARDENING_DATABASE_CALLBACK)
             .build()
 
     @Provides fun provideMediaDao(database: MementoDatabase): MediaDao = database.mediaDao()

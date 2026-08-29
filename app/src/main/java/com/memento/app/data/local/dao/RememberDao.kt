@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.memento.app.data.local.entity.RememberExposureEntity
 import com.memento.app.domain.model.ReflectionType
 import kotlinx.coroutines.flow.Flow
@@ -28,11 +29,11 @@ data class RememberCandidateRow(
 
 @Dao
 interface RememberDao {
-    @Query(REMEMBER_SELECT + " GROUP BY c.id")
-    fun observeCandidates(): Flow<List<RememberCandidateRow>>
+    @Query(REMEMBER_SELECT)
+    fun observeCandidates(exposuresBefore: Instant): Flow<List<RememberCandidateRow>>
 
-    @Query(REMEMBER_SELECT + " AND c.id = :consumptionId GROUP BY c.id")
-    fun observeCandidate(consumptionId: String): Flow<RememberCandidateRow?>
+    @Query(REMEMBER_SELECT + " AND c.id = :consumptionId")
+    fun observeCandidate(consumptionId: String, exposuresBefore: Instant): Flow<RememberCandidateRow?>
 
     @Query(
         """
@@ -44,6 +45,14 @@ interface RememberDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertExposure(exposure: RememberExposureEntity)
+
+    @Query("SELECT COUNT(*) FROM remember_exposures WHERE consumptionId = :consumptionId AND shownAt >= :since")
+    suspend fun exposureCountSince(consumptionId: String, since: Instant): Int
+
+    @Transaction
+    suspend fun insertExposureOncePerDay(exposure: RememberExposureEntity, dayStart: Instant) {
+        if (exposureCountSince(exposure.consumptionId, dayStart) == 0) insertExposure(exposure)
+    }
 
     companion object {
         const val REMEMBER_SELECT = """
@@ -63,14 +72,13 @@ interface RememberDao {
                 (SELECT r.content FROM reflections r WHERE r.consumptionId = c.id
                     ORDER BY CASE r.type WHEN 'FINAL_REFLECTION' THEN 0 WHEN 'LATER_REFLECTION' THEN 1 ELSE 2 END, r.createdAt DESC LIMIT 1) AS reflectionContent,
                 (SELECT COUNT(*) FROM reflections r WHERE r.consumptionId = c.id) AS reflectionCount,
-                MAX(e.shownAt) AS lastShownAt
+                (SELECT MAX(e.shownAt) FROM remember_exposures e
+                    WHERE e.consumptionId = c.id AND e.shownAt < :exposuresBefore) AS lastShownAt
             FROM consumptions c
             INNER JOIN media_items m ON m.id = c.mediaItemId
-            LEFT JOIN remember_exposures e ON e.consumptionId = c.id
             WHERE c.status = 'COMPLETED'
               AND c.completedDate IS NOT NULL
               AND EXISTS (SELECT 1 FROM reflections r WHERE r.consumptionId = c.id)
         """
     }
 }
-

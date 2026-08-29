@@ -26,20 +26,31 @@ data class RememberCandidate(
 data class ScoredRememberCandidate(val candidate: RememberCandidate, val score: Double)
 
 class RememberEngine {
+    fun eligible(candidates: List<RememberCandidate>, now: Instant): List<RememberCandidate> {
+        val notRecentlyShown = candidates.filter { candidate ->
+            candidate.lastShownAt == null || ChronoUnit.DAYS.between(candidate.lastShownAt, now) >= 30
+        }
+        return notRecentlyShown.ifEmpty { candidates }
+    }
+
+    fun scoreCandidates(candidates: List<RememberCandidate>, today: LocalDate, now: Instant): List<ScoredRememberCandidate> =
+        candidates.map { ScoredRememberCandidate(it, score(it, today, now).coerceAtLeast(0.1)) }
+
     fun select(
         candidates: List<RememberCandidate>,
         today: LocalDate = LocalDate.now(),
         now: Instant = Instant.now(),
-        variation: (String) -> Double = { key -> stableVariation(key, today) },
+        randomValue: Double = stableRandom(candidates, today),
     ): ScoredRememberCandidate? {
         if (candidates.isEmpty()) return null
-        val notRecentlyShown = candidates.filter { candidate ->
-            candidate.lastShownAt == null || ChronoUnit.DAYS.between(candidate.lastShownAt, now) >= 30
-        }
-        val pool = notRecentlyShown.ifEmpty { candidates }
-        return pool.map { candidate ->
-            ScoredRememberCandidate(candidate, score(candidate, today, now) + variation(candidate.consumptionId).coerceIn(0.0, 1.0))
-        }.maxWithOrNull(compareBy<ScoredRememberCandidate> { it.score }.thenBy { it.candidate.consumptionId })
+        val scored = scoreCandidates(eligible(candidates, now), today, now).sortedBy { it.candidate.consumptionId }
+        val totalWeight = scored.sumOf { it.score }
+        val target = randomValue.coerceIn(0.0, 0.999999999).times(totalWeight)
+        var cumulative = 0.0
+        return scored.firstOrNull {
+            cumulative += it.score
+            target < cumulative
+        } ?: scored.lastOrNull()
     }
 
     fun score(candidate: RememberCandidate, today: LocalDate, now: Instant): Double {
@@ -78,8 +89,8 @@ class RememberEngine {
     }
 }
 
-private fun stableVariation(key: String, today: LocalDate): Double {
+private fun stableRandom(candidates: List<RememberCandidate>, today: LocalDate): Double {
+    val key = candidates.map { it.consumptionId }.sorted().joinToString("|")
     val positiveHash = (31 * key.hashCode() + today.toEpochDay().hashCode()).toUInt().toLong()
     return (positiveHash % 10_000L) / 10_000.0
 }
-

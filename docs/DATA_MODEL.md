@@ -3,7 +3,7 @@
 ```text
 MediaItem 1 ── N Consumption 1 ── N ProgressEntry
     │                │
-    │                └── N Reflection 1 ── N AiInsight
+    │                └── N Reflection N ── M AiInsight
     ├── N:M Creator (rol)
     ├── N:M Genre
     └── 1:N ExternalMediaRef
@@ -18,11 +18,11 @@ External candidate ── RecommendationFeedback
 - **Consumption:** una lectura, visionado o partida concreta, con estado, fechas y rating propios. Un reconsumo crea otra fila.
 - **ProgressEntry:** historial de páginas, episodio, horas, porcentaje o minutos.
 - **Reflection:** texto UTF-8 de tipo nota, reflexión final o reflexión posterior. Ninguna función inteligente sustituye contenido existente.
-- **AiInsight:** resultado on-device aceptado expresamente, ligado a la reflexión que lo originó y eliminado en cascada con ella.
+- **AiInsight:** resultado on-device aceptado expresamente. `ai_insight_sources` conserva una o varias reflexiones fuente con procedencia visible. Al borrar una fuente se conserva el insight si queda otra; al desaparecer la última, un trigger limpia el huérfano.
 
 ## Relaciones descriptivas
 
-`Creator` y `Genre` se normalizan y se relacionan N:M. `ExternalMediaRef` mantiene el vínculo con TMDB, Open Library o RAWG y su restricción única evita duplicados por proveedor, id externo y tipo.
+`Creator` y `Genre` se normalizan y se relacionan N:M; el borrado de una obra limpia ambos tipos de huérfano. `ExternalMediaRef` mantiene el vínculo con TMDB, Open Library o RAWG y su restricción única evita duplicados por proveedor, id externo y tipo. Para Open Library se persiste el Work estable; la Edition sólo enriquece la importación y no requiere una segunda referencia.
 
 ## Sistemas derivados
 
@@ -36,8 +36,10 @@ Timeline, estadísticas, Wrapped, perfiles de gusto y puntuaciones de recomendac
 
 - Borrar una obra elimina en cascada sus consumos y dependencias, tras confirmación en UI.
 - Borrar un consumo no elimina la obra ni otros consumos.
+- Sólo puede existir un consumo `PLANNED` o `IN_PROGRESS` por obra. El repositorio reutiliza la fila activa, el backup lo valida y triggers SQLite protegen inserciones/actualizaciones concurrentes.
+- El progreso valida páginas contra total conocido, temporada/episodio desde 1, porcentajes entre 0 y 100 y valores finitos no negativos.
 - IDs internos son UUID String, nunca IDs del proveedor.
 - Las fechas personales son `LocalDate`; timestamps técnicos, `Instant` UTC.
-- El schema actual es versión 3 y se exporta a `app/schemas`.
-- `1→2` añade recomendación/cache/feedback; `2→3` añade insights de IA.
-- El backup JSON v1 contiene todas las tablas personales y valida claves foráneas antes de restaurar.
+- El schema actual es versión 4 y se exporta a `app/schemas`.
+- `1→2` añade recomendación/cache/feedback; `2→3` añade insights de IA; `3→4` migra su fuente única a la relación N:M sin perderla.
+- El backup JSON v2 contiene todas las tablas personales y valida claves foráneas e invariantes antes de restaurar; acepta v1 y migra su `reflectionId` al importar.

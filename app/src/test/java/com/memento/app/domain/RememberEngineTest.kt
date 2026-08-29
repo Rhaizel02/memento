@@ -11,6 +11,7 @@ import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlin.random.Random
 
 class RememberEngineTest {
     private val today = LocalDate.parse("2029-06-15")
@@ -28,19 +29,18 @@ class RememberEngineTest {
         val engine = RememberEngine()
 
         assertTrue(engine.score(meaningful, today, now) > engine.score(plain, today, now))
-        assertEquals("meaningful", engine.select(listOf(plain, meaningful), today, now) { 0.0 }?.candidate?.consumptionId)
     }
 
     @Test fun `recent exposure is excluded when an alternative exists`() {
         val recent = candidate("recent", lastShown = now.minus(2, ChronoUnit.DAYS), favorite = true)
         val alternative = candidate("alternative")
 
-        assertEquals("alternative", RememberEngine().select(listOf(recent, alternative), today, now) { 0.0 }?.candidate?.consumptionId)
+        assertEquals(listOf("alternative"), RememberEngine().eligible(listOf(recent, alternative), now).map { it.consumptionId })
     }
 
     @Test fun `small library relaxes repetition restriction`() {
         val only = candidate("only", lastShown = now.minus(2, ChronoUnit.DAYS))
-        assertEquals("only", RememberEngine().select(listOf(only), today, now) { 0.0 }?.candidate?.consumptionId)
+        assertEquals("only", RememberEngine().select(listOf(only), today, now, 0.0)?.candidate?.consumptionId)
     }
 
     @Test fun `anniversary receives a bonus`() {
@@ -52,6 +52,26 @@ class RememberEngineTest {
 
     @Test fun `empty candidates return no memory`() {
         assertNull(RememberEngine().select(emptyList(), today, now))
+    }
+
+    @Test fun `weighted selection is deterministic with seed and does not collapse to max`() {
+        val candidates = listOf(candidate("a"), candidate("b", favorite = true))
+        fun sequence(seed: Int): List<String?> {
+            val random = Random(seed)
+            return List(500) { RememberEngine().select(candidates, today, now, random.nextDouble())?.candidate?.consumptionId }
+        }
+        val first = sequence(73)
+        assertEquals(first, sequence(73))
+        assertTrue(first.count { it == "a" } > 50)
+        assertTrue(first.count { it == "b" } > first.count { it == "a" })
+    }
+
+    @Test fun `default daily draw is stable for the same inputs`() {
+        val candidates = listOf(candidate("a"), candidate("b"))
+        assertEquals(
+            RememberEngine().select(candidates, today, now)?.candidate?.consumptionId,
+            RememberEngine().select(candidates, today, now)?.candidate?.consumptionId,
+        )
     }
 
     private fun candidate(
@@ -77,4 +97,3 @@ class RememberEngineTest {
         lastShownAt = lastShown,
     )
 }
-

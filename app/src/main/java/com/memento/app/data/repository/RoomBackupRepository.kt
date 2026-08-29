@@ -20,6 +20,7 @@ class RoomBackupRepository @Inject constructor(
 ) : BackupRepository {
     override suspend fun exportJson(): String {
         val data = database.withTransaction {
+            val aiSources = dao.aiInsightSources().groupBy({ it.aiInsightId }, { it.reflectionId })
             BackupData(
                 mediaItems = dao.mediaItems().map { it.toBackup() },
                 externalRefs = dao.externalRefs().map { it.toBackup() },
@@ -32,7 +33,9 @@ class RoomBackupRepository @Inject constructor(
                 reflections = dao.reflections().map { it.toBackup() },
                 rememberExposures = dao.rememberExposures().map { it.toBackup() },
                 recommendationFeedback = dao.recommendationFeedback().map { it.toBackup() },
-                aiInsights = dao.aiInsights().map { it.toBackup() },
+                aiInsights = dao.aiInsights().map { insight ->
+                    insight.toBackup(aiSources[insight.id].orEmpty())
+                },
             )
         }
         return BackupCodec.encode(
@@ -47,6 +50,7 @@ class RoomBackupRepository @Inject constructor(
         val data = envelope.data
         database.withTransaction {
             dao.clearRememberExposures()
+            dao.clearAiInsightSources()
             dao.clearAiInsights()
             dao.clearReflections()
             dao.clearProgressEntries()
@@ -72,6 +76,9 @@ class RoomBackupRepository @Inject constructor(
             dao.insertRememberExposures(data.rememberExposures.map { it.toEntity() })
             dao.insertRecommendationFeedback(data.recommendationFeedback.map { it.toEntity() })
             dao.insertAiInsights(data.aiInsights.map { it.toEntity() })
+            dao.insertAiInsightSources(data.aiInsights.flatMap { insight ->
+                insight.resolvedSourceReflectionIds.distinct().map { AiInsightSourceCrossRef(insight.id, it) }
+            })
         }
         return BackupCodec.preview(envelope)
     }
@@ -97,7 +104,13 @@ private fun RememberExposureEntity.toBackup() = BackupRememberExposure(id, consu
 private fun RecommendationFeedbackEntity.toBackup() = BackupRecommendationFeedback(
     id, provider.name, externalId, mediaType.name, feedbackType.name, createdAt.toString(),
 )
-private fun AiInsightEntity.toBackup() = BackupAiInsight(id, reflectionId, capability, content, createdAt.toString())
+private fun AiInsightEntity.toBackup(sourceReflectionIds: List<String>) = BackupAiInsight(
+    id = id,
+    capability = capability,
+    content = content,
+    createdAt = createdAt.toString(),
+    sourceReflectionIds = sourceReflectionIds,
+)
 
 private fun BackupMediaItem.toEntity() = MediaItemEntity(
     id, MediaType.valueOf(type), title, originalTitle, description, releaseDate?.let(LocalDate::parse), releaseYear,
@@ -126,4 +139,4 @@ private fun BackupRecommendationFeedback.toEntity() = RecommendationFeedbackEnti
     id, MetadataProvider.valueOf(provider), externalId, MediaType.valueOf(mediaType),
     RecommendationFeedbackType.valueOf(feedbackType), Instant.parse(createdAt),
 )
-private fun BackupAiInsight.toEntity() = AiInsightEntity(id, reflectionId, capability, content, Instant.parse(createdAt))
+private fun BackupAiInsight.toEntity() = AiInsightEntity(id, capability, content, Instant.parse(createdAt))

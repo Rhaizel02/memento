@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeRememberRepository : RememberRepository {
     val memory = MutableStateFlow<RememberCandidate?>(null)
+    val recordedExposures = mutableListOf<String>()
     override fun observeRemember(): Flow<RememberCandidate?> = memory
     override fun observeRemember(consumptionId: String): Flow<RememberCandidate?> = memory
-    override suspend fun recordExposure(consumptionId: String) = Unit
+    override suspend fun recordExposure(consumptionId: String) { recordedExposures += consumptionId }
 }

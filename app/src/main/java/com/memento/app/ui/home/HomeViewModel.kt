@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -34,10 +35,13 @@ class HomeViewModel @Inject constructor(
     private val recommendationRepository: RecommendationRepository,
 ) : ViewModel() {
     private val currentYear = LocalDate.now().year
+    private val remember = rememberRepository.observeRemember().onEach { candidate ->
+        candidate?.let { rememberRepository.recordExposure(it.consumptionId) }
+    }
     val state = combine(
         repository.observeInProgress(),
         repository.observeRecentlyCompleted(),
-        rememberRepository.observeRemember(),
+        remember,
         recommendationRepository.observeFeed(),
         repository.observeCompletedCounts(currentYear),
     ) { inProgress, recent, remember, recommendationFeed, completedCounts ->

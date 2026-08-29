@@ -16,6 +16,7 @@ import com.memento.app.data.local.entity.RecommendationFeedbackEntity
 import com.memento.app.data.local.entity.ReflectionEntity
 import com.memento.app.data.local.entity.RememberExposureEntity
 import com.memento.app.data.local.entity.AiInsightEntity
+import com.memento.app.data.local.entity.AiInsightSourceCrossRef
 
 @Dao
 interface BackupDao {
@@ -31,6 +32,7 @@ interface BackupDao {
     @Query("SELECT * FROM remember_exposures ORDER BY id") suspend fun rememberExposures(): List<RememberExposureEntity>
     @Query("SELECT * FROM recommendation_feedback ORDER BY id") suspend fun recommendationFeedback(): List<RecommendationFeedbackEntity>
     @Query("SELECT * FROM ai_insights ORDER BY id") suspend fun aiInsights(): List<AiInsightEntity>
+    @Query("SELECT * FROM ai_insight_sources ORDER BY aiInsightId, reflectionId") suspend fun aiInsightSources(): List<AiInsightSourceCrossRef>
 
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertMediaItems(rows: List<MediaItemEntity>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertExternalRefs(rows: List<ExternalMediaRefEntity>)
@@ -44,6 +46,7 @@ interface BackupDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertRememberExposures(rows: List<RememberExposureEntity>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertRecommendationFeedback(rows: List<RecommendationFeedbackEntity>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertAiInsights(rows: List<AiInsightEntity>)
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertAiInsightSources(rows: List<AiInsightSourceCrossRef>)
 
     @Query("DELETE FROM remember_exposures") suspend fun clearRememberExposures()
     @Query("DELETE FROM reflections") suspend fun clearReflections()
@@ -58,4 +61,5 @@ interface BackupDao {
     @Query("DELETE FROM recommendation_feedback") suspend fun clearRecommendationFeedback()
     @Query("DELETE FROM recommendation_candidates") suspend fun clearRecommendationCandidates()
     @Query("DELETE FROM ai_insights") suspend fun clearAiInsights()
+    @Query("DELETE FROM ai_insight_sources") suspend fun clearAiInsightSources()
 }

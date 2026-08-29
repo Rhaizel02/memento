@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,13 +30,15 @@ class DiscoverViewModel @Inject constructor(
         DiscoverUiState(feed.profile, feed.recommendations, isRefreshing)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiscoverUiState())
 
-    init { refresh() }
+    init { refresh(force = false) }
 
-    fun refresh() {
+    fun refresh() = refresh(force = true)
+
+    private fun refresh(force: Boolean) {
         if (refreshing.value) return
         viewModelScope.launch {
             refreshing.value = true
-            runCatching { repository.refreshCandidates() }
+            runCatching { repository.refreshCandidates(force) }
             refreshing.value = false
         }
     }

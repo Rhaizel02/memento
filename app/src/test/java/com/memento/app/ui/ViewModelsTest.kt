@@ -10,6 +10,9 @@ import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.LibrarySort
 import com.memento.app.domain.model.EditMediaInput
+import com.memento.app.domain.model.MetadataProvider
+import com.memento.app.domain.model.MetadataSearchResult
+import com.memento.app.domain.repository.MetadataDetailsOutcome
 import com.memento.app.ui.add.AddMediaViewModel
 import com.memento.app.ui.detail.MediaDetailViewModel
 import com.memento.app.ui.home.HomeViewModel
@@ -25,6 +28,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
+import com.memento.app.domain.remember.RememberCandidate
+import com.memento.app.domain.model.ReflectionType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViewModelsTest {
@@ -52,6 +58,20 @@ class ViewModelsTest {
         assertEquals(1, viewModel.state.value.recentlyCompleted.size)
         assertEquals(1, viewModel.state.value.completedByType[MediaType.BOOK])
         assertFalse(viewModel.state.value.isLoading)
+    }
+
+    @Test fun `home hero records a remember exposure when shown`() = runTest {
+        val remember = FakeRememberRepository().apply {
+            memory.value = RememberCandidate(
+                "c1", "m1", "Dune", LocalDate.of(2024, 1, 1), 9, true, null, null,
+                "r1", ReflectionType.FINAL_REFLECTION, "Idea", 1, null,
+            )
+        }
+        val viewModel = HomeViewModel(FakeMediaRepository(), remember, FakeRecommendationRepository())
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        advanceUntilIdle()
+
+        assertEquals(listOf("c1"), remember.recordedExposures)
     }
 
     @Test fun `library forwards search and type filters`() = runTest {
@@ -86,6 +106,41 @@ class ViewModelsTest {
         assertEquals("Frank Herbert", repository.addedInput?.creator)
         assertEquals(ConsumptionStatus.PLANNED, repository.addedStatus)
         assertEquals("new-media", viewModel.state.value.savedMediaId)
+    }
+
+    @Test fun `external selection fetches full detail before enabling persistence`() = runTest {
+        val repository = FakeMediaRepository()
+        val summary = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "OL1W", null, MediaType.BOOK, "Resumen")
+        val metadata = FakeMetadataRepository().apply {
+            detailOutcome = MetadataDetailsOutcome.Complete(summary.copy(title = "Detalle", pageCount = 321))
+        }
+        val viewModel = AddMediaViewModel(repository, metadata)
+
+        viewModel.selectResult(summary)
+        assertFalse(viewModel.state.value.canSave)
+        advanceUntilIdle()
+        viewModel.save(ConsumptionStatus.PLANNED)
+        advanceUntilIdle()
+
+        assertEquals(1, metadata.detailRequests)
+        assertEquals("Detalle", repository.externalResult?.title)
+        assertEquals(321, repository.externalResult?.pageCount)
+    }
+
+    @Test fun `failed detail fetch keeps partial search result persistable with notice`() = runTest {
+        val repository = FakeMediaRepository()
+        val summary = MetadataSearchResult(MetadataProvider.RAWG, "7", null, MediaType.GAME, "Resultado parcial")
+        val metadata = FakeMetadataRepository().apply { detailOutcome = MetadataDetailsOutcome.Partial(summary) }
+        val viewModel = AddMediaViewModel(repository, metadata)
+
+        viewModel.selectResult(summary)
+        advanceUntilIdle()
+        assertEquals(true, viewModel.state.value.metadataIsPartial)
+        assertEquals(true, viewModel.state.value.canSave)
+        viewModel.save(ConsumptionStatus.PLANNED)
+        advanceUntilIdle()
+
+        assertEquals("Resultado parcial", repository.externalResult?.title)
     }
 
     @Test fun `detail starts a new consumption for loaded media`() = runTest {

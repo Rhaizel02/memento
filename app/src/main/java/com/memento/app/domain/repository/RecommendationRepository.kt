@@ -13,6 +13,6 @@ data class RecommendationFeed(
 
 interface RecommendationRepository {
     fun observeFeed(): Flow<RecommendationFeed>
-    suspend fun refreshCandidates()
+    suspend fun refreshCandidates(force: Boolean = false)
     suspend fun setFeedback(key: RecommendationKey, feedback: RecommendationFeedbackType)
 }

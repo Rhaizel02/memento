@@ -23,12 +23,14 @@ class FakeMediaRepository : MediaRepository {
     val completed = MutableStateFlow<List<MediaItem>>(emptyList())
     val completedCounts = MutableStateFlow<Map<MediaType, Int>>(emptyMap())
     val detail = MutableStateFlow<MediaDetail?>(null)
+    val allDetails = MutableStateFlow<List<MediaDetail>>(emptyList())
     val timeline = MutableStateFlow<List<TimelineEvent>>(emptyList())
     var lastQuery: String = ""
     var lastType: MediaType? = null
     var lastFilters: LibraryFilters = LibraryFilters()
     var addedInput: AddMediaInput? = null
     var addedStatus: ConsumptionStatus? = null
+    var externalResult: MetadataSearchResult? = null
     var startedMediaId: String? = null
     var editedMediaId: String? = null
     var editedInput: EditMediaInput? = null
@@ -47,14 +49,17 @@ class FakeMediaRepository : MediaRepository {
     override fun observeInProgress(): Flow<List<MediaItem>> = inProgress
     override fun observeRecentlyCompleted(limit: Int): Flow<List<MediaItem>> = completed
     override fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>> = completedCounts
-    override fun observeAllDetails(): Flow<List<MediaDetail>> = kotlinx.coroutines.flow.flowOf(listOfNotNull(detail.value))
+    override fun observeAllDetails(): Flow<List<MediaDetail>> = allDetails
     override suspend fun addManual(input: AddMediaInput, initialStatus: ConsumptionStatus): String {
         addedInput = input
         addedStatus = initialStatus
         return "new-media"
     }
-    override suspend fun addExternal(input: MetadataSearchResult, initialStatus: ConsumptionStatus): SaveExternalResult =
-        SaveExternalResult("new-external-media", wasDuplicate = false)
+    override suspend fun addExternal(input: MetadataSearchResult, initialStatus: ConsumptionStatus): SaveExternalResult {
+        externalResult = input
+        addedStatus = initialStatus
+        return SaveExternalResult("new-external-media", wasDuplicate = false)
+    }
     override suspend fun updateMedia(mediaId: String, input: EditMediaInput) {
         editedMediaId = mediaId
         editedInput = input

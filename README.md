@@ -9,15 +9,15 @@ Sección preparada. Las capturas se añadirán tras la validación visual final 
 ## Funcionalidad
 
 - biblioteca de libros, películas, series y videojuegos con búsqueda, filtros y orden;
-- alta manual o búsqueda en TMDB, Open Library y RAWG, con revisión y detección de duplicados;
+- alta manual o búsqueda en TMDB, Open Library y RAWG; al elegir un resultado se descarga su ficha completa antes de revisar y persistir;
 - pendientes, progreso específico por tipo, finalización, abandono, medias estrellas y favoritos;
 - múltiples consumos por obra, notas, reflexión final, reflexiones posteriores y timeline derivada;
 - edición de metadata y reflexiones, historial visible y eliminación independiente de consumos con confirmación;
-- Remember ponderado con historial de exposiciones y comparación entre pensamientos separados en el tiempo;
-- recomendaciones locales explicables, feedback y cache remoto prescindible;
+- Remember con sorteo ponderado estable por día, historial de exposiciones y comparación entre pensamientos separados en el tiempo;
+- recomendaciones locales explicables, feedback y cache remoto prescindible con stale-while-revalidate;
 - estadísticas anuales, Wrapped histórico y tarjetas PNG 1080 × 1920 compartibles;
 - backup JSON versionado, validado y restaurado en una transacción Room;
-- IA opcional en el dispositivo para pulir, resumir, extraer temas, preguntar y comparar reflexiones. Nunca sustituye el original.
+- IA opcional en el dispositivo para pulir, resumir, extraer temas, preguntar, comparar y conectar reflexiones de obras distintas. Los insights conservan todas sus fuentes y nunca sustituyen el original.
 
 ## Stack
 
@@ -52,7 +52,7 @@ No subas `local.properties`, tokens ni keystores. Una clave incorporada a un APK
 
 ## Offline y privacidad
 
-Room es la fuente de verdad. Biblioteca, consumos, progreso, reflexiones, Remember, estadísticas y backups funcionan sin Internet. Las APIs externas solo buscan candidatos y metadata que se copia a Room.
+Room es la fuente de verdad. Biblioteca, consumos, progreso, reflexiones, Remember, estadísticas y backups funcionan sin Internet. Las APIs externas solo buscan candidatos y completan la ficha seleccionada; si falla el detalle se conserva el resultado parcial con un aviso antes de copiarlo a Room.
 
 No hay login, backend, analytics, anuncios ni telemetría propia. Memento no hace backups remotos. Las reflexiones no se registran en logs y ninguna automatización las sobrescribe.
 
@@ -66,7 +66,7 @@ Documentación oficial: [ML Kit GenAI Prompt API](https://developers.google.com/
 
 ## Backup
 
-Desde Ajustes se exporta un JSON UTF-8 con `schemaVersion = 1`. Incluye obras, referencias externas, creadores, géneros, consumos, progreso, reflexiones, exposiciones de Remember, feedback e insights de IA; excluye la cache descargable de recomendaciones.
+Desde Ajustes se exporta un JSON UTF-8 con `schemaVersion = 2`. Incluye obras, referencias externas, creadores, géneros, consumos, progreso, reflexiones, exposiciones de Remember, feedback, insights de IA y sus múltiples fuentes; excluye la cache descargable de recomendaciones. Los backups v1 siguen siendo importables.
 
 La importación limita el archivo a 10 MB, valida estructura, claves foráneas, enums y fechas, muestra un resumen y solo entonces reemplaza los datos en una única transacción. Si falla, Room revierte la operación.
 
@@ -93,7 +93,7 @@ El APK queda en `app/build/outputs/apk/debug/app-debug.apk`. `assembleRelease` t
 ./gradlew assembleDebug
 ```
 
-Las pruebas unitarias cubren motores de Remember, recomendaciones, estadísticas y Wrapped; timeline, ratings, backup, mappers y estados principales de ViewModels, incluida una IA falsa. Las pruebas instrumentadas validan el round trip Room, edición/cascadas, la tarjeta compartible 1080 × 1920 y flujos Compose críticos de alta y eliminación. Para ejecutarlas en un dispositivo conectado:
+Las pruebas unitarias cubren Remember ponderado/determinista, cache de recomendaciones, conexiones entre reflexiones, progreso, estadísticas y Wrapped; timeline, ratings, backup, mappers y estados principales de ViewModels, incluida una IA falsa. Las pruebas instrumentadas validan la migración `3→4`, fuentes N:M y cascadas, consumo activo único, exposiciones diarias, round trip Room, la tarjeta compartible 1080 × 1920 y flujos Compose críticos. Para ejecutarlas en un dispositivo conectado:
 
 ```bash
 ./gradlew connectedDebugAndroidTest

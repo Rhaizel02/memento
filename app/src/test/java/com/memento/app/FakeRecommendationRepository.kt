@@ -11,6 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeRecommendationRepository : RecommendationRepository {
     val feed = MutableStateFlow(RecommendationFeed(TasteProfile(0, emptyMap(), emptyMap(), emptyMap()), emptyList()))
     override fun observeFeed(): Flow<RecommendationFeed> = feed
-    override suspend fun refreshCandidates() = Unit
+    override suspend fun refreshCandidates(force: Boolean) = Unit
     override suspend fun setFeedback(key: RecommendationKey, feedback: RecommendationFeedbackType) = Unit
 }

@@ -11,6 +11,7 @@ import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.repository.MetadataRepository
+import com.memento.app.domain.repository.MetadataDetailsOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -40,12 +41,14 @@ data class AddMediaUiState(
     val description: String = "",
     val imageUrl: String = "",
     val pageCount: String = "",
+    val isLoadingDetails: Boolean = false,
+    val metadataIsPartial: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedMediaId: String? = null,
     val savedWasDuplicate: Boolean = false,
 ) {
-    val canSave: Boolean get() = title.isNotBlank() && !isSaving
+    val canSave: Boolean get() = title.isNotBlank() && !isSaving && !isLoadingDetails
 }
 
 private data class SearchRequest(val query: String, val type: MediaType)
@@ -109,8 +112,9 @@ class AddMediaViewModel @Inject constructor(
 
     fun returnToSearch() = mutableState.update { it.copy(mode = AddMediaMode.SEARCH, selectedExternal = null, error = null) }
 
-    fun selectResult(result: MetadataSearchResult) = mutableState.update {
-        it.copy(
+    fun selectResult(result: MetadataSearchResult) {
+        mutableState.update {
+            it.copy(
             mode = AddMediaMode.CONFIRM_EXTERNAL,
             selectedExternal = result,
             type = result.type,
@@ -120,8 +124,29 @@ class AddMediaViewModel @Inject constructor(
             description = result.description.orEmpty(),
             imageUrl = result.posterUrl.orEmpty(),
             pageCount = result.pageCount?.toString().orEmpty(),
+            isLoadingDetails = true,
+            metadataIsPartial = false,
             error = null,
         )
+        }
+        viewModelScope.launch {
+            val outcome = metadataRepository.fetchDetails(result)
+            val detailed = outcome.result
+            mutableState.update {
+                it.copy(
+                    selectedExternal = detailed,
+                    type = detailed.type,
+                    title = detailed.title,
+                    year = detailed.releaseYear?.toString().orEmpty(),
+                    creator = detailed.creators.joinToString(),
+                    description = detailed.description.orEmpty(),
+                    imageUrl = detailed.posterUrl.orEmpty(),
+                    pageCount = detailed.pageCount?.toString().orEmpty(),
+                    isLoadingDetails = false,
+                    metadataIsPartial = outcome is MetadataDetailsOutcome.Partial,
+                )
+            }
+        }
     }
 
     fun setTitle(value: String) = mutableState.update { it.copy(title = value, error = null) }

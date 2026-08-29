@@ -12,6 +12,7 @@ import com.memento.app.ai.AiCapability
 import com.memento.app.ai.AiProcessor
 import com.memento.app.domain.repository.AiInsight
 import com.memento.app.domain.repository.AiInsightRepository
+import com.memento.app.domain.insight.ReflectionConnectionSelector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,6 +44,7 @@ private data class AiPanelState(
     val capability: AiCapability? = null,
     val output: String? = null,
     val error: String? = null,
+    val sourceReflectionIds: List<String> = emptyList(),
 )
 
 @HiltViewModel
@@ -98,15 +101,35 @@ class RememberViewModel @Inject constructor(
 
     fun runAi(capability: AiCapability) {
         val candidate = state.value.memory ?: return
-        val comparison = state.value.detail?.reflections
+        val laterReflection = state.value.detail?.reflections
             ?.filter { it.type == ReflectionType.LATER_REFLECTION }
             ?.maxByOrNull { it.createdAt }
-            ?.content
-        if ((capability == AiCapability.COMPARE_REFLECTIONS || capability == AiCapability.CONNECT_REFLECTIONS) && comparison == null) return
+        if (capability == AiCapability.COMPARE_REFLECTIONS && laterReflection == null) return
         viewModelScope.launch {
             aiPanel.value = aiPanel.value.copy(isWorking = true, capability = capability, output = null, error = null)
+            val connection = if (capability == AiCapability.CONNECT_REFLECTIONS) {
+                ReflectionConnectionSelector.select(
+                    candidate.mediaId,
+                    candidate.reflectionContent,
+                    mediaRepository.observeAllDetails().first(),
+                )
+            } else null
+            if (capability == AiCapability.CONNECT_REFLECTIONS && connection == null) {
+                aiPanel.value = aiPanel.value.copy(isWorking = false, error = "No hay otra obra con una reflexión relacionada todavía")
+                return@launch
+            }
+            val comparison = when (capability) {
+                AiCapability.COMPARE_REFLECTIONS -> laterReflection?.content
+                AiCapability.CONNECT_REFLECTIONS -> connection?.reflection?.content
+                else -> null
+            }
+            val sources = when (capability) {
+                AiCapability.COMPARE_REFLECTIONS -> listOf(candidate.reflectionId, requireNotNull(laterReflection).id)
+                AiCapability.CONNECT_REFLECTIONS -> listOf(candidate.reflectionId, requireNotNull(connection).reflection.id)
+                else -> listOf(candidate.reflectionId)
+            }
             runCatching { aiProcessor.process(capability, candidate.reflectionContent, comparison) }
-                .onSuccess { aiPanel.value = aiPanel.value.copy(isWorking = false, output = it) }
+                .onSuccess { aiPanel.value = aiPanel.value.copy(isWorking = false, output = it, sourceReflectionIds = sources) }
                 .onFailure { aiPanel.value = aiPanel.value.copy(isWorking = false, error = it.message) }
         }
     }
@@ -116,12 +139,12 @@ class RememberViewModel @Inject constructor(
         val capability = aiPanel.value.capability ?: return
         val output = aiPanel.value.output ?: return
         viewModelScope.launch {
-            aiInsightRepository.save(memory.reflectionId, capability, output)
+            aiInsightRepository.save(aiPanel.value.sourceReflectionIds.ifEmpty { listOf(memory.reflectionId) }, capability, output)
             aiPanel.value = aiPanel.value.copy(output = null, capability = null)
         }
     }
 
     fun discardAiResult() {
-        aiPanel.value = aiPanel.value.copy(output = null, capability = null, error = null)
+        aiPanel.value = aiPanel.value.copy(output = null, capability = null, error = null, sourceReflectionIds = emptyList())
     }
 }

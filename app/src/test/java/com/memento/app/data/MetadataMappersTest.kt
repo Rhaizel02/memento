@@ -4,14 +4,92 @@ import com.memento.app.data.remote.api.OpenLibraryBookDto
 import com.memento.app.data.remote.api.RawgGameDto
 import com.memento.app.data.remote.api.RawgGenreDto
 import com.memento.app.data.remote.api.TmdbMovieDto
+import com.memento.app.data.remote.api.TmdbMovieDetailsDto
+import com.memento.app.data.remote.api.TmdbCreditsDto
+import com.memento.app.data.remote.api.TmdbCrewDto
+import com.memento.app.data.remote.api.TmdbPersonDto
+import com.memento.app.data.remote.api.TmdbGenreDto
+import com.memento.app.data.remote.api.TmdbSeriesDetailsDto
+import com.memento.app.data.remote.api.OpenLibraryWorkDto
+import com.memento.app.data.remote.api.OpenLibraryEditionDto
+import com.memento.app.data.remote.api.RawgGameDetailsDto
+import com.memento.app.data.remote.api.RawgNamedDto
 import com.memento.app.data.remote.mapper.toMetadataResult
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlinx.serialization.json.JsonPrimitive
 
 class MetadataMappersTest {
+    @Test
+    fun `TMDB detail enriches search fields with runtime credits and named genres`() {
+        val result = TmdbMovieDetailsDto(
+            id = 42,
+            title = "La obra",
+            overview = "Completa",
+            releaseDate = "2024-05-03",
+            genres = listOf(TmdbGenreDto("Drama")),
+            runtime = 141,
+            credits = TmdbCreditsDto(
+                cast = listOf(TmdbPersonDto("Intérprete")),
+                crew = listOf(TmdbCrewDto("Directora", "Director")),
+            ),
+        ).toMetadataResult()
+
+        assertEquals(141, result.runtimeMinutes)
+        assertEquals(listOf("Directora", "Intérprete"), result.creators)
+        assertEquals(listOf("Drama"), result.genres)
+    }
+
+    @Test
+    fun `TMDB series detail maps structure creators and runtime`() {
+        val result = TmdbSeriesDetailsDto(
+            id = 84,
+            name = "Serie",
+            firstAirDate = "2020-01-02",
+            genres = listOf(TmdbGenreDto("Drama")),
+            createdBy = listOf(TmdbPersonDto("Creadora")),
+            episodeRunTime = listOf(52),
+            seasonCount = 4,
+            episodeCount = 32,
+        ).toMetadataResult()
+
+        assertEquals(listOf("Creadora"), result.creators)
+        assertEquals(52, result.runtimeMinutes)
+        assertEquals(4, result.seasonCount)
+        assertEquals(32, result.episodeCount)
+    }
+
+    @Test
+    fun `Open Library detail keeps stable work id and enriches from edition`() {
+        val summary = OpenLibraryBookDto("/works/OL123W", "Libro", listOf("Autora")).toMetadataResult()
+        val result = OpenLibraryWorkDto(
+            title = "Libro completo",
+            description = JsonPrimitive("Descripción completa"),
+            firstPublishDate = "1984",
+            subjects = listOf("Ficción"),
+        ).toMetadataResult(summary, OpenLibraryEditionDto("/books/OL9M", pageCount = 320, covers = listOf(99)))
+
+        assertEquals("OL123W", result.externalId)
+        assertEquals("Descripción completa", result.description)
+        assertEquals(320, result.pageCount)
+        assertEquals(listOf("Autora"), result.creators)
+    }
+
+    @Test
+    fun `RAWG detail adds developer and plain description`() {
+        val result = RawgGameDetailsDto(
+            id = 7,
+            name = "Juego",
+            description = "<p>Descripción</p>",
+            developers = listOf(RawgNamedDto("Estudio")),
+        ).toMetadataResult()
+
+        assertEquals("Descripción", result.description)
+        assertEquals(listOf("Estudio"), result.creators)
+    }
     @Test
     fun `TMDB movie maps stable id images date and known genres`() {
         val result = TmdbMovieDto(

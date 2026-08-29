@@ -34,6 +34,9 @@ interface RecommendationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertFeedback(feedback: RecommendationFeedbackEntity)
 
+    @Query("SELECT MAX(fetchedAt) FROM recommendation_candidates")
+    suspend fun latestCandidateFetchAt(): Instant?
+
     @Query("DELETE FROM recommendation_candidates WHERE fetchedAt < :threshold")
     suspend fun deleteCandidatesOlderThan(threshold: Instant)
 }
