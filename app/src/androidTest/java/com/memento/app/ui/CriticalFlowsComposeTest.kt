@@ -25,8 +25,10 @@ import com.memento.app.domain.model.MediaDetail
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.ui.add.AddMediaMode
+import com.memento.app.ui.add.AddMediaDraft
 import com.memento.app.ui.add.AddMediaScreen
 import com.memento.app.ui.add.AddMediaUiState
+import com.memento.app.ui.add.CompletedDraft
 import com.memento.app.ui.detail.MediaDetailScreen
 import com.memento.app.ui.detail.MediaDetailUiState
 import com.memento.app.ui.components.ExpandableText
@@ -45,23 +47,37 @@ class CriticalFlowsComposeTest {
         lateinit var state: MutableState<AddMediaUiState>
         var savedStatus: ConsumptionStatus? = null
         composeRule.setContent {
-            state = remember { mutableStateOf(AddMediaUiState(mode = AddMediaMode.MANUAL, type = MediaType.BOOK)) }
+            state = remember {
+                mutableStateOf(
+                    AddMediaUiState(mode = AddMediaMode.MANUAL, manualDraft = AddMediaDraft(type = MediaType.BOOK)),
+                )
+            }
             MementoTheme(ThemeMode.LIGHT) {
                 AddMediaScreen(
                     state = state.value,
                     onBack = {},
-                    onTypeChanged = { state.value = state.value.copy(type = it) },
+                    onTypeChanged = {
+                        state.value = state.value.copy(manualDraft = state.value.manualDraft.copy(type = it))
+                    },
                     onQueryChanged = {},
                     onResultSelected = {},
                     onShowManual = {},
                     onReturnToSearch = {},
-                    onTitleChanged = { state.value = state.value.copy(title = it) },
+                    onTitleChanged = {
+                        state.value = state.value.copy(manualDraft = state.value.manualDraft.copy(title = it))
+                    },
                     onYearChanged = {},
                     onCreatorChanged = {},
                     onDescriptionChanged = {},
                     onImageChanged = {},
                     onPageCountChanged = {},
                     onSave = { savedStatus = it },
+                    onCompletedDateChanged = {},
+                    onCompletedRatingChanged = {},
+                    onCompletedFavoriteChanged = {},
+                    onCompletedReflectionChanged = {},
+                    onCancelCompletion = {},
+                    onSaveCompleted = {},
                 )
             }
         }
@@ -93,6 +109,12 @@ class CriticalFlowsComposeTest {
                     onImageChanged = {},
                     onPageCountChanged = {},
                     onSave = {},
+                    onCompletedDateChanged = {},
+                    onCompletedRatingChanged = {},
+                    onCompletedFavoriteChanged = {},
+                    onCompletedReflectionChanged = {},
+                    onCancelCompletion = {},
+                    onSaveCompleted = {},
                 )
             }
         }
@@ -102,6 +124,73 @@ class CriticalFlowsComposeTest {
         composeRule.runOnIdle { assertEquals("", state.value.query) }
         composeRule.onNodeWithContentDescription("Borrar búsqueda").assertDoesNotExist()
         composeRule.onNode(hasSetTextAction()).assertIsFocused()
+    }
+
+    @Test
+    fun completedAddStepCollectsOptionalHistoryBeforeSaving() {
+        lateinit var state: MutableState<AddMediaUiState>
+        var saved = false
+        var cancelled = false
+        composeRule.setContent {
+            state = remember {
+                mutableStateOf(
+                    AddMediaUiState(
+                        mode = AddMediaMode.COMPLETE_DETAILS,
+                        manualDraft = AddMediaDraft(MediaType.MOVIE, title = "Película histórica"),
+                        completionReturnMode = AddMediaMode.MANUAL,
+                        completedDraft = CompletedDraft(completedDateText = "2022-04-12"),
+                    ),
+                )
+            }
+            MementoTheme(ThemeMode.LIGHT) {
+                AddMediaScreen(
+                    state = state.value,
+                    onBack = {},
+                    onTypeChanged = {},
+                    onQueryChanged = {},
+                    onResultSelected = {},
+                    onShowManual = {},
+                    onReturnToSearch = {},
+                    onTitleChanged = {},
+                    onYearChanged = {},
+                    onCreatorChanged = {},
+                    onDescriptionChanged = {},
+                    onImageChanged = {},
+                    onPageCountChanged = {},
+                    onSave = {},
+                    onCompletedDateChanged = { value ->
+                        state.value = state.value.copy(
+                            completedDraft = state.value.completedDraft?.copy(completedDateText = value),
+                        )
+                    },
+                    onCompletedRatingChanged = { value ->
+                        state.value = state.value.copy(
+                            completedDraft = state.value.completedDraft?.copy(ratingHalfStars = value),
+                        )
+                    },
+                    onCompletedFavoriteChanged = { value ->
+                        state.value = state.value.copy(
+                            completedDraft = state.value.completedDraft?.copy(favorite = value),
+                        )
+                    },
+                    onCompletedReflectionChanged = {},
+                    onCancelCompletion = { cancelled = true },
+                    onSaveCompleted = { saved = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("4.5").performClick()
+        composeRule.onNodeWithText("Marcar como favorito").performClick()
+        composeRule.onNodeWithText("Guardar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Cancelar").performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(9, state.value.completedDraft?.ratingHalfStars)
+            assertEquals(true, state.value.completedDraft?.favorite)
+            assertEquals(true, saved)
+            assertEquals(true, cancelled)
+        }
     }
 
     @Test

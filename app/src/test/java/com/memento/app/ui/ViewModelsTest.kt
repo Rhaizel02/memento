@@ -128,6 +128,150 @@ class ViewModelsTest {
         assertEquals(com.memento.app.ui.add.AddMediaMode.SEARCH, secondSession.state.value.mode)
     }
 
+    @Test fun `manual draft survives search round trip in the same add session`() = runTest {
+        val viewModel = AddMediaViewModel(FakeMediaRepository(), FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setType(MediaType.GAME)
+        viewModel.setTitle("Dune")
+        viewModel.setYear("1965")
+        viewModel.setDescription("Desierto")
+
+        viewModel.returnToSearch()
+        assertEquals(MediaType.BOOK, viewModel.state.value.type)
+        viewModel.setQuery("otra obra")
+        viewModel.showManual()
+
+        assertEquals("Dune", viewModel.state.value.title)
+        assertEquals("1965", viewModel.state.value.year)
+        assertEquals("Desierto", viewModel.state.value.description)
+        assertEquals(MediaType.GAME, viewModel.state.value.type)
+        assertEquals("otra obra", viewModel.state.value.query)
+        assertEquals(null, viewModel.state.value.selectedExternal)
+    }
+
+    @Test fun `external details do not overwrite the manual draft`() = runTest {
+        val remote = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "remote", null, MediaType.BOOK, "Remota")
+        val viewModel = AddMediaViewModel(FakeMediaRepository(), FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Manual")
+        viewModel.returnToSearch()
+
+        viewModel.selectResult(remote)
+        advanceUntilIdle()
+        assertEquals("Remota", viewModel.state.value.title)
+        viewModel.returnToSearch()
+        viewModel.showManual()
+
+        assertEquals("Manual", viewModel.state.value.title)
+        assertEquals("", viewModel.state.value.query)
+        assertEquals(null, viewModel.state.value.selectedExternal)
+    }
+
+    @Test fun `completed add waits for historical details and forwards them once`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = AddMediaViewModel(repository, FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Película histórica")
+
+        viewModel.save(ConsumptionStatus.COMPLETED)
+        assertEquals(0, repository.addManualInvocations)
+        assertEquals(com.memento.app.ui.add.AddMediaMode.COMPLETE_DETAILS, viewModel.state.value.mode)
+        viewModel.setCompletedDate("2022-04-12")
+        viewModel.setCompletedRating(9)
+        viewModel.setCompletedFavorite(true)
+        viewModel.setCompletedReflection("  Una reflexión  ")
+        viewModel.saveCompleted()
+        viewModel.saveCompleted()
+        advanceUntilIdle()
+        viewModel.saveCompleted()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.addManualInvocations)
+        assertEquals(ConsumptionStatus.COMPLETED, repository.addedStatus)
+        assertEquals(LocalDate.of(2022, 4, 12), repository.completedInput?.completedDate)
+        assertEquals(9, repository.completedInput?.ratingHalfStars)
+        assertEquals(true, repository.completedInput?.favorite)
+        assertEquals("Una reflexión", repository.completedInput?.finalReflection)
+    }
+
+    @Test fun `completed add defaults its required date to today`() = runTest {
+        val viewModel = AddMediaViewModel(FakeMediaRepository(), FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Terminada hoy")
+
+        viewModel.save(ConsumptionStatus.COMPLETED)
+
+        assertEquals(LocalDate.now(), viewModel.state.value.completedDraft?.completedDate)
+        assertEquals(true, viewModel.state.value.canSaveCompletion)
+    }
+
+    @Test fun `completed add accepts no rating and drops blank final reflection`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = AddMediaViewModel(repository, FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Sin valoración")
+        viewModel.save(ConsumptionStatus.COMPLETED)
+        viewModel.setCompletedDate("2020-01-02")
+        viewModel.setCompletedReflection("   ")
+        viewModel.saveCompleted()
+        advanceUntilIdle()
+
+        assertEquals(null, repository.completedInput?.ratingHalfStars)
+        assertEquals(null, repository.completedInput?.finalReflection)
+    }
+
+    @Test fun `cancelling completed step persists nothing and restores manual draft`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = AddMediaViewModel(repository, FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Borrador intacto")
+        viewModel.save(ConsumptionStatus.COMPLETED)
+        viewModel.setCompletedDate("2021-05-06")
+
+        viewModel.cancelCompletion()
+
+        assertEquals(0, repository.addManualInvocations)
+        assertEquals(com.memento.app.ui.add.AddMediaMode.MANUAL, viewModel.state.value.mode)
+        assertEquals("Borrador intacto", viewModel.state.value.title)
+    }
+
+    @Test fun `completed add does not save an empty completion date`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = AddMediaViewModel(repository, FakeMetadataRepository())
+        viewModel.showManual()
+        viewModel.setTitle("Sin fecha")
+        viewModel.save(ConsumptionStatus.COMPLETED)
+        viewModel.setCompletedDate("")
+
+        viewModel.saveCompleted()
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.state.value.canSaveCompletion)
+        assertEquals(0, repository.addManualInvocations)
+    }
+
+    @Test fun `external completed add still waits for enriched details`() = runTest {
+        val repository = FakeMediaRepository()
+        val summary = MetadataSearchResult(MetadataProvider.OPEN_LIBRARY, "OL2W", null, MediaType.BOOK, "Resumen")
+        val metadata = FakeMetadataRepository().apply {
+            detailOutcome = MetadataDetailsOutcome.Complete(summary.copy(title = "Detalle", pageCount = 400))
+        }
+        val viewModel = AddMediaViewModel(repository, metadata)
+
+        viewModel.selectResult(summary)
+        advanceUntilIdle()
+        viewModel.save(ConsumptionStatus.COMPLETED)
+        assertEquals(0, repository.addExternalInvocations)
+        viewModel.setCompletedDate("2019-08-09")
+        viewModel.saveCompleted()
+        advanceUntilIdle()
+
+        assertEquals(1, metadata.detailRequests)
+        assertEquals("Detalle", repository.externalResult?.title)
+        assertEquals(400, repository.externalResult?.pageCount)
+        assertEquals(LocalDate.of(2019, 8, 9), repository.completedInput?.completedDate)
+    }
+
     @Test fun `double save gesture only starts one persistence operation`() = runTest {
         val repository = FakeMediaRepository()
         val viewModel = AddMediaViewModel(repository, FakeMetadataRepository())

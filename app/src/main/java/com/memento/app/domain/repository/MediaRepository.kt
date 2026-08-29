@@ -2,6 +2,7 @@ package com.memento.app.domain.repository
 
 import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
@@ -28,8 +29,16 @@ interface MediaRepository {
     fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>>
     fun observeAllDetails(): Flow<List<MediaDetail>>
 
-    suspend fun addManual(input: AddMediaInput, initialStatus: ConsumptionStatus): String
-    suspend fun addExternal(input: MetadataSearchResult, initialStatus: ConsumptionStatus): SaveExternalResult
+    suspend fun addManual(
+        input: AddMediaInput,
+        initialStatus: ConsumptionStatus,
+        completion: CompletedMediaInput? = null,
+    ): String
+    suspend fun addExternal(
+        input: MetadataSearchResult,
+        initialStatus: ConsumptionStatus,
+        completion: CompletedMediaInput? = null,
+    ): SaveExternalResult
     suspend fun updateMedia(mediaId: String, input: EditMediaInput)
     suspend fun deleteMedia(mediaId: String)
     suspend fun toggleFavorite(mediaId: String)

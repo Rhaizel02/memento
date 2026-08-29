@@ -1,5 +1,6 @@
 package com.memento.app.ui.add
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,6 +44,7 @@ import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.ui.components.EmptyState
 import com.memento.app.ui.components.MementoSearchField
 import com.memento.app.ui.components.PosterArtwork
+import com.memento.app.ui.components.RatingSelector
 import com.memento.app.ui.components.mediaTypeLabel
 import com.memento.app.ui.components.creatorRoleLabel
 import com.memento.app.ui.theme.MementoSpacing
@@ -61,7 +65,14 @@ fun AddMediaScreen(
     onImageChanged: (String) -> Unit,
     onPageCountChanged: (String) -> Unit,
     onSave: (ConsumptionStatus) -> Unit,
+    onCompletedDateChanged: (String) -> Unit,
+    onCompletedRatingChanged: (Int?) -> Unit,
+    onCompletedFavoriteChanged: (Boolean) -> Unit,
+    onCompletedReflectionChanged: (String) -> Unit,
+    onCancelCompletion: () -> Unit,
+    onSaveCompleted: () -> Unit,
 ) {
+    BackHandler(enabled = state.mode == AddMediaMode.COMPLETE_DETAILS, onBack = onCancelCompletion)
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(MementoSpacing.normal),
@@ -69,7 +80,10 @@ fun AddMediaScreen(
     ) {
         item {
             Row {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = if (state.mode == AddMediaMode.COMPLETE_DETAILS) onCancelCompletion else onBack,
+                    enabled = state.mode != AddMediaMode.COMPLETE_DETAILS || !state.isSaving,
+                ) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
                 Text(
@@ -77,11 +91,43 @@ fun AddMediaScreen(
                         AddMediaMode.SEARCH -> stringResource(R.string.add_work)
                         AddMediaMode.MANUAL -> stringResource(R.string.manual_add_title)
                         AddMediaMode.CONFIRM_EXTERNAL -> stringResource(R.string.confirm_work)
+                        AddMediaMode.COMPLETE_DETAILS -> stringResource(R.string.complete_add_title)
                     },
                     modifier = Modifier.padding(start = MementoSpacing.small, top = MementoSpacing.small),
                     style = MaterialTheme.typography.headlineMedium,
                 )
             }
+        }
+
+        if (state.mode == AddMediaMode.COMPLETE_DETAILS) {
+            item {
+                CompletedForm(
+                    state = state,
+                    onDateChanged = onCompletedDateChanged,
+                    onRatingChanged = onCompletedRatingChanged,
+                    onFavoriteChanged = onCompletedFavoriteChanged,
+                    onReflectionChanged = onCompletedReflectionChanged,
+                )
+            }
+            state.error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
+                ) {
+                    OutlinedButton(
+                        onClick = onCancelCompletion,
+                        enabled = !state.isSaving,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.cancel)) }
+                    Button(
+                        onClick = onSaveCompleted,
+                        enabled = state.canSaveCompletion,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) }
+                }
+            }
+            return@LazyColumn
         }
 
         item { TypeChips(state.type, onTypeChanged) }
@@ -142,6 +188,63 @@ fun AddMediaScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CompletedForm(
+    state: AddMediaUiState,
+    onDateChanged: (String) -> Unit,
+    onRatingChanged: (Int?) -> Unit,
+    onFavoriteChanged: (Boolean) -> Unit,
+    onReflectionChanged: (String) -> Unit,
+) {
+    val completed = requireNotNull(state.completedDraft)
+    Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.normal)) {
+        Text(state.title, style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(
+            value = completed.completedDateText,
+            onValueChange = onDateChanged,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.completion_date)) },
+            supportingText = {
+                Text(
+                    stringResource(
+                        if (completed.completedDate == null) R.string.date_format_error else R.string.date_format_hint,
+                    ),
+                    color = if (completed.completedDate == null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            isError = completed.completedDate == null,
+            enabled = !state.isSaving,
+            singleLine = true,
+        )
+        Text(stringResource(R.string.rating_optional), style = MaterialTheme.typography.labelLarge)
+        RatingSelector(
+            ratingHalfStars = completed.ratingHalfStars,
+            onRatingChanged = onRatingChanged,
+            enabled = !state.isSaving,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(
+                enabled = !state.isSaving,
+                role = Role.Checkbox,
+            ) { onFavoriteChanged(!completed.favorite) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = completed.favorite, onCheckedChange = null, enabled = !state.isSaving)
+            Text(stringResource(R.string.mark_favorite), modifier = Modifier.padding(start = MementoSpacing.small))
+        }
+        OutlinedTextField(
+            value = completed.finalReflection,
+            onValueChange = onReflectionChanged,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.final_reflection_prompt)) },
+            supportingText = { Text(stringResource(R.string.optional)) },
+            enabled = !state.isSaving,
+            minLines = 5,
+        )
     }
 }
 

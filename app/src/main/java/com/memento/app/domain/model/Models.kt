@@ -105,6 +105,13 @@ data class AddMediaInput(
     val pageCount: Int? = null,
 )
 
+data class CompletedMediaInput(
+    val completedDate: LocalDate,
+    val ratingHalfStars: Int? = null,
+    val favorite: Boolean = false,
+    val finalReflection: String? = null,
+)
+
 data class EditMediaInput(
     val title: String,
     val year: Int? = null,

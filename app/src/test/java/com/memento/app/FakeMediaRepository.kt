@@ -2,6 +2,7 @@ package com.memento.app
 
 import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
@@ -38,6 +39,8 @@ class FakeMediaRepository : MediaRepository {
     var editedReflectionId: String? = null
     var editedReflectionContent: String? = null
     var addManualInvocations: Int = 0
+    var addExternalInvocations: Int = 0
+    var completedInput: CompletedMediaInput? = null
 
     override fun observeLibrary(query: String, type: MediaType?, filters: LibraryFilters): Flow<List<MediaItem>> {
         lastQuery = query
@@ -51,15 +54,26 @@ class FakeMediaRepository : MediaRepository {
     override fun observeRecentlyCompleted(limit: Int): Flow<List<MediaItem>> = completed
     override fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>> = completedCounts
     override fun observeAllDetails(): Flow<List<MediaDetail>> = allDetails
-    override suspend fun addManual(input: AddMediaInput, initialStatus: ConsumptionStatus): String {
+    override suspend fun addManual(
+        input: AddMediaInput,
+        initialStatus: ConsumptionStatus,
+        completion: CompletedMediaInput?,
+    ): String {
         addManualInvocations++
         addedInput = input
         addedStatus = initialStatus
+        completedInput = completion
         return "new-media"
     }
-    override suspend fun addExternal(input: MetadataSearchResult, initialStatus: ConsumptionStatus): SaveExternalResult {
+    override suspend fun addExternal(
+        input: MetadataSearchResult,
+        initialStatus: ConsumptionStatus,
+        completion: CompletedMediaInput?,
+    ): SaveExternalResult {
+        addExternalInvocations++
         externalResult = input
         addedStatus = initialStatus
+        completedInput = completion
         return SaveExternalResult("new-external-media", wasDuplicate = false)
     }
     override suspend fun updateMedia(mediaId: String, input: EditMediaInput) {

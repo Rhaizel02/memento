@@ -201,6 +201,12 @@ fun MementoApp(
                             onImageChanged = viewModel::setImageUrl,
                             onPageCountChanged = viewModel::setPageCount,
                             onSave = viewModel::save,
+                            onCompletedDateChanged = viewModel::setCompletedDate,
+                            onCompletedRatingChanged = viewModel::setCompletedRating,
+                            onCompletedFavoriteChanged = viewModel::setCompletedFavorite,
+                            onCompletedReflectionChanged = viewModel::setCompletedReflection,
+                            onCancelCompletion = viewModel::cancelCompletion,
+                            onSaveCompleted = viewModel::saveCompleted,
                         )
                     }
                     is MediaDetailKey -> NavEntry(key) {

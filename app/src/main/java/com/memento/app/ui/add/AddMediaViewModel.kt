@@ -3,6 +3,7 @@ package com.memento.app.ui.add
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memento.app.domain.model.AddMediaInput
+import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
@@ -21,26 +22,44 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
-enum class AddMediaMode { SEARCH, MANUAL, CONFIRM_EXTERNAL }
+enum class AddMediaMode { SEARCH, MANUAL, CONFIRM_EXTERNAL, COMPLETE_DETAILS }
 enum class SearchIssue { NOT_CONFIGURED, UNAVAILABLE, NO_RESULTS }
 
-data class AddMediaUiState(
-    val mode: AddMediaMode = AddMediaMode.SEARCH,
+data class AddMediaDraft(
     val type: MediaType = MediaType.BOOK,
-    val query: String = "",
-    val searchResults: List<MetadataSearchResult> = emptyList(),
-    val searchProvider: MetadataProvider? = null,
-    val searchIssue: SearchIssue? = null,
-    val isSearching: Boolean = false,
-    val selectedExternal: MetadataSearchResult? = null,
     val title: String = "",
     val year: String = "",
     val creator: String = "",
     val description: String = "",
     val imageUrl: String = "",
     val pageCount: String = "",
+)
+
+data class CompletedDraft(
+    val completedDateText: String = LocalDate.now().toString(),
+    val ratingHalfStars: Int? = null,
+    val favorite: Boolean = false,
+    val finalReflection: String = "",
+) {
+    val completedDate: LocalDate? get() = runCatching { LocalDate.parse(completedDateText) }.getOrNull()
+}
+
+data class AddMediaUiState(
+    val mode: AddMediaMode = AddMediaMode.SEARCH,
+    val searchType: MediaType = MediaType.BOOK,
+    val query: String = "",
+    val searchResults: List<MetadataSearchResult> = emptyList(),
+    val searchProvider: MetadataProvider? = null,
+    val searchIssue: SearchIssue? = null,
+    val isSearching: Boolean = false,
+    val selectedExternal: MetadataSearchResult? = null,
+    val manualDraft: AddMediaDraft = AddMediaDraft(),
+    val externalDraft: AddMediaDraft? = null,
+    val completionReturnMode: AddMediaMode? = null,
+    val completedDraft: CompletedDraft? = null,
     val isLoadingDetails: Boolean = false,
     val metadataIsPartial: Boolean = false,
     val isSaving: Boolean = false,
@@ -48,7 +67,26 @@ data class AddMediaUiState(
     val savedMediaId: String? = null,
     val savedWasDuplicate: Boolean = false,
 ) {
-    val canSave: Boolean get() = title.isNotBlank() && !isSaving && !isLoadingDetails
+    val activeDraft: AddMediaDraft? get() = when (mode) {
+        AddMediaMode.MANUAL -> manualDraft
+        AddMediaMode.CONFIRM_EXTERNAL -> externalDraft
+        AddMediaMode.COMPLETE_DETAILS -> when (completionReturnMode) {
+            AddMediaMode.MANUAL -> manualDraft
+            AddMediaMode.CONFIRM_EXTERNAL -> externalDraft
+            else -> null
+        }
+        AddMediaMode.SEARCH -> null
+    }
+    val type: MediaType get() = activeDraft?.type ?: searchType
+    val title: String get() = activeDraft?.title.orEmpty()
+    val year: String get() = activeDraft?.year.orEmpty()
+    val creator: String get() = activeDraft?.creator.orEmpty()
+    val description: String get() = activeDraft?.description.orEmpty()
+    val imageUrl: String get() = activeDraft?.imageUrl.orEmpty()
+    val pageCount: String get() = activeDraft?.pageCount.orEmpty()
+    val canSave: Boolean get() =
+        activeDraft?.title?.isNotBlank() == true && savedMediaId == null && !isSaving && !isLoadingDetails
+    val canSaveCompletion: Boolean get() = canSave && completedDraft?.completedDate != null
 }
 
 private data class SearchRequest(val query: String, val type: MediaType)
@@ -83,16 +121,27 @@ class AddMediaViewModel @Inject constructor(
     fun setType(value: MediaType) {
         cancelDetailsLoad()
         mutableState.update {
-            it.copy(
-                type = value,
-                searchResults = emptyList(),
-                searchIssue = null,
-                selectedExternal = null,
-                mode = if (it.mode == AddMediaMode.MANUAL) AddMediaMode.MANUAL else AddMediaMode.SEARCH,
-                pageCount = if (value == MediaType.BOOK) it.pageCount else "",
-            )
+            when (it.mode) {
+                AddMediaMode.MANUAL -> it.copy(
+                    manualDraft = it.manualDraft.copy(
+                        type = value,
+                        pageCount = if (value == MediaType.BOOK) it.manualDraft.pageCount else "",
+                    ),
+                )
+                AddMediaMode.SEARCH, AddMediaMode.CONFIRM_EXTERNAL -> it.copy(
+                    searchType = value,
+                    searchResults = emptyList(),
+                    searchIssue = null,
+                    selectedExternal = null,
+                    externalDraft = null,
+                    mode = AddMediaMode.SEARCH,
+                )
+                AddMediaMode.COMPLETE_DETAILS -> it
+            }
         }
-        searchRequest.value = SearchRequest(mutableState.value.query, value)
+        if (mutableState.value.mode == AddMediaMode.SEARCH) {
+            searchRequest.value = SearchRequest(mutableState.value.query, mutableState.value.searchType)
+        }
     }
 
     fun setQuery(value: String) {
@@ -105,7 +154,7 @@ class AddMediaViewModel @Inject constructor(
                 searchIssue = null,
             )
         }
-        searchRequest.value = SearchRequest(value, mutableState.value.type)
+        searchRequest.value = SearchRequest(value, mutableState.value.searchType)
     }
 
     fun showManual() {
@@ -114,12 +163,6 @@ class AddMediaViewModel @Inject constructor(
             it.copy(
                 mode = AddMediaMode.MANUAL,
                 selectedExternal = null,
-                title = "",
-                year = "",
-                creator = "",
-                description = "",
-                imageUrl = "",
-                pageCount = "",
                 error = null,
             )
         }
@@ -134,19 +177,14 @@ class AddMediaViewModel @Inject constructor(
         detailsJob?.cancel()
         mutableState.update {
             it.copy(
-            mode = AddMediaMode.CONFIRM_EXTERNAL,
-            selectedExternal = result,
-            type = result.type,
-            title = result.title,
-            year = result.releaseYear?.toString().orEmpty(),
-            creator = result.creators.joinToString(),
-            description = result.description.orEmpty(),
-            imageUrl = result.posterUrl.orEmpty(),
-            pageCount = result.pageCount?.toString().orEmpty(),
-            isLoadingDetails = true,
-            metadataIsPartial = false,
-            error = null,
-        )
+                mode = AddMediaMode.CONFIRM_EXTERNAL,
+                selectedExternal = result,
+                searchType = result.type,
+                externalDraft = result.toDraft(),
+                isLoadingDetails = true,
+                metadataIsPartial = false,
+                error = null,
+            )
         }
         detailsJob = viewModelScope.launch {
             val outcome = metadataRepository.fetchDetails(result)
@@ -157,13 +195,7 @@ class AddMediaViewModel @Inject constructor(
                 ) it else {
                     it.copy(
                         selectedExternal = detailed,
-                        type = detailed.type,
-                        title = detailed.title,
-                        year = detailed.releaseYear?.toString().orEmpty(),
-                        creator = detailed.creators.joinToString(),
-                        description = detailed.description.orEmpty(),
-                        imageUrl = detailed.posterUrl.orEmpty(),
-                        pageCount = detailed.pageCount?.toString().orEmpty(),
+                        externalDraft = detailed.toDraft(),
                         isLoadingDetails = false,
                         metadataIsPartial = outcome is MetadataDetailsOutcome.Partial,
                     )
@@ -172,45 +204,119 @@ class AddMediaViewModel @Inject constructor(
         }
     }
 
-    fun setTitle(value: String) = mutableState.update { it.copy(title = value, error = null) }
-    fun setYear(value: String) = mutableState.update { it.copy(year = value.filter(Char::isDigit).take(4)) }
-    fun setCreator(value: String) = mutableState.update { it.copy(creator = value) }
-    fun setDescription(value: String) = mutableState.update { it.copy(description = value) }
-    fun setImageUrl(value: String) = mutableState.update { it.copy(imageUrl = value) }
-    fun setPageCount(value: String) = mutableState.update { it.copy(pageCount = value.filter(Char::isDigit)) }
+    fun setTitle(value: String) = updateActiveDraft { copy(title = value) }
+    fun setYear(value: String) = updateActiveDraft { copy(year = value.filter(Char::isDigit).take(4)) }
+    fun setCreator(value: String) = updateActiveDraft { copy(creator = value) }
+    fun setDescription(value: String) = updateActiveDraft { copy(description = value) }
+    fun setImageUrl(value: String) = updateActiveDraft { copy(imageUrl = value) }
+    fun setPageCount(value: String) = updateActiveDraft { copy(pageCount = value.filter(Char::isDigit)) }
+
+    fun setCompletedDate(value: String) = mutableState.update { state ->
+        state.copy(
+            completedDraft = state.completedDraft?.copy(
+                completedDateText = value.filter { it.isDigit() || it == '-' }.take(10),
+            ),
+            error = null,
+        )
+    }
+
+    fun setCompletedRating(value: Int?) = mutableState.update { state ->
+        state.copy(
+            completedDraft = state.completedDraft?.copy(ratingHalfStars = value?.takeIf { it in 1..10 }),
+            error = null,
+        )
+    }
+
+    fun setCompletedFavorite(value: Boolean) = mutableState.update { state ->
+        state.copy(completedDraft = state.completedDraft?.copy(favorite = value), error = null)
+    }
+
+    fun setCompletedReflection(value: String) = mutableState.update { state ->
+        state.copy(completedDraft = state.completedDraft?.copy(finalReflection = value), error = null)
+    }
+
+    fun cancelCompletion() = mutableState.update { state ->
+        if (state.isSaving) return@update state
+        val returnMode = state.completionReturnMode ?: return@update state
+        state.copy(
+            mode = returnMode,
+            completionReturnMode = null,
+            completedDraft = null,
+            error = null,
+        )
+    }
 
     fun save(status: ConsumptionStatus) {
+        if (status == ConsumptionStatus.COMPLETED) {
+            beginCompletion()
+            return
+        }
+        persist(status, completion = null)
+    }
+
+    fun saveCompleted() {
         val snapshot = mutableState.value
+        val completedDraft = snapshot.completedDraft ?: return
+        val completedDate = completedDraft.completedDate ?: return
+        if (!snapshot.canSaveCompletion) return
+        persist(
+            ConsumptionStatus.COMPLETED,
+            CompletedMediaInput(
+                completedDate = completedDate,
+                ratingHalfStars = completedDraft.ratingHalfStars,
+                favorite = completedDraft.favorite,
+                finalReflection = completedDraft.finalReflection.trim().takeIf(String::isNotEmpty),
+            ),
+        )
+    }
+
+    private fun beginCompletion() {
+        val snapshot = mutableState.value
+        if (!snapshot.canSave || snapshot.mode !in setOf(AddMediaMode.MANUAL, AddMediaMode.CONFIRM_EXTERNAL)) return
+        mutableState.value = snapshot.copy(
+            mode = AddMediaMode.COMPLETE_DETAILS,
+            completionReturnMode = snapshot.mode,
+            completedDraft = snapshot.completedDraft ?: CompletedDraft(),
+            error = null,
+        )
+    }
+
+    private fun persist(status: ConsumptionStatus, completion: CompletedMediaInput?) {
+        val snapshot = mutableState.value
+        val draft = snapshot.activeDraft ?: return
         if (!snapshot.canSave) return
         mutableState.value = snapshot.copy(isSaving = true, error = null)
         viewModelScope.launch {
             runCatching {
                 val external = snapshot.selectedExternal
-                if (snapshot.mode == AddMediaMode.CONFIRM_EXTERNAL && external != null) {
+                val sourceMode = snapshot.completionReturnMode ?: snapshot.mode
+                if (sourceMode == AddMediaMode.CONFIRM_EXTERNAL && external != null) {
                     repository.addExternal(
                         external.copy(
-                            title = snapshot.title.trim(),
-                            releaseYear = snapshot.year.toIntOrNull(),
-                            creators = snapshot.creator.split(',').map(String::trim).filter(String::isNotEmpty),
-                            description = snapshot.description.trim().takeIf(String::isNotEmpty),
-                            posterUrl = snapshot.imageUrl.trim().takeIf(String::isNotEmpty),
-                            pageCount = snapshot.pageCount.toIntOrNull(),
+                            title = draft.title.trim(),
+                            releaseYear = draft.year.toIntOrNull(),
+                            creators = draft.creator.split(',').map(String::trim).filter(String::isNotEmpty),
+                            description = draft.description.trim().takeIf(String::isNotEmpty),
+                            posterUrl = draft.imageUrl.trim().takeIf(String::isNotEmpty),
+                            pageCount = draft.pageCount.toIntOrNull(),
                         ),
                         status,
+                        completion,
                     )
                 } else {
                     SaveExternalResult(
                         repository.addManual(
                             AddMediaInput(
-                                type = snapshot.type,
-                                title = snapshot.title,
-                                year = snapshot.year.toIntOrNull(),
-                                creator = snapshot.creator,
-                                description = snapshot.description,
-                                imageUrl = snapshot.imageUrl,
-                                pageCount = snapshot.pageCount.toIntOrNull(),
+                                type = draft.type,
+                                title = draft.title,
+                                year = draft.year.toIntOrNull(),
+                                creator = draft.creator,
+                                description = draft.description,
+                                imageUrl = draft.imageUrl,
+                                pageCount = draft.pageCount.toIntOrNull(),
                             ),
                             status,
+                            completion,
                         ),
                         wasDuplicate = false,
                     )
@@ -238,9 +344,22 @@ class AddMediaViewModel @Inject constructor(
         mutableState.update { it.copy(isLoadingDetails = false) }
     }
 
+    private fun updateActiveDraft(transform: AddMediaDraft.() -> AddMediaDraft) {
+        mutableState.update { state ->
+            when (state.mode) {
+                AddMediaMode.MANUAL -> state.copy(manualDraft = state.manualDraft.transform(), error = null)
+                AddMediaMode.CONFIRM_EXTERNAL -> state.copy(
+                    externalDraft = state.externalDraft?.transform(),
+                    error = null,
+                )
+                else -> state
+            }
+        }
+    }
+
     private fun applySearchOutcome(response: SearchResponse) {
         mutableState.update { current ->
-            if (current.query != response.request.query || current.type != response.request.type) return@update current
+            if (current.query != response.request.query || current.searchType != response.request.type) return@update current
             val outcome = response.outcome
             when (outcome) {
                 null -> current.copy(isSearching = false, searchResults = emptyList(), searchIssue = null, searchProvider = null)
@@ -266,3 +385,13 @@ class AddMediaViewModel @Inject constructor(
         }
     }
 }
+
+private fun MetadataSearchResult.toDraft() = AddMediaDraft(
+    type = type,
+    title = title,
+    year = releaseYear?.toString().orEmpty(),
+    creator = creators.joinToString(),
+    description = description.orEmpty(),
+    imageUrl = posterUrl.orEmpty(),
+    pageCount = pageCount?.toString().orEmpty(),
+)

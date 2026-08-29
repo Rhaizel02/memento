@@ -10,6 +10,7 @@ import com.memento.app.data.repository.RoomMediaRepository
 import com.memento.app.data.repository.RoomRememberRepository
 import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.CreatorRole
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.MediaType
@@ -29,6 +30,79 @@ import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
 class MediaRepositoryRoomTest {
+    @Test
+    fun completedAddRequiresExplicitCompletionDataBeforeAnyInsert() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+
+            val rejected = runCatching {
+                repository.addManual(AddMediaInput(MediaType.BOOK, "Incompleta"), ConsumptionStatus.COMPLETED)
+            }.isFailure
+
+            assertTrue(rejected)
+            assertTrue(database.backupDao().mediaItems().isEmpty())
+            assertTrue(database.backupDao().consumptions().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun completedManualAddPersistsHistoricalDataAtomically() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val mediaId = repository.addManual(
+                AddMediaInput(MediaType.MOVIE, "Vista hace años"),
+                ConsumptionStatus.COMPLETED,
+                CompletedMediaInput(
+                    completedDate = LocalDate.of(2022, 4, 12),
+                    ratingHalfStars = 9,
+                    favorite = true,
+                    finalReflection = "  Sigue conmigo  ",
+                ),
+            )
+
+            val detail = repository.observeMediaDetail(mediaId).first { it != null }!!
+
+            assertTrue(detail.media.isFavorite)
+            assertEquals(1, detail.consumptions.size)
+            assertEquals(ConsumptionStatus.COMPLETED, detail.consumptions.single().status)
+            assertEquals(LocalDate.of(2022, 4, 12), detail.consumptions.single().completedDate)
+            assertEquals(9, detail.consumptions.single().ratingHalfStars)
+            assertEquals(1, detail.reflections.size)
+            assertEquals(ReflectionType.FINAL_REFLECTION, detail.reflections.single().type)
+            assertEquals("Sigue conmigo", detail.reflections.single().content)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun completedExternalAddAcceptsNoRatingAndDoesNotInsertBlankReflection() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val mediaId = repository.addExternal(
+                MetadataSearchResult(MetadataProvider.TMDB, "42", null, MediaType.MOVIE, "Obra"),
+                ConsumptionStatus.COMPLETED,
+                CompletedMediaInput(LocalDate.of(2018, 3, 4), finalReflection = "   "),
+            ).mediaId
+
+            val detail = repository.observeMediaDetail(mediaId).first { it != null }!!
+
+            assertEquals(null, detail.consumptions.single().ratingHalfStars)
+            assertEquals(LocalDate.of(2018, 3, 4), detail.consumptions.single().completedDate)
+            assertTrue(detail.reflections.isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
     @Test
     fun externalCreatorsAreStoredWithTheRoleForTheirMediaType() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -73,7 +147,11 @@ class MediaRepositoryRoomTest {
         val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
         try {
             val mediaRepository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
-            val mediaId = mediaRepository.addManual(AddMediaInput(MediaType.BOOK, "Memoria"), ConsumptionStatus.COMPLETED)
+            val mediaId = mediaRepository.addManual(
+                AddMediaInput(MediaType.BOOK, "Memoria"),
+                ConsumptionStatus.COMPLETED,
+                CompletedMediaInput(LocalDate.now()),
+            )
             val consumptionId = mediaRepository.observeMediaDetail(mediaId).first { it != null }!!.consumptions.single().id
             mediaRepository.saveReflection(consumptionId, ReflectionType.FINAL_REFLECTION, "Una idea")
             val rememberRepository = RoomRememberRepository(database.rememberDao())

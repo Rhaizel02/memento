@@ -71,6 +71,9 @@
     <string name="add_to_planned">Añadir a pendientes</string>
     <string name="start_now">Empezar ahora</string>
     <string name="already_completed">Ya la terminé</string>
+    <string name="complete_add_title">Registrar finalización</string>
+    <string name="rating_optional">Valoración · opcional</string>
+    <string name="optional">Opcional</string>
     <string name="saving">Guardando…</string>
     <string name="mark_favorite">Marcar como favorito</string>
     <string name="remove_favorite">Quitar de favoritos</string>

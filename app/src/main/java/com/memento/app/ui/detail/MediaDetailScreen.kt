@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,7 +63,7 @@ import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.ui.components.PosterArtwork
 import com.memento.app.ui.components.ExpandableText
 import com.memento.app.ui.components.RatingText
-import com.memento.app.ui.components.formatHalfStars
+import com.memento.app.ui.components.RatingSelector
 import com.memento.app.ui.components.mediaTypeLabel
 import com.memento.app.ui.components.creatorRoleLabel
 import com.memento.app.ui.components.StaticTag
@@ -539,7 +536,7 @@ private fun ActionSection(
 @Composable
 private fun CompleteDialog(onDismiss: () -> Unit, onConfirm: (LocalDate, Int?, String?) -> Unit) {
     var dateText by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
-    var rating by rememberSaveable { mutableIntStateOf(0) }
+    var rating by rememberSaveable { mutableStateOf<Int?>(null) }
     var reflection by rememberSaveable { mutableStateOf("") }
     val parsedDate = runCatching { LocalDate.parse(dateText) }.getOrNull()
     AlertDialog(
@@ -561,7 +558,7 @@ private fun CompleteDialog(onDismiss: () -> Unit, onConfirm: (LocalDate, Int?, S
                     isError = parsedDate == null,
                 )
                 Text(stringResource(R.string.rating), style = MaterialTheme.typography.labelLarge)
-                RatingSelector(rating = rating, onRatingChanged = { rating = it })
+                RatingSelector(ratingHalfStars = rating, onRatingChanged = { rating = it })
                 OutlinedTextField(
                     value = reflection,
                     onValueChange = { reflection = it },
@@ -574,7 +571,7 @@ private fun CompleteDialog(onDismiss: () -> Unit, onConfirm: (LocalDate, Int?, S
             TextButton(
                 onClick = {
                     parsedDate?.let { date ->
-                        onConfirm(date, rating.takeIf { it > 0 }, reflection.takeIf(String::isNotBlank))
+                        onConfirm(date, rating, reflection.takeIf(String::isNotBlank))
                     }
                 },
                 enabled = parsedDate != null,
@@ -584,26 +581,6 @@ private fun CompleteDialog(onDismiss: () -> Unit, onConfirm: (LocalDate, Int?, S
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.now_not)) } },
     )
-}
-
-@Composable
-private fun RatingSelector(rating: Int, onRatingChanged: (Int) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-        item {
-            FilterChip(
-                selected = rating == 0,
-                onClick = { onRatingChanged(0) },
-                label = { Text(stringResource(R.string.no_rating)) },
-            )
-        }
-        items((1..10).toList()) { value ->
-            FilterChip(
-                selected = rating == value,
-                onClick = { onRatingChanged(value) },
-                label = { Text(formatHalfStars(value)) },
-            )
-        }
-    }
 }
 
 @Composable

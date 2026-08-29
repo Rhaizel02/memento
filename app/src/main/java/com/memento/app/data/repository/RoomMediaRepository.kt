@@ -17,6 +17,7 @@ import com.memento.app.data.mapper.toDomain
 import com.memento.app.data.mapper.toEntity
 import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
@@ -122,8 +123,13 @@ class RoomMediaRepository @Inject constructor(
         }
     }
 
-    override suspend fun addManual(input: AddMediaInput, initialStatus: ConsumptionStatus): String {
+    override suspend fun addManual(
+        input: AddMediaInput,
+        initialStatus: ConsumptionStatus,
+        completion: CompletedMediaInput?,
+    ): String {
         require(input.title.isNotBlank()) { "El título es obligatorio" }
+        validateInitialCompletion(initialStatus, completion)
         val now = Instant.now()
         val mediaId = UUID.randomUUID().toString()
         database.withTransaction {
@@ -138,7 +144,7 @@ class RoomMediaRepository @Inject constructor(
                     releaseYear = input.year,
                     posterUrl = input.imageUrl?.trim()?.takeIf(String::isNotEmpty),
                     backdropUrl = null,
-                    isFavorite = false,
+                    isFavorite = completion?.favorite == true,
                     isManual = true,
                     runtimeMinutes = null,
                     pageCount = input.pageCount,
@@ -156,7 +162,7 @@ class RoomMediaRepository @Inject constructor(
                 }
                 mediaDao.insertMediaCreator(MediaCreatorCrossRef(mediaId, creatorId, input.type.defaultCreatorRole()))
             }
-            consumptionDao.insert(newConsumption(mediaId, initialStatus, now))
+            insertInitialConsumption(mediaId, initialStatus, completion, now)
         }
         return mediaId
     }
@@ -164,13 +170,23 @@ class RoomMediaRepository @Inject constructor(
     override suspend fun addExternal(
         input: MetadataSearchResult,
         initialStatus: ConsumptionStatus,
+        completion: CompletedMediaInput?,
     ): SaveExternalResult = database.withTransaction {
+        validateInitialCompletion(initialStatus, completion)
+        val now = Instant.now()
         mediaDao.findByExternalRef(input.provider, input.externalId, input.type)?.let { existingId ->
+            if (completion != null) {
+                if (completion.favorite) {
+                    mediaDao.getById(existingId)?.takeUnless { it.isFavorite }?.let { existing ->
+                        mediaDao.update(existing.copy(isFavorite = true, updatedAt = now))
+                    }
+                }
+                insertInitialConsumption(existingId, initialStatus, completion, now)
+            }
             return@withTransaction SaveExternalResult(existingId, wasDuplicate = true)
         }
 
         require(input.title.isNotBlank()) { "El título es obligatorio" }
-        val now = Instant.now()
         val mediaId = UUID.randomUUID().toString()
         mediaDao.insert(
             MediaItemEntity(
@@ -183,7 +199,7 @@ class RoomMediaRepository @Inject constructor(
                 releaseYear = input.releaseYear,
                 posterUrl = input.posterUrl,
                 backdropUrl = input.backdropUrl,
-                isFavorite = false,
+                isFavorite = completion?.favorite == true,
                 isManual = false,
                 runtimeMinutes = input.runtimeMinutes,
                 pageCount = input.pageCount,
@@ -210,7 +226,7 @@ class RoomMediaRepository @Inject constructor(
             }
             mediaDao.insertMediaGenre(MediaGenreCrossRef(mediaId, genreId))
         }
-        consumptionDao.insert(newConsumption(mediaId, initialStatus, now))
+        insertInitialConsumption(mediaId, initialStatus, completion, now)
         SaveExternalResult(mediaId, wasDuplicate = false)
     }
 
@@ -271,17 +287,18 @@ class RoomMediaRepository @Inject constructor(
         val now = Instant.now()
         val active = consumptionDao.getActive(mediaId)
         val completed = if (active == null) {
-            newConsumption(mediaId, ConsumptionStatus.COMPLETED, now).copy(completedDate = date, ratingHalfStars = ratingHalfStars)
+            newConsumption(
+                mediaId,
+                ConsumptionStatus.COMPLETED,
+                CompletedMediaInput(completedDate = date, ratingHalfStars = ratingHalfStars),
+                now,
+            )
                 .also { consumptionDao.insert(it) }
         } else {
             active.copy(status = ConsumptionStatus.COMPLETED, completedDate = date, ratingHalfStars = ratingHalfStars, updatedAt = now)
                 .also { consumptionDao.update(it) }
         }
-        finalReflection?.trim()?.takeIf(String::isNotEmpty)?.let { content ->
-            consumptionDao.insertReflection(
-                ReflectionEntity(UUID.randomUUID().toString(), completed.id, ReflectionType.FINAL_REFLECTION, content, now, now),
-            )
-        }
+        insertFinalReflection(completed.id, finalReflection, now)
         Unit
     }
 
@@ -334,14 +351,52 @@ class RoomMediaRepository @Inject constructor(
 
     override suspend fun deleteConsumption(consumptionId: String) = consumptionDao.deleteById(consumptionId)
 
-    private fun newConsumption(mediaId: String, status: ConsumptionStatus, now: Instant): ConsumptionEntity =
+    private suspend fun insertInitialConsumption(
+        mediaId: String,
+        status: ConsumptionStatus,
+        completion: CompletedMediaInput?,
+        now: Instant,
+    ) {
+        val consumption = newConsumption(mediaId, status, completion, now)
+        consumptionDao.insert(consumption)
+        insertFinalReflection(consumption.id, completion?.finalReflection, now)
+    }
+
+    private suspend fun insertFinalReflection(consumptionId: String, content: String?, now: Instant) {
+        content?.trim()?.takeIf(String::isNotEmpty)?.let { cleanContent ->
+            consumptionDao.insertReflection(
+                ReflectionEntity(
+                    UUID.randomUUID().toString(),
+                    consumptionId,
+                    ReflectionType.FINAL_REFLECTION,
+                    cleanContent,
+                    now,
+                    now,
+                ),
+            )
+        }
+    }
+
+    private fun validateInitialCompletion(status: ConsumptionStatus, completion: CompletedMediaInput?) {
+        require((status == ConsumptionStatus.COMPLETED) == (completion != null)) {
+            "Los datos de finalización son obligatorios únicamente para una obra terminada"
+        }
+        completion?.let { validateRating(it.ratingHalfStars) }
+    }
+
+    private fun newConsumption(
+        mediaId: String,
+        status: ConsumptionStatus,
+        completion: CompletedMediaInput?,
+        now: Instant,
+    ): ConsumptionEntity =
         ConsumptionEntity(
             id = UUID.randomUUID().toString(),
             mediaItemId = mediaId,
             status = status,
             startedDate = if (status == ConsumptionStatus.IN_PROGRESS) LocalDate.now() else null,
-            completedDate = if (status == ConsumptionStatus.COMPLETED) LocalDate.now() else null,
-            ratingHalfStars = null,
+            completedDate = completion?.completedDate,
+            ratingHalfStars = completion?.ratingHalfStars,
             createdAt = now,
             updatedAt = now,
         )
