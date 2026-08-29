@@ -58,4 +58,5 @@ private fun RememberCandidateRow.toDomain() = RememberCandidate(
     reflectionContent = reflectionContent,
     reflectionCount = reflectionCount,
     lastShownAt = lastShownAt,
+    mediaType = mediaType,
 )

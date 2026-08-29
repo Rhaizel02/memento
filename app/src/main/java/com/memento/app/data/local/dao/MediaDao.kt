@@ -2,6 +2,7 @@ package com.memento.app.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -15,11 +16,30 @@ import com.memento.app.data.local.entity.MediaItemEntity
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.ProgressType
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 import java.time.LocalDate
 
 data class MediaTypeCountRow(val type: MediaType, val count: Int)
 data class MediaNameRow(val mediaItemId: String, val name: String)
+data class HomeMediaRow(
+    @Embedded val media: MediaItemEntity,
+    val consumptionId: String,
+    val ratingHalfStars: Int?,
+    val completedDate: LocalDate?,
+    val creatorName: String?,
+    val genreOne: String?,
+    val genreTwo: String?,
+    val genreCount: Int,
+    val progressId: String?,
+    val progressType: ProgressType?,
+    val progressCurrentValue: Double?,
+    val progressTotalValue: Double?,
+    val progressSeason: Int?,
+    val progressEpisode: Int?,
+    val progressRecordedAt: Instant?,
+)
 
 @Dao
 interface MediaDao {
@@ -89,6 +109,9 @@ interface MediaDao {
     @Query("SELECT * FROM media_items ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<MediaItemEntity>>
 
+    @Query("SELECT COUNT(*) FROM media_items")
+    fun observeMediaCount(): Flow<Int>
+
     @Query(
         """
         SELECT mc.mediaItemId AS mediaItemId, c.name AS name
@@ -129,6 +152,83 @@ interface MediaDao {
         """,
     )
     fun observeRecentlyCompleted(limit: Int): Flow<List<MediaItemEntity>>
+
+    @Query(
+        """
+        SELECT
+            m.*,
+            c.id AS consumptionId,
+            c.ratingHalfStars AS ratingHalfStars,
+            c.completedDate AS completedDate,
+            (SELECT creator.name FROM creators creator
+                INNER JOIN media_creator_cross_ref mc ON mc.creatorId = creator.id
+                WHERE mc.mediaItemId = m.id ORDER BY creator.name LIMIT 1) AS creatorName,
+            (SELECT genre.name FROM genres genre
+                INNER JOIN media_genre_cross_ref mg ON mg.genreId = genre.id
+                WHERE mg.mediaItemId = m.id ORDER BY genre.name LIMIT 1) AS genreOne,
+            (SELECT genre.name FROM genres genre
+                INNER JOIN media_genre_cross_ref mg ON mg.genreId = genre.id
+                WHERE mg.mediaItemId = m.id ORDER BY genre.name LIMIT 1 OFFSET 1) AS genreTwo,
+            (SELECT COUNT(*) FROM media_genre_cross_ref mg WHERE mg.mediaItemId = m.id) AS genreCount,
+            p.id AS progressId,
+            p.progressType AS progressType,
+            p.currentValue AS progressCurrentValue,
+            p.totalValue AS progressTotalValue,
+            p.season AS progressSeason,
+            p.episode AS progressEpisode,
+            p.recordedAt AS progressRecordedAt
+        FROM media_items m
+        INNER JOIN consumptions c ON c.id = (
+            SELECT active.id FROM consumptions active
+            WHERE active.mediaItemId = m.id AND active.status = 'IN_PROGRESS'
+            ORDER BY active.updatedAt DESC LIMIT 1
+        )
+        LEFT JOIN progress_entries p ON p.id = (
+            SELECT latest.id FROM progress_entries latest
+            WHERE latest.consumptionId = c.id
+            ORDER BY latest.recordedAt DESC LIMIT 1
+        )
+        ORDER BY c.updatedAt DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeHomeInProgress(limit: Int): Flow<List<HomeMediaRow>>
+
+    @Query(
+        """
+        SELECT
+            m.*,
+            c.id AS consumptionId,
+            c.ratingHalfStars AS ratingHalfStars,
+            c.completedDate AS completedDate,
+            (SELECT creator.name FROM creators creator
+                INNER JOIN media_creator_cross_ref mc ON mc.creatorId = creator.id
+                WHERE mc.mediaItemId = m.id ORDER BY creator.name LIMIT 1) AS creatorName,
+            (SELECT genre.name FROM genres genre
+                INNER JOIN media_genre_cross_ref mg ON mg.genreId = genre.id
+                WHERE mg.mediaItemId = m.id ORDER BY genre.name LIMIT 1) AS genreOne,
+            (SELECT genre.name FROM genres genre
+                INNER JOIN media_genre_cross_ref mg ON mg.genreId = genre.id
+                WHERE mg.mediaItemId = m.id ORDER BY genre.name LIMIT 1 OFFSET 1) AS genreTwo,
+            (SELECT COUNT(*) FROM media_genre_cross_ref mg WHERE mg.mediaItemId = m.id) AS genreCount,
+            NULL AS progressId,
+            NULL AS progressType,
+            NULL AS progressCurrentValue,
+            NULL AS progressTotalValue,
+            NULL AS progressSeason,
+            NULL AS progressEpisode,
+            NULL AS progressRecordedAt
+        FROM media_items m
+        INNER JOIN consumptions c ON c.id = (
+            SELECT completed.id FROM consumptions completed
+            WHERE completed.mediaItemId = m.id AND completed.status = 'COMPLETED'
+            ORDER BY completed.completedDate DESC, completed.updatedAt DESC LIMIT 1
+        )
+        ORDER BY c.completedDate DESC, c.updatedAt DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeHomeRecentlyCompleted(limit: Int): Flow<List<HomeMediaRow>>
 
     @Query(
         """

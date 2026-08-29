@@ -4,6 +4,7 @@ import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
+import com.memento.app.domain.model.HomeMediaFeed
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.LibraryFilters
@@ -23,6 +24,7 @@ class FakeMediaRepository : MediaRepository {
     val inProgress = MutableStateFlow<List<MediaItem>>(emptyList())
     val completed = MutableStateFlow<List<MediaItem>>(emptyList())
     val completedCounts = MutableStateFlow<Map<MediaType, Int>>(emptyMap())
+    val homeMedia = MutableStateFlow(HomeMediaFeed())
     val detail = MutableStateFlow<MediaDetail?>(null)
     val allDetails = MutableStateFlow<List<MediaDetail>>(emptyList())
     val timeline = MutableStateFlow<List<TimelineEvent>>(emptyList())
@@ -52,6 +54,7 @@ class FakeMediaRepository : MediaRepository {
     override fun observeTimeline(mediaId: String): Flow<List<TimelineEvent>> = timeline
     override fun observeInProgress(): Flow<List<MediaItem>> = inProgress
     override fun observeRecentlyCompleted(limit: Int): Flow<List<MediaItem>> = completed
+    override fun observeHomeMedia(inProgressLimit: Int, recentLimit: Int): Flow<HomeMediaFeed> = homeMedia
     override fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>> = completedCounts
     override fun observeAllDetails(): Flow<List<MediaDetail>> = allDetails
     override suspend fun addManual(

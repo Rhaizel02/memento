@@ -95,6 +95,23 @@ data class MediaDetail(
         get() = activeConsumption ?: consumptions.maxByOrNull { it.updatedAt }
 }
 
+data class HomeMediaSummary(
+    val media: MediaItem,
+    val consumptionId: String,
+    val ratingHalfStars: Int? = null,
+    val completedDate: LocalDate? = null,
+    val creator: String? = null,
+    val genres: List<String> = emptyList(),
+    val additionalGenreCount: Int = 0,
+    val latestProgress: ProgressEntry? = null,
+)
+
+data class HomeMediaFeed(
+    val mediaCount: Int = 0,
+    val inProgress: List<HomeMediaSummary> = emptyList(),
+    val recentlyCompleted: List<HomeMediaSummary> = emptyList(),
+)
+
 data class AddMediaInput(
     val type: MediaType,
     val title: String,

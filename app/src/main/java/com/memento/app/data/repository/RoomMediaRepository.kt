@@ -2,6 +2,7 @@ package com.memento.app.data.repository
 
 import androidx.room.withTransaction
 import com.memento.app.data.local.dao.ConsumptionDao
+import com.memento.app.data.local.dao.HomeMediaRow
 import com.memento.app.data.local.dao.MediaDao
 import com.memento.app.data.local.database.MementoDatabase
 import com.memento.app.data.local.entity.ConsumptionEntity
@@ -19,11 +20,14 @@ import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
+import com.memento.app.domain.model.HomeMediaFeed
+import com.memento.app.domain.model.HomeMediaSummary
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.LibraryFilters
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.model.ProgressType
+import com.memento.app.domain.model.ProgressEntry
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.SaveExternalResult
@@ -90,6 +94,18 @@ class RoomMediaRepository @Inject constructor(
 
     override fun observeRecentlyCompleted(limit: Int): Flow<List<MediaItem>> =
         mediaDao.observeRecentlyCompleted(limit).map { rows -> rows.map { it.toDomain() } }
+
+    override fun observeHomeMedia(inProgressLimit: Int, recentLimit: Int): Flow<HomeMediaFeed> = combine(
+        mediaDao.observeMediaCount(),
+        mediaDao.observeHomeInProgress(inProgressLimit),
+        mediaDao.observeHomeRecentlyCompleted(recentLimit),
+    ) { mediaCount, inProgress, recent ->
+        HomeMediaFeed(
+            mediaCount = mediaCount,
+            inProgress = inProgress.map(HomeMediaRow::toHomeSummary),
+            recentlyCompleted = recent.map(HomeMediaRow::toHomeSummary),
+        )
+    }
 
     override fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>> =
         mediaDao.observeCompletedCounts(LocalDate.of(year, 1, 1), LocalDate.of(year + 1, 1, 1))
@@ -409,3 +425,27 @@ class RoomMediaRepository @Inject constructor(
 private fun String.normalized(): String = Normalizer.normalize(lowercase(), Normalizer.Form.NFD)
     .replace("\\p{Mn}+".toRegex(), "")
     .trim()
+
+private fun HomeMediaRow.toHomeSummary() = HomeMediaSummary(
+    media = media.toDomain(),
+    consumptionId = consumptionId,
+    ratingHalfStars = ratingHalfStars,
+    completedDate = completedDate,
+    creator = creatorName,
+    genres = listOfNotNull(genreOne, genreTwo),
+    additionalGenreCount = (genreCount - 2).coerceAtLeast(0),
+    latestProgress = if (progressId != null && progressType != null && progressRecordedAt != null) {
+        ProgressEntry(
+            id = progressId,
+            consumptionId = consumptionId,
+            progressType = progressType,
+            currentValue = progressCurrentValue,
+            totalValue = progressTotalValue,
+            season = progressSeason,
+            episode = progressEpisode,
+            recordedAt = progressRecordedAt,
+        )
+    } else {
+        null
+    },
+)

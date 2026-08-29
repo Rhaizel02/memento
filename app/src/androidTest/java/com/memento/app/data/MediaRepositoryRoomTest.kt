@@ -230,4 +230,66 @@ class MediaRepositoryRoomTest {
             database.close()
         }
     }
+
+    @Test
+    fun homeProjectionReturnsRichRowsWithoutPerCardQueries() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val inProgressId = repository.addExternal(
+                MetadataSearchResult(
+                    provider = MetadataProvider.OPEN_LIBRARY,
+                    externalId = "home-in-progress",
+                    externalUrl = null,
+                    type = MediaType.BOOK,
+                    title = "Dune",
+                    releaseYear = 1965,
+                    creators = listOf("Frank Herbert"),
+                    genres = listOf("Ciencia ficción", "Aventura", "Política"),
+                    pageCount = 412,
+                ),
+                ConsumptionStatus.IN_PROGRESS,
+            ).mediaId
+            val consumptionId = repository.observeMediaDetail(inProgressId).first { it != null }!!
+                .consumptions.single().id
+            repository.addProgress(consumptionId, ProgressType.PAGES, 103.0, 412.0)
+            repository.setRating(consumptionId, 9)
+
+            val completedId = repository.addExternal(
+                MetadataSearchResult(
+                    provider = MetadataProvider.TMDB,
+                    externalId = "home-completed",
+                    externalUrl = null,
+                    type = MediaType.MOVIE,
+                    title = "La llegada",
+                    releaseYear = 2016,
+                    creators = listOf("Denis Villeneuve"),
+                    genres = listOf("Drama", "Ciencia ficción"),
+                ),
+                ConsumptionStatus.COMPLETED,
+                CompletedMediaInput(LocalDate.of(2025, 4, 3), ratingHalfStars = 10),
+            ).mediaId
+
+            val home = repository.observeHomeMedia().first {
+                it.mediaCount == 2 && it.inProgress.isNotEmpty() && it.recentlyCompleted.isNotEmpty()
+            }
+            val active = home.inProgress.single()
+            val recent = home.recentlyCompleted.single()
+
+            assertEquals(inProgressId, active.media.id)
+            assertEquals("Frank Herbert", active.creator)
+            assertEquals(listOf("Aventura", "Ciencia ficción"), active.genres)
+            assertEquals(1, active.additionalGenreCount)
+            assertEquals(9, active.ratingHalfStars)
+            assertEquals(ProgressType.PAGES, active.latestProgress?.progressType)
+            assertEquals(103.0, active.latestProgress?.currentValue)
+            assertEquals(completedId, recent.media.id)
+            assertEquals("Denis Villeneuve", recent.creator)
+            assertEquals(10, recent.ratingHalfStars)
+            assertEquals(LocalDate.of(2025, 4, 3), recent.completedDate)
+        } finally {
+            database.close()
+        }
+    }
 }

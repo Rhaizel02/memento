@@ -6,8 +6,12 @@ import com.memento.app.FakeRememberRepository
 import com.memento.app.FakeMetadataRepository
 import com.memento.app.FakeRecommendationRepository
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.HomeMediaFeed
+import com.memento.app.domain.model.HomeMediaSummary
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
+import com.memento.app.domain.model.ProgressEntry
+import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.LibrarySort
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.MetadataProvider
@@ -16,6 +20,7 @@ import com.memento.app.domain.repository.MetadataDetailsOutcome
 import com.memento.app.ui.add.AddMediaViewModel
 import com.memento.app.ui.detail.MediaDetailViewModel
 import com.memento.app.ui.home.HomeViewModel
+import com.memento.app.ui.home.HomeProgress
 import com.memento.app.ui.library.LibraryViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -49,8 +54,11 @@ class ViewModelsTest {
 
     @Test fun `home exposes in progress and completed sections`() = runTest {
         val repository = FakeMediaRepository().apply {
-            inProgress.value = listOf(media)
-            completed.value = listOf(media.copy(id = "m2"))
+            homeMedia.value = HomeMediaFeed(
+                mediaCount = 2,
+                inProgress = listOf(HomeMediaSummary(media, "c1")),
+                recentlyCompleted = listOf(HomeMediaSummary(media.copy(id = "m2"), "c2")),
+            )
             completedCounts.value = mapOf(MediaType.BOOK to 1)
         }
         val viewModel = HomeViewModel(repository, FakeRememberRepository(), FakeRecommendationRepository())
@@ -61,6 +69,42 @@ class ViewModelsTest {
         assertEquals(1, viewModel.state.value.recentlyCompleted.size)
         assertEquals(1, viewModel.state.value.completedByType[MediaType.BOOK])
         assertFalse(viewModel.state.value.isLoading)
+    }
+
+    @Test fun `home maps rich media metadata and progress for presentation`() = runTest {
+        val repository = FakeMediaRepository().apply {
+            homeMedia.value = HomeMediaFeed(
+                mediaCount = 1,
+                inProgress = listOf(
+                    HomeMediaSummary(
+                        media = media.copy(releaseYear = 1965, pageCount = 412, isFavorite = true),
+                        consumptionId = "c1",
+                        ratingHalfStars = 9,
+                        creator = "Frank Herbert",
+                        genres = listOf("Ciencia ficción", "Aventura"),
+                        additionalGenreCount = 1,
+                        latestProgress = ProgressEntry(
+                            id = "p1",
+                            consumptionId = "c1",
+                            progressType = ProgressType.PAGES,
+                            currentValue = 103.0,
+                            recordedAt = Instant.EPOCH,
+                        ),
+                    ),
+                ),
+            )
+        }
+        val viewModel = HomeViewModel(repository, FakeRememberRepository(), FakeRecommendationRepository())
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        advanceUntilIdle()
+
+        val item = viewModel.state.value.inProgress.single()
+        assertEquals("Frank Herbert", item.creator)
+        assertEquals(listOf("Ciencia ficción", "Aventura"), item.genres)
+        assertEquals(1, item.additionalGenreCount)
+        assertEquals(9, item.ratingHalfStars)
+        assertEquals(true, item.isFavorite)
+        assertEquals(HomeProgress.Pages(103.0, 412.0, 0.25f), item.progress)
     }
 
     @Test fun `home hero records a remember exposure when shown`() = runTest {

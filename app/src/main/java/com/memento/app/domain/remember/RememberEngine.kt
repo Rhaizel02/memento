@@ -1,6 +1,7 @@
 package com.memento.app.domain.remember
 
 import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.model.MediaType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -21,6 +22,7 @@ data class RememberCandidate(
     val reflectionContent: String,
     val reflectionCount: Int,
     val lastShownAt: Instant?,
+    val mediaType: MediaType = MediaType.BOOK,
 )
 
 data class ScoredRememberCandidate(val candidate: RememberCandidate, val score: Double)

@@ -4,6 +4,7 @@ import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
+import com.memento.app.domain.model.HomeMediaFeed
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.LibraryFilters
@@ -26,6 +27,7 @@ interface MediaRepository {
     fun observeTimeline(mediaId: String): Flow<List<TimelineEvent>>
     fun observeInProgress(): Flow<List<MediaItem>>
     fun observeRecentlyCompleted(limit: Int = 8): Flow<List<MediaItem>>
+    fun observeHomeMedia(inProgressLimit: Int = 10, recentLimit: Int = 12): Flow<HomeMediaFeed>
     fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>>
     fun observeAllDetails(): Flow<List<MediaDetail>>
 

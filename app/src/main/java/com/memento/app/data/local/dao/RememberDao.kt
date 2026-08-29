@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.memento.app.data.local.entity.RememberExposureEntity
 import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.model.MediaType
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.LocalDate
@@ -25,6 +26,7 @@ data class RememberCandidateRow(
     val reflectionContent: String,
     val reflectionCount: Int,
     val lastShownAt: Instant?,
+    val mediaType: MediaType,
 )
 
 @Dao
@@ -60,6 +62,7 @@ interface RememberDao {
                 c.id AS consumptionId,
                 m.id AS mediaId,
                 m.title AS title,
+                m.type AS mediaType,
                 c.completedDate AS completedDate,
                 c.ratingHalfStars AS ratingHalfStars,
                 m.isFavorite AS isFavorite,

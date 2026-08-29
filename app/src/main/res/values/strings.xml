@@ -20,13 +20,44 @@
     <string name="restore_and_start">Restaurar y empezar</string>
     <string name="home_empty_title">Empieza tu memoria cultural</string>
     <string name="home_empty_body">Añade un libro, película, serie o juego.</string>
+    <string name="home_empty_title_v2">Tu memoria empieza aquí</string>
+    <string name="home_empty_body_v2">Añade el primer libro, película, serie o juego que quieras recordar.</string>
+    <string name="home_empty_remember_hint">Cuando termines obras y escribas sobre ellas, Remember te devolverá esos recuerdos.</string>
     <string name="add_first_work">Añadir primera obra</string>
     <string name="remember">Remember</string>
     <string name="remember_empty_title">Aún no hay nada que recordar</string>
     <string name="remember_empty_body">Cuando termines algunas obras y escribas sobre ellas, empezarán a aparecer aquí.</string>
+    <string name="remember_card_accessibility">Recordar %1$s</string>
+    <string name="remember_completed_today">La terminaste hoy</string>
+    <plurals name="remember_days_ago">
+        <item quantity="one">La terminaste hace %1$d día</item>
+        <item quantity="other">La terminaste hace %1$d días</item>
+    </plurals>
+    <plurals name="remember_months_ago">
+        <item quantity="one">La terminaste hace %1$d mes</item>
+        <item quantity="other">La terminaste hace %1$d meses</item>
+    </plurals>
+    <plurals name="remember_years_ago">
+        <item quantity="one">La terminaste hace %1$d año</item>
+        <item quantity="other">La terminaste hace %1$d años</item>
+    </plurals>
     <string name="status_in_progress">En progreso</string>
     <string name="recently_completed">Recientemente terminadas</string>
     <string name="year_summary_title">%1$d · Tu historia cultural</string>
+    <string name="year_summary_title_v2">Tu %1$d</string>
+    <string name="additional_genres">+%1$d</string>
+    <string name="rating_accessibility">Valoración: %1$s de 5</string>
+    <string name="home_rating_compact">★ %1$s</string>
+    <string name="home_pages_progress">%1$s / %2$s páginas</string>
+    <string name="home_page_progress">Página %1$s</string>
+    <string name="home_game_progress">%1$s h · %2$s %%</string>
+    <string name="home_minutes_progress">%1$s min</string>
+    <string name="recommendation_card_accessibility">Explorar recomendación: %1$s</string>
+    <string name="recommendation_none_now">No hay una sugerencia nueva ahora mismo.</string>
+    <string name="recommendation_learning">Todavía estoy aprendiendo tus gustos.</string>
+    <string name="compatibility_high">Muy compatible contigo</string>
+    <string name="compatibility_medium">Compatible contigo</string>
+    <string name="compatibility_possible">Puede encajar contigo</string>
     <string name="all">Todo</string>
     <string name="books">Libros</string>
     <string name="movies">Películas</string>
