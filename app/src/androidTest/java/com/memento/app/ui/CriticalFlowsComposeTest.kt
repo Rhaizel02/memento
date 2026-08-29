@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.memento.app.data.preferences.ThemeMode
+import com.memento.app.data.preferences.ThemePalette
 import com.memento.app.domain.model.Consumption
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.MediaDetail
@@ -32,6 +34,8 @@ import com.memento.app.ui.add.CompletedDraft
 import com.memento.app.ui.detail.MediaDetailScreen
 import com.memento.app.ui.detail.MediaDetailUiState
 import com.memento.app.ui.components.ExpandableText
+import com.memento.app.ui.settings.SettingsScreen
+import com.memento.app.ui.settings.SettingsUiState
 import com.memento.app.ui.theme.MementoTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -191,6 +195,33 @@ class CriticalFlowsComposeTest {
             assertEquals(true, saved)
             assertEquals(true, cancelled)
         }
+    }
+
+    @Test
+    fun settingsPaletteSelectionInvokesForestAndExposesSelectedSemantics() {
+        lateinit var selectedPalette: MutableState<ThemePalette>
+        composeRule.setContent {
+            selectedPalette = remember { mutableStateOf(ThemePalette.MEMENTO) }
+            MementoTheme(ThemeMode.LIGHT, selectedPalette.value) {
+                SettingsScreen(
+                    themeMode = ThemeMode.SYSTEM,
+                    themePalette = selectedPalette.value,
+                    state = SettingsUiState(),
+                    onThemeModeChanged = {},
+                    onThemePaletteChanged = { selectedPalette.value = it },
+                    onExport = {},
+                    onImport = {},
+                    onConfirmRestore = {},
+                    onCancelRestore = {},
+                    onDownloadAi = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Paleta Bosque").performScrollTo().performClick()
+
+        composeRule.runOnIdle { assertEquals(ThemePalette.FOREST, selectedPalette.value) }
+        composeRule.onNodeWithContentDescription("Paleta Bosque").assertIsSelected()
     }
 
     @Test

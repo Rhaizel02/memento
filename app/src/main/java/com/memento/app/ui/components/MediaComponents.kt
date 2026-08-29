@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -40,6 +39,8 @@ import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.ui.theme.MementoSpacing
 import com.memento.app.ui.theme.MementoTheme
+import com.memento.app.ui.theme.mediaTypeColor
+import com.memento.app.ui.theme.onMediaTypeColor
 import com.memento.app.data.preferences.ThemeMode
 import java.time.Instant
 import coil3.compose.AsyncImage
@@ -102,12 +103,8 @@ fun PosterArtwork(
 @Composable
 fun PosterFallback(type: MediaType, title: String, modifier: Modifier = Modifier) {
     val icon = type.icon()
-    val background = when (type) {
-        MediaType.BOOK -> Color(0xFF6D4C54)
-        MediaType.MOVIE -> Color(0xFF334C5A)
-        MediaType.SERIES -> Color(0xFF4C4566)
-        MediaType.GAME -> Color(0xFF3F5B4E)
-    }
+    val background = MaterialTheme.mediaTypeColor(type)
+    val contentColor = MaterialTheme.onMediaTypeColor(type)
     Box(
         modifier = modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).background(background),
         contentAlignment = Alignment.Center,
@@ -117,11 +114,11 @@ fun PosterFallback(type: MediaType, title: String, modifier: Modifier = Modifier
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(44.dp))
+            Icon(icon, contentDescription = null, tint = contentColor.copy(alpha = 0.85f), modifier = Modifier.size(44.dp))
             Text(
                 title,
                 modifier = Modifier.padding(top = MementoSpacing.medium),
-                color = Color.White,
+                color = contentColor,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,

@@ -9,6 +9,7 @@ import com.memento.app.backup.BackupCodec
 import com.memento.app.domain.repository.BackupRepository
 import com.memento.app.data.preferences.SettingsRepository
 import com.memento.app.data.preferences.ThemeMode
+import com.memento.app.data.preferences.ThemePalette
 import com.memento.app.ai.AiAvailability
 import com.memento.app.ai.AiProcessor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,14 +49,20 @@ class SettingsViewModel @Inject constructor(
     private var pendingImport: String? = null
     val state = mutableState.asStateFlow()
     val themeMode = settingsRepository.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+    val themePalette = settingsRepository.themePalette
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemePalette.MEMENTO)
     val onboardingCompleted = settingsRepository.onboardingCompleted
         .map<Boolean, Boolean?> { it }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init { refreshAiAvailability() }
 
-    fun setTheme(mode: ThemeMode) {
-        viewModelScope.launch { settingsRepository.setTheme(mode) }
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
+
+    fun setThemePalette(palette: ThemePalette) {
+        viewModelScope.launch { settingsRepository.setThemePalette(palette) }
     }
 
     fun completeOnboarding() {

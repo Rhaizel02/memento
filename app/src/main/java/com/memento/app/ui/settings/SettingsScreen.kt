@@ -1,6 +1,7 @@
 package com.memento.app.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,8 +9,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Upload
@@ -19,17 +25,30 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import com.memento.app.R
 import com.memento.app.BuildConfig
 import com.memento.app.data.preferences.ThemeMode
+import com.memento.app.data.preferences.ThemePalette
 import com.memento.app.ui.theme.MementoSpacing
+import com.memento.app.ui.theme.mementoThemeInfo
+import com.memento.app.ui.theme.previewColors
 import coil3.compose.AsyncImage
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
@@ -43,8 +62,10 @@ import com.memento.app.ai.AiAvailability
 @Composable
 fun SettingsScreen(
     themeMode: ThemeMode,
+    themePalette: ThemePalette,
     state: SettingsUiState,
-    onThemeChanged: (ThemeMode) -> Unit,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    onThemePaletteChanged: (ThemePalette) -> Unit,
     onExport: (Uri) -> Unit,
     onImport: (Uri) -> Unit,
     onConfirmRestore: () -> Unit,
@@ -66,16 +87,28 @@ fun SettingsScreen(
         item { Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineLarge) }
         item {
             SettingsSection(title = stringResource(R.string.appearance)) {
-                Text(stringResource(R.string.theme), style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.theme_mode), style = MaterialTheme.typography.labelLarge)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
                     items(ThemeMode.entries.size) { index ->
                         val mode = ThemeMode.entries[index]
                         FilterChip(
                             selected = themeMode == mode,
-                            onClick = { onThemeChanged(mode) },
+                            onClick = { onThemeModeChanged(mode) },
                             label = { Text(themeLabel(mode)) },
                         )
                     }
+                }
+                Text(
+                    stringResource(R.string.theme_palette),
+                    modifier = Modifier.padding(top = MementoSpacing.small),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                ThemePalette.entries.forEach { palette ->
+                    PaletteOption(
+                        palette = palette,
+                        isSelected = themePalette == palette,
+                        onClick = { onThemePaletteChanged(palette) },
+                    )
                 }
             }
         }
@@ -193,6 +226,61 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun PaletteOption(
+    palette: ThemePalette,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val label = paletteLabel(palette)
+    val accessibilityLabel = stringResource(R.string.palette_accessibility_label, label)
+    val selectionState = stringResource(
+        if (isSelected) R.string.palette_selected else R.string.palette_not_selected,
+    )
+    val preview = palette.previewColors(MaterialTheme.mementoThemeInfo.isDark)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = accessibilityLabel
+                stateDescription = selectionState
+                selected = isSelected
+            },
+        shape = MaterialTheme.shapes.medium,
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.outlineVariant,
+        ),
+        tonalElevation = if (isSelected) 2.dp else 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.medium),
+            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.clearAndSetSemantics { },
+                horizontalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
+            ) {
+                listOf(preview.primary, preview.secondary, preview.surface).forEach { color ->
+                    Box(
+                        Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(color),
+                    )
+                }
+            }
+            Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            RadioButton(selected = isSelected, onClick = null)
+        }
+    }
+}
+
+@Composable
 private fun aiAvailabilityText(availability: AiAvailability?): String = stringResource(
     when (availability) {
         null -> R.string.ai_checking
@@ -223,5 +311,15 @@ private fun themeLabel(mode: ThemeMode): String = stringResource(
         ThemeMode.SYSTEM -> R.string.theme_system
         ThemeMode.LIGHT -> R.string.theme_light
         ThemeMode.DARK -> R.string.theme_dark
+    },
+)
+
+@Composable
+private fun paletteLabel(palette: ThemePalette): String = stringResource(
+    when (palette) {
+        ThemePalette.MEMENTO -> R.string.palette_memento
+        ThemePalette.FOREST -> R.string.palette_forest
+        ThemePalette.NOBLE -> R.string.palette_noble
+        ThemePalette.INK -> R.string.palette_ink
     },
 )

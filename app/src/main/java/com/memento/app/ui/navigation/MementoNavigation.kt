@@ -30,6 +30,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.memento.app.R
 import com.memento.app.data.preferences.ThemeMode
+import com.memento.app.data.preferences.ThemePalette
 import com.memento.app.ui.add.AddMediaScreen
 import com.memento.app.ui.add.AddMediaViewModel
 import com.memento.app.ui.detail.MediaDetailScreen
@@ -73,7 +74,9 @@ private data class TopDestination(
 @Composable
 fun MementoApp(
     themeMode: ThemeMode,
-    onThemeChanged: (ThemeMode) -> Unit,
+    themePalette: ThemePalette,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    onThemePaletteChanged: (ThemePalette) -> Unit,
 ) {
     val backStack = rememberNavBackStack(HomeKey)
     val current = backStack.lastOrNull()
@@ -167,8 +170,10 @@ fun MementoApp(
                         val state by viewModel.state.collectAsStateWithLifecycle()
                         SettingsScreen(
                             themeMode = themeMode,
+                            themePalette = themePalette,
                             state = state,
-                            onThemeChanged = onThemeChanged,
+                            onThemeModeChanged = onThemeModeChanged,
+                            onThemePaletteChanged = onThemePaletteChanged,
                             onExport = viewModel::exportTo,
                             onImport = viewModel::prepareImport,
                             onConfirmRestore = viewModel::confirmRestore,
