@@ -4,7 +4,10 @@ import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.data.preferences.ThemePalette
 import com.memento.app.data.preferences.parseThemeMode
 import com.memento.app.data.preferences.parseThemePalette
+import com.memento.app.ui.theme.resolveDarkTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ThemePreferencesTest {
@@ -23,5 +26,17 @@ class ThemePreferencesTest {
     @Test
     fun legacyThemeValuesRemainValid() {
         ThemeMode.entries.forEach { mode -> assertEquals(mode, parseThemeMode(mode.name)) }
+    }
+
+    @Test
+    fun systemModeFollowsTheCurrentAndroidAppearance() {
+        assertTrue(resolveDarkTheme(ThemeMode.SYSTEM, systemDark = true))
+        assertFalse(resolveDarkTheme(ThemeMode.SYSTEM, systemDark = false))
+    }
+
+    @Test
+    fun explicitModesRemainIndependentFromAndroidAppearance() {
+        assertTrue(resolveDarkTheme(ThemeMode.DARK, systemDark = false))
+        assertFalse(resolveDarkTheme(ThemeMode.LIGHT, systemDark = true))
     }
 }

@@ -56,11 +56,7 @@ fun MementoTheme(
     palette: ThemePalette = ThemePalette.MEMENTO,
     content: @Composable () -> Unit,
 ) {
-    val dark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
-    }
+    val dark = resolveDarkTheme(themeMode, isSystemInDarkTheme())
     ApplySystemBars(dark)
     CompositionLocalProvider(
         LocalMementoSemanticColors provides semanticColorsFor(dark),
@@ -73,6 +69,12 @@ fun MementoTheme(
             content = content,
         )
     }
+}
+
+fun resolveDarkTheme(themeMode: ThemeMode, systemDark: Boolean): Boolean = when (themeMode) {
+    ThemeMode.SYSTEM -> systemDark
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
 }
 
 @Composable

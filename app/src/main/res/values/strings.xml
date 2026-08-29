@@ -16,7 +16,9 @@
     <string name="share_provider_attribution">Memento · TMDB · Open Library · RAWG</string>
     <string name="media_count_format">%1$s · %2$d</string>
     <string name="cancel">Cancelar</string>
-    <string name="onboarding_import">Importar backup</string>
+    <string name="onboarding_import">Restaurar biblioteca</string>
+    <string name="onboarding_import_loading">Preparando tu biblioteca…</string>
+    <string name="onboarding_import_error_title">No hemos podido restaurar este backup.</string>
     <string name="restore_and_start">Restaurar y empezar</string>
     <string name="home_empty_title">Empieza tu memoria cultural</string>
     <string name="home_empty_body">Añade un libro, película, serie o juego.</string>

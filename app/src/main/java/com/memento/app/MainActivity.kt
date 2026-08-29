@@ -1,5 +1,6 @@
 package com.memento.app
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,6 +10,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -16,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memento.app.ui.navigation.MementoApp
 import com.memento.app.ui.onboarding.OnboardingScreen
 import com.memento.app.ui.settings.SettingsViewModel
+import com.memento.app.ui.settings.SettingsUiState
 import com.memento.app.ui.theme.MementoTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -35,18 +38,15 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    when (onboardingCompleted) {
-                        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        }
-                        false -> OnboardingScreen(
-                            state = settingsState,
-                            onStart = settingsViewModel::completeOnboarding,
-                            onImport = settingsViewModel::prepareImport,
-                            onConfirmRestore = settingsViewModel::confirmRestore,
-                            onCancelRestore = settingsViewModel::cancelRestore,
-                        )
-                        true -> MementoApp(
+                    MementoEntryContent(
+                        onboardingCompleted = onboardingCompleted,
+                        settingsState = settingsState,
+                        onStart = settingsViewModel::completeOnboarding,
+                        onImport = settingsViewModel::prepareImport,
+                        onConfirmRestore = settingsViewModel::confirmRestore,
+                        onCancelRestore = settingsViewModel::cancelRestore,
+                    ) {
+                        MementoApp(
                             themeMode = themeMode,
                             themePalette = themePalette,
                             onThemeModeChanged = settingsViewModel::setThemeMode,
@@ -56,5 +56,30 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun MementoEntryContent(
+    onboardingCompleted: Boolean?,
+    settingsState: SettingsUiState,
+    onStart: () -> Unit,
+    onImport: (Uri) -> Unit,
+    onConfirmRestore: () -> Unit,
+    onCancelRestore: () -> Unit,
+    appContent: @Composable () -> Unit,
+) {
+    when (onboardingCompleted) {
+        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
+        false -> OnboardingScreen(
+            state = settingsState,
+            onStart = onStart,
+            onImport = onImport,
+            onConfirmRestore = onConfirmRestore,
+            onCancelRestore = onCancelRestore,
+        )
+        true -> appContent()
     }
 }
