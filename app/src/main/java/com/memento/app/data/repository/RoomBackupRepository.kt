@@ -28,6 +28,8 @@ class RoomBackupRepository @Inject constructor(
                 mediaCreators = dao.mediaCreators().map { it.toBackup() },
                 genres = dao.genres().map { it.toBackup() },
                 mediaGenres = dao.mediaGenres().map { it.toBackup() },
+                tags = dao.tags().map { it.toBackup() },
+                mediaTags = dao.mediaTags().map { it.toBackup() },
                 consumptions = dao.consumptions().map { it.toBackup() },
                 progressEntries = dao.progressEntries().map { it.toBackup() },
                 reflections = dao.reflections().map { it.toBackup() },
@@ -57,19 +59,23 @@ class RoomBackupRepository @Inject constructor(
             dao.clearConsumptions()
             dao.clearMediaCreators()
             dao.clearMediaGenres()
+            dao.clearMediaTags()
             dao.clearExternalRefs()
             dao.clearRecommendationFeedback()
             dao.clearRecommendationCandidates()
             dao.clearMediaItems()
             dao.clearCreators()
             dao.clearGenres()
+            dao.clearTags()
 
             dao.insertMediaItems(data.mediaItems.map { it.toEntity() })
             dao.insertCreators(data.creators.map { it.toEntity() })
             dao.insertGenres(data.genres.map { it.toEntity() })
+            dao.insertTags(data.tags.map { it.toEntity() })
             dao.insertExternalRefs(data.externalRefs.map { it.toEntity() })
             dao.insertMediaCreators(data.mediaCreators.map { it.toEntity() })
             dao.insertMediaGenres(data.mediaGenres.map { it.toEntity() })
+            dao.insertMediaTags(data.mediaTags.map { it.toEntity() })
             dao.insertConsumptions(data.consumptions.map { it.toEntity() })
             dao.insertProgressEntries(data.progressEntries.map { it.toEntity() })
             dao.insertReflections(data.reflections.map { it.toEntity() })
@@ -93,6 +99,8 @@ private fun CreatorEntity.toBackup() = BackupCreator(id, name, normalizedName)
 private fun MediaCreatorCrossRef.toBackup() = BackupMediaCreator(mediaItemId, creatorId, role.name)
 private fun GenreEntity.toBackup() = BackupGenre(id, name, normalizedName)
 private fun MediaGenreCrossRef.toBackup() = BackupMediaGenre(mediaItemId, genreId)
+private fun TagEntity.toBackup() = BackupTag(id, name, normalizedName, createdAt.toString())
+private fun MediaTagCrossRef.toBackup() = BackupMediaTag(mediaItemId, tagId)
 private fun ConsumptionEntity.toBackup() = BackupConsumption(
     id, mediaItemId, status.name, startedDate?.toString(), completedDate?.toString(), ratingHalfStars, createdAt.toString(), updatedAt.toString(),
 )
@@ -124,6 +132,8 @@ private fun BackupCreator.toEntity() = CreatorEntity(id, name, normalizedName)
 private fun BackupMediaCreator.toEntity() = MediaCreatorCrossRef(mediaItemId, creatorId, CreatorRole.valueOf(role))
 private fun BackupGenre.toEntity() = GenreEntity(id, name, normalizedName)
 private fun BackupMediaGenre.toEntity() = MediaGenreCrossRef(mediaItemId, genreId)
+private fun BackupTag.toEntity() = TagEntity(id, name, normalizedName, Instant.parse(createdAt))
+private fun BackupMediaTag.toEntity() = MediaTagCrossRef(mediaItemId, tagId)
 private fun BackupConsumption.toEntity() = ConsumptionEntity(
     id, mediaItemId, ConsumptionStatus.valueOf(status), startedDate?.let(LocalDate::parse), completedDate?.let(LocalDate::parse),
     ratingHalfStars, Instant.parse(createdAt), Instant.parse(updatedAt),

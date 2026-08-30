@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.memento.app.data.local.database.MIGRATION_3_4
 import com.memento.app.data.local.database.MIGRATION_4_5
+import com.memento.app.data.local.database.MIGRATION_5_6
 import com.memento.app.data.local.database.MementoDatabase
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -57,6 +58,25 @@ class DatabaseMigrationTest {
         db.close()
     }
 
+    @Test
+    fun migration5To6AddsPersonalTagsAndPreservesPersonalHistory() {
+        helper.createDatabase(DB_NAME_TAGS, 5).apply {
+            seedReflectionGraph()
+            execSQL("INSERT INTO progress_entries (id,consumptionId,progressType,currentValue,totalValue,season,episode,recordedAt) VALUES ('p1','c1','PAGES',20,100,NULL,NULL,50)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(DB_NAME_TAGS, 6, true, MIGRATION_5_6)
+
+        assertEquals(2, db.count("SELECT COUNT(*) FROM media_items"))
+        assertEquals(2, db.count("SELECT COUNT(*) FROM consumptions"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM progress_entries"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM reflections"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tags'"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_tag_cross_ref'"))
+        db.close()
+    }
+
     private fun SupportSQLiteDatabase.seedReflectionGraph() {
         execSQL("INSERT INTO media_items (id,type,title,originalTitle,description,releaseDate,releaseYear,posterUrl,backdropUrl,isFavorite,isManual,runtimeMinutes,pageCount,seasonCount,episodeCount,createdAt,updatedAt) VALUES ('m1','BOOK','Uno',NULL,NULL,NULL,NULL,NULL,NULL,0,1,NULL,NULL,NULL,NULL,1,1)")
         execSQL("INSERT INTO media_items (id,type,title,originalTitle,description,releaseDate,releaseYear,posterUrl,backdropUrl,isFavorite,isManual,runtimeMinutes,pageCount,seasonCount,episodeCount,createdAt,updatedAt) VALUES ('m2','BOOK','Dos',NULL,NULL,NULL,NULL,NULL,NULL,0,1,NULL,NULL,NULL,NULL,1,1)")
@@ -73,5 +93,6 @@ class DatabaseMigrationTest {
     private companion object {
         const val DB_NAME = "migration-hardening"
         const val DB_NAME_TIMELINE = "migration-timeline"
+        const val DB_NAME_TAGS = "migration-personal-tags"
     }
 }

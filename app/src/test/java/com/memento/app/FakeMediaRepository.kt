@@ -14,6 +14,7 @@ import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.SaveExternalResult
+import com.memento.app.domain.model.Tag
 import com.memento.app.domain.repository.MediaRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +44,7 @@ class FakeMediaRepository : MediaRepository {
     val detail = MutableStateFlow<MediaDetail?>(null)
     val allDetails = MutableStateFlow<List<MediaDetail>>(emptyList())
     val timeline = MutableStateFlow<List<TimelineEvent>>(emptyList())
+    val tags = MutableStateFlow<List<Tag>>(emptyList())
     var lastQuery: String = ""
     var lastType: MediaType? = null
     var lastFilters: LibraryFilters = LibraryFilters()
@@ -76,6 +78,7 @@ class FakeMediaRepository : MediaRepository {
     override fun observeHomeMedia(inProgressLimit: Int, recentLimit: Int): Flow<HomeMediaFeed> = homeMedia
     override fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>> = completedCounts
     override fun observeAllDetails(): Flow<List<MediaDetail>> = allDetails
+    override fun observeTags(): Flow<List<Tag>> = tags
     override suspend fun addManual(
         input: AddMediaInput,
         initialStatus: ConsumptionStatus,
@@ -134,4 +137,8 @@ class FakeMediaRepository : MediaRepository {
         editedReflectionContent = content
     }
     override suspend fun deleteConsumption(consumptionId: String) { deletedConsumptionId = consumptionId }
+    override suspend fun createAndAttachTag(mediaId: String, name: String): Tag =
+        Tag("tag", name.trim(), name.trim().lowercase(), java.time.Instant.EPOCH)
+    override suspend fun attachTag(mediaId: String, tagId: String) = Unit
+    override suspend fun removeTag(mediaId: String, tagId: String) = Unit
 }

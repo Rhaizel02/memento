@@ -5,6 +5,8 @@ import com.memento.app.backup.BackupConsumption
 import com.memento.app.backup.BackupData
 import com.memento.app.backup.BackupEnvelope
 import com.memento.app.backup.BackupMediaItem
+import com.memento.app.backup.BackupMediaTag
+import com.memento.app.backup.BackupTag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -58,6 +60,37 @@ class BackupCodecTest {
             ),
         )
         val json = BackupCodec.encode(BackupEnvelope(BackupCodec.SCHEMA_VERSION, "2026-08-29T10:00:00Z", "test", data))
+
+        assertThrows(IllegalArgumentException::class.java) { BackupCodec.decodeAndValidate(json) }
+    }
+
+    @Test
+    fun `version two backup without tag fields remains compatible`() {
+        val json = """
+            {
+              "schemaVersion": 2,
+              "exportedAt": "2026-08-29T10:00:00Z",
+              "appVersion": "legacy",
+              "data": {}
+            }
+        """.trimIndent()
+
+        val decoded = BackupCodec.decodeAndValidate(json)
+
+        assertEquals(emptyList<BackupTag>(), decoded.data.tags)
+        assertEquals(emptyList<BackupMediaTag>(), decoded.data.mediaTags)
+    }
+
+    @Test
+    fun `invalid tag reference is rejected before restore`() {
+        val data = BackupData(
+            mediaItems = listOf(media()),
+            tags = listOf(BackupTag("t1", "Favoritas", "favoritas", "2026-01-01T00:00:00Z")),
+            mediaTags = listOf(BackupMediaTag("missing", "t1")),
+        )
+        val json = BackupCodec.encode(
+            BackupEnvelope(BackupCodec.SCHEMA_VERSION, "2026-08-29T10:00:00Z", "test", data),
+        )
 
         assertThrows(IllegalArgumentException::class.java) { BackupCodec.decodeAndValidate(json) }
     }

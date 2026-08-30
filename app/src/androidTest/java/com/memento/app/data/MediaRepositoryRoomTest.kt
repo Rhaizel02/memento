@@ -18,6 +18,8 @@ import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.model.LibraryFilters
+import com.memento.app.domain.model.TimelineEvent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -30,6 +32,67 @@ import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
 class MediaRepositoryRoomTest {
+    @Test
+    fun personalTagsDeduplicateAttachAcrossWorksFilterAndRemoveOnlyRelation() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val firstMedia = repository.addManual(AddMediaInput(MediaType.BOOK, "Uno"), ConsumptionStatus.PLANNED)
+            val secondMedia = repository.addManual(AddMediaInput(MediaType.MOVIE, "Dos"), ConsumptionStatus.PLANNED)
+            val thirdMedia = repository.addManual(AddMediaInput(MediaType.GAME, "Tres"), ConsumptionStatus.PLANNED)
+
+            val firstTag = repository.createAndAttachTag(firstMedia, "  Para releer  ")
+            val sameTag = repository.createAndAttachTag(secondMedia, "PARA RELEER")
+            repository.attachTag(thirdMedia, firstTag.id)
+
+            assertEquals(firstTag.id, sameTag.id)
+            assertEquals("Para releer", sameTag.name)
+            assertEquals(listOf(firstTag.id), repository.observeMediaDetail(firstMedia).first { it?.tags?.isNotEmpty() == true }!!.tags.map { it.id })
+            assertEquals(
+                setOf(firstMedia, secondMedia, thirdMedia),
+                repository.observeLibrary(filters = LibraryFilters(tagIds = setOf(firstTag.id))).first { it.size == 3 }.map { it.id }.toSet(),
+            )
+
+            repository.removeTag(firstMedia, firstTag.id)
+
+            assertTrue(repository.observeMediaDetail(firstMedia).first { it != null }!!.tags.isEmpty())
+            assertEquals(listOf(firstTag.id), repository.observeMediaDetail(secondMedia).first { it?.tags?.isNotEmpty() == true }!!.tags.map { it.id })
+            assertEquals(listOf(firstTag.id), repository.observeTags().first().map { it.id })
+            assertEquals(
+                setOf(secondMedia, thirdMedia),
+                repository.observeLibrary(filters = LibraryFilters(tagIds = setOf(firstTag.id))).first { it.size == 2 }.map { it.id }.toSet(),
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun quotesTrimRejectBlankAndAppearAsReflectionTimelineEvents() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val mediaId = repository.addManual(AddMediaInput(MediaType.BOOK, "Citas"), ConsumptionStatus.IN_PROGRESS)
+            val consumptionId = repository.observeMediaDetail(mediaId).first { it != null }!!.activeConsumption!!.id
+
+            repository.saveReflection(consumptionId, ReflectionType.QUOTE, "  El tiempo revela.  ")
+            val blankRejected = runCatching {
+                repository.saveReflection(consumptionId, ReflectionType.QUOTE, "   ")
+            }.isFailure
+            val detail = repository.observeMediaDetail(mediaId).first { it?.reflections?.isNotEmpty() == true }!!
+            val timeline = repository.observeTimeline(mediaId).first { it.isNotEmpty() }
+
+            assertTrue(blankRejected)
+            assertEquals("El tiempo revela.", detail.reflections.single().content)
+            assertEquals(ReflectionType.QUOTE, detail.reflections.single().type)
+            assertTrue(timeline.any { it is TimelineEvent.ReflectionWritten && it.reflection.type == ReflectionType.QUOTE })
+        } finally {
+            database.close()
+        }
+    }
+
     @Test
     fun completedAddRequiresExplicitCompletionDataBeforeAnyInsert() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

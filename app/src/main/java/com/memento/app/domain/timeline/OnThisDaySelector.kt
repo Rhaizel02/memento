@@ -33,8 +33,9 @@ object OnThisDaySelector {
     }
 
     private fun priority(type: TimelineEventType): Int = when (type) {
-        TimelineEventType.FINAL_REFLECTION -> 6
-        TimelineEventType.LATER_REFLECTION -> 5
+        TimelineEventType.FINAL_REFLECTION -> 7
+        TimelineEventType.LATER_REFLECTION -> 6
+        TimelineEventType.QUOTE -> 5
         TimelineEventType.COMPLETED -> 4
         TimelineEventType.NOTE -> 3
         TimelineEventType.STARTED -> 2

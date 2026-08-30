@@ -52,6 +52,7 @@ class CulturalTimelineMapperTest {
         }
 
         assertEquals(TimelineEventType.NOTE, types[ReflectionType.NOTE])
+        assertEquals(TimelineEventType.QUOTE, types[ReflectionType.QUOTE])
         assertEquals(TimelineEventType.FINAL_REFLECTION, types[ReflectionType.FINAL_REFLECTION])
         assertEquals(TimelineEventType.LATER_REFLECTION, types[ReflectionType.LATER_REFLECTION])
     }

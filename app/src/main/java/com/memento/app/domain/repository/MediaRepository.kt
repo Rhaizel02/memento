@@ -14,6 +14,7 @@ import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.model.EditMediaInput
+import com.memento.app.domain.model.Tag
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -30,6 +31,7 @@ interface MediaRepository {
     fun observeHomeMedia(inProgressLimit: Int = 10, recentLimit: Int = 12): Flow<HomeMediaFeed>
     fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>>
     fun observeAllDetails(): Flow<List<MediaDetail>>
+    fun observeTags(): Flow<List<Tag>>
 
     suspend fun addManual(
         input: AddMediaInput,
@@ -68,4 +70,7 @@ interface MediaRepository {
     ): String
     suspend fun updateReflection(reflectionId: String, content: String)
     suspend fun deleteConsumption(consumptionId: String)
+    suspend fun createAndAttachTag(mediaId: String, name: String): Tag
+    suspend fun attachTag(mediaId: String, tagId: String)
+    suspend fun removeTag(mediaId: String, tagId: String)
 }

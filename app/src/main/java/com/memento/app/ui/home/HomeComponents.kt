@@ -226,6 +226,7 @@ private fun onThisDayEventLabel(event: CulturalTimelineEvent): String = when (ev
     )
     TimelineEventType.PROGRESS -> stringResource(R.string.timeline_event_progress)
     TimelineEventType.NOTE -> stringResource(R.string.timeline_event_note)
+    TimelineEventType.QUOTE -> stringResource(R.string.timeline_event_quote)
     TimelineEventType.FINAL_REFLECTION -> stringResource(R.string.timeline_event_final_reflection)
     TimelineEventType.LATER_REFLECTION -> stringResource(R.string.timeline_event_later_reflection)
 }

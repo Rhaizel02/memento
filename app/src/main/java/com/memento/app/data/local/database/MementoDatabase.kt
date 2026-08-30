@@ -23,6 +23,8 @@ import com.memento.app.data.local.entity.RecommendationCandidateEntity
 import com.memento.app.data.local.entity.RecommendationFeedbackEntity
 import com.memento.app.data.local.entity.AiInsightEntity
 import com.memento.app.data.local.entity.AiInsightSourceCrossRef
+import com.memento.app.data.local.entity.TagEntity
+import com.memento.app.data.local.entity.MediaTagCrossRef
 import com.memento.app.data.local.dao.AiInsightDao
 import com.memento.app.data.local.dao.TimelineDao
 
@@ -42,8 +44,10 @@ import com.memento.app.data.local.dao.TimelineDao
         RecommendationFeedbackEntity::class,
         AiInsightEntity::class,
         AiInsightSourceCrossRef::class,
+        TagEntity::class,
+        MediaTagCrossRef::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(RoomConverters::class)

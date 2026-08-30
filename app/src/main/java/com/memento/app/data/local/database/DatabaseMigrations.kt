@@ -115,6 +115,36 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `tags` (
+                `id` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `normalizedName` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tags_normalizedName` ON `tags` (`normalizedName`)")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `media_tag_cross_ref` (
+                `mediaItemId` TEXT NOT NULL,
+                `tagId` TEXT NOT NULL,
+                PRIMARY KEY(`mediaItemId`, `tagId`),
+                FOREIGN KEY(`mediaItemId`) REFERENCES `media_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`tagId`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_tag_cross_ref_mediaItemId` ON `media_tag_cross_ref` (`mediaItemId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_tag_cross_ref_tagId` ON `media_tag_cross_ref` (`tagId`)")
+    }
+}
+
 val HARDENING_DATABASE_CALLBACK = object : androidx.room.RoomDatabase.Callback() {
     override fun onCreate(db: SupportSQLiteDatabase) = createIntegrityTriggers(db)
     override fun onOpen(db: SupportSQLiteDatabase) = createIntegrityTriggers(db)

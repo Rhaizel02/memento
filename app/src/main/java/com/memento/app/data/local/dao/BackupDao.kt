@@ -17,6 +17,8 @@ import com.memento.app.data.local.entity.ReflectionEntity
 import com.memento.app.data.local.entity.RememberExposureEntity
 import com.memento.app.data.local.entity.AiInsightEntity
 import com.memento.app.data.local.entity.AiInsightSourceCrossRef
+import com.memento.app.data.local.entity.TagEntity
+import com.memento.app.data.local.entity.MediaTagCrossRef
 
 @Dao
 interface BackupDao {
@@ -26,6 +28,8 @@ interface BackupDao {
     @Query("SELECT * FROM media_creator_cross_ref ORDER BY mediaItemId, creatorId, role") suspend fun mediaCreators(): List<MediaCreatorCrossRef>
     @Query("SELECT * FROM genres ORDER BY id") suspend fun genres(): List<GenreEntity>
     @Query("SELECT * FROM media_genre_cross_ref ORDER BY mediaItemId, genreId") suspend fun mediaGenres(): List<MediaGenreCrossRef>
+    @Query("SELECT * FROM tags ORDER BY id") suspend fun tags(): List<TagEntity>
+    @Query("SELECT * FROM media_tag_cross_ref ORDER BY mediaItemId, tagId") suspend fun mediaTags(): List<MediaTagCrossRef>
     @Query("SELECT * FROM consumptions ORDER BY id") suspend fun consumptions(): List<ConsumptionEntity>
     @Query("SELECT * FROM progress_entries ORDER BY id") suspend fun progressEntries(): List<ProgressEntryEntity>
     @Query("SELECT * FROM reflections ORDER BY id") suspend fun reflections(): List<ReflectionEntity>
@@ -40,6 +44,8 @@ interface BackupDao {
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertMediaCreators(rows: List<MediaCreatorCrossRef>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertGenres(rows: List<GenreEntity>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertMediaGenres(rows: List<MediaGenreCrossRef>)
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertTags(rows: List<TagEntity>)
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertMediaTags(rows: List<MediaTagCrossRef>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertConsumptions(rows: List<ConsumptionEntity>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertProgressEntries(rows: List<ProgressEntryEntity>)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertReflections(rows: List<ReflectionEntity>)
@@ -54,10 +60,12 @@ interface BackupDao {
     @Query("DELETE FROM consumptions") suspend fun clearConsumptions()
     @Query("DELETE FROM media_creator_cross_ref") suspend fun clearMediaCreators()
     @Query("DELETE FROM media_genre_cross_ref") suspend fun clearMediaGenres()
+    @Query("DELETE FROM media_tag_cross_ref") suspend fun clearMediaTags()
     @Query("DELETE FROM external_media_refs") suspend fun clearExternalRefs()
     @Query("DELETE FROM media_items") suspend fun clearMediaItems()
     @Query("DELETE FROM creators") suspend fun clearCreators()
     @Query("DELETE FROM genres") suspend fun clearGenres()
+    @Query("DELETE FROM tags") suspend fun clearTags()
     @Query("DELETE FROM recommendation_feedback") suspend fun clearRecommendationFeedback()
     @Query("DELETE FROM recommendation_candidates") suspend fun clearRecommendationCandidates()
     @Query("DELETE FROM ai_insights") suspend fun clearAiInsights()

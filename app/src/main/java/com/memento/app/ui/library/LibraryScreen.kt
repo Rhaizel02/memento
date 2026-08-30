@@ -55,6 +55,7 @@ fun LibraryScreen(
     onFavoritesOnlyChanged: (Boolean) -> Unit,
     onYearSelected: (Int?) -> Unit,
     onSortSelected: (LibrarySort) -> Unit,
+    onTagToggled: (String) -> Unit = {},
     onClearFilters: () -> Unit,
     onOpenMedia: (String) -> Unit,
     onAdd: () -> Unit,
@@ -154,6 +155,7 @@ fun LibraryScreen(
             onFavoritesOnlyChanged = onFavoritesOnlyChanged,
             onYearSelected = onYearSelected,
             onSortSelected = onSortSelected,
+            onTagToggled = onTagToggled,
             onClear = onClearFilters,
         )
     }
@@ -169,6 +171,7 @@ private fun LibraryFilterSheet(
     onFavoritesOnlyChanged: (Boolean) -> Unit,
     onYearSelected: (Int?) -> Unit,
     onSortSelected: (LibrarySort) -> Unit,
+    onTagToggled: (String) -> Unit,
     onClear: () -> Unit,
 ) {
     var yearText by remember(state.filters.year) { mutableStateOf(state.filters.year?.toString().orEmpty()) }
@@ -220,6 +223,27 @@ private fun LibraryFilterSheet(
                 label = { librarySortLabel(it) },
                 onSelected = onSortSelected,
             )
+            if (state.availableTags.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
+                    Text(
+                        stringResource(R.string.personal_tags),
+                        modifier = Modifier.padding(horizontal = MementoSpacing.normal),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = MementoSpacing.normal),
+                        horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+                    ) {
+                        items(state.availableTags, key = { it.id }) { tag ->
+                            FilterChip(
+                                selected = tag.id in state.filters.tagIds,
+                                onClick = { onTagToggled(tag.id) },
+                                label = { Text(tag.name) },
+                            )
+                        }
+                    }
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
                 horizontalArrangement = Arrangement.End,
@@ -258,6 +282,7 @@ private fun activeFilterCount(state: LibraryUiState): Int = listOf(
     state.filters.favoritesOnly,
     state.filters.year != null,
     state.filters.sort != LibrarySort.RECENT,
+    state.filters.tagIds.isNotEmpty(),
 ).count { it }
 
 @Composable

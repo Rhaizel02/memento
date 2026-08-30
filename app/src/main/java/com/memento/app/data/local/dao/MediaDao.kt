@@ -13,6 +13,8 @@ import com.memento.app.data.local.entity.ExternalMediaRefEntity
 import com.memento.app.data.local.entity.MediaCreatorCrossRef
 import com.memento.app.data.local.entity.MediaGenreCrossRef
 import com.memento.app.data.local.entity.MediaItemEntity
+import com.memento.app.data.local.entity.MediaTagCrossRef
+import com.memento.app.data.local.entity.TagEntity
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.ConsumptionStatus
@@ -23,6 +25,13 @@ import java.time.LocalDate
 
 data class MediaTypeCountRow(val type: MediaType, val count: Int)
 data class MediaNameRow(val mediaItemId: String, val name: String)
+data class MediaTagRow(
+    val mediaItemId: String,
+    val tagId: String,
+    val name: String,
+    val normalizedName: String,
+    val createdAt: Instant,
+)
 data class HomeMediaRow(
     @Embedded val media: MediaItemEntity,
     val consumptionId: String,
@@ -87,6 +96,10 @@ interface MediaDao {
             SELECT 1 FROM consumptions cy
             WHERE cy.mediaItemId = m.id AND CAST(substr(cy.completedDate, 1, 4) AS INTEGER) = :year
         ))
+        AND (:tagCount = 0 OR EXISTS (
+            SELECT 1 FROM media_tag_cross_ref mt
+            WHERE mt.mediaItemId = m.id AND mt.tagId IN (:tagIds)
+        ))
         ORDER BY
             CASE WHEN :sort = 'TITLE' THEN m.title END COLLATE NOCASE ASC,
             CASE WHEN :sort = 'RATING' THEN (SELECT MAX(cra.ratingHalfStars) FROM consumptions cra WHERE cra.mediaItemId = m.id) END DESC,
@@ -104,6 +117,8 @@ interface MediaDao {
         minRating: Int?,
         year: Int?,
         sort: String,
+        tagIds: List<String>,
+        tagCount: Int,
     ): Flow<List<MediaItemEntity>>
 
     @Query("SELECT * FROM media_items ORDER BY updatedAt DESC")
@@ -131,6 +146,17 @@ interface MediaDao {
         """,
     )
     fun observeAllGenreNames(): Flow<List<MediaNameRow>>
+
+    @Query(
+        """
+        SELECT mt.mediaItemId AS mediaItemId, t.id AS tagId, t.name AS name,
+            t.normalizedName AS normalizedName, t.createdAt AS createdAt
+        FROM media_tag_cross_ref mt
+        INNER JOIN tags t ON t.id = mt.tagId
+        ORDER BY mt.mediaItemId, t.name COLLATE NOCASE
+        """,
+    )
+    fun observeAllTags(): Flow<List<MediaTagRow>>
 
     @Query(
         """
@@ -290,5 +316,33 @@ interface MediaDao {
         """,
     )
     fun observeGenreNames(mediaId: String): Flow<List<String>>
+
+    @Query("SELECT * FROM tags ORDER BY name COLLATE NOCASE")
+    fun observeTags(): Flow<List<TagEntity>>
+
+    @Query(
+        """
+        SELECT t.* FROM tags t
+        INNER JOIN media_tag_cross_ref mt ON mt.tagId = t.id
+        WHERE mt.mediaItemId = :mediaId
+        ORDER BY t.name COLLATE NOCASE
+        """,
+    )
+    fun observeTagsForMedia(mediaId: String): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags WHERE normalizedName = :normalizedName LIMIT 1")
+    suspend fun findTag(normalizedName: String): TagEntity?
+
+    @Query("SELECT * FROM tags WHERE id = :tagId LIMIT 1")
+    suspend fun getTagById(tagId: String): TagEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertTag(tag: TagEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMediaTag(crossRef: MediaTagCrossRef)
+
+    @Query("DELETE FROM media_tag_cross_ref WHERE mediaItemId = :mediaId AND tagId = :tagId")
+    suspend fun deleteMediaTag(mediaId: String, tagId: String)
 
 }

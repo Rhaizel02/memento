@@ -8,6 +8,7 @@ enum class TimelineEventType {
     COMPLETED,
     PROGRESS,
     NOTE,
+    QUOTE,
     FINAL_REFLECTION,
     LATER_REFLECTION,
 }

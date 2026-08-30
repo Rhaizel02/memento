@@ -99,6 +99,25 @@ data class GenreEntity(
 )
 data class MediaGenreCrossRef(val mediaItemId: String, val genreId: String)
 
+@Entity(tableName = "tags", indices = [Index(value = ["normalizedName"], unique = true)])
+data class TagEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val normalizedName: String,
+    val createdAt: Instant,
+)
+
+@Entity(
+    tableName = "media_tag_cross_ref",
+    primaryKeys = ["mediaItemId", "tagId"],
+    foreignKeys = [
+        ForeignKey(entity = MediaItemEntity::class, parentColumns = ["id"], childColumns = ["mediaItemId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = TagEntity::class, parentColumns = ["id"], childColumns = ["tagId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("mediaItemId"), Index("tagId")],
+)
+data class MediaTagCrossRef(val mediaItemId: String, val tagId: String)
+
 @Entity(
     tableName = "consumptions",
     foreignKeys = [

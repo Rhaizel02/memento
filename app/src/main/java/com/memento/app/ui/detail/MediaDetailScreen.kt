@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,6 +26,10 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FormatQuote
+import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,11 +37,15 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +69,7 @@ import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.Reflection
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
+import com.memento.app.domain.model.Tag
 import com.memento.app.ui.components.PosterArtwork
 import com.memento.app.ui.components.NumericTextField
 import com.memento.app.domain.usecase.ProgressCapturePolicy
@@ -84,6 +94,10 @@ fun MediaDetailScreen(
     onComplete: (LocalDate, Int?, String?) -> Unit,
     onDrop: () -> Unit,
     onAddNote: (String) -> Unit,
+    onAddQuote: (String) -> Unit = {},
+    onCreateTag: (String) -> Unit = {},
+    onAttachTag: (String) -> Unit = {},
+    onRemoveTag: (String) -> Unit = {},
     onAddProgress: (ProgressType, Double?, Double?, Int?, Int?) -> Unit,
     onUpdateMetadata: (EditMediaInput) -> Unit,
     onDeleteConsumption: (String) -> Unit,
@@ -103,6 +117,8 @@ fun MediaDetailScreen(
     var showComplete by remember { mutableStateOf(false) }
     var showNote by remember { mutableStateOf(false) }
     var showProgress by remember { mutableStateOf(false) }
+    var showQuote by remember { mutableStateOf(false) }
+    var showTags by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
     var pendingDeleteConsumption by remember { mutableStateOf<String?>(null) }
@@ -188,6 +204,14 @@ fun MediaDetailScreen(
             }
         }
         item {
+            PersonalTagsSection(
+                tags = detail.tags,
+                enabled = !state.isWorking,
+                onManage = { showTags = true },
+                onRemove = onRemoveTag,
+            )
+        }
+        item {
             ActionSection(
                 detail = detail,
                 enabled = !state.isWorking,
@@ -223,6 +247,24 @@ fun MediaDetailScreen(
                 }
             }
         }
+        val quotes = detail.reflections.filter { it.type == ReflectionType.QUOTE }.sortedByDescending { it.createdAt }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.quotes), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                if (active?.status == ConsumptionStatus.IN_PROGRESS) {
+                    TextButton(onClick = { showQuote = true }, enabled = !state.isWorking) {
+                        Icon(Icons.Outlined.Add, contentDescription = null)
+                        Text(stringResource(R.string.add_quote))
+                    }
+                }
+            }
+        }
+        items(quotes, key = { it.id }) { quote ->
+            QuoteCard(quote = quote, onEdit = { pendingEditReflection = quote })
+        }
         if (detail.consumptions.isNotEmpty()) {
             item {
                 Text(
@@ -249,10 +291,13 @@ fun MediaDetailScreen(
                 style = MaterialTheme.typography.titleLarge,
             )
         }
-        if (state.timeline.isEmpty()) {
+        val historyEvents = state.timeline.filterNot {
+            it is TimelineEvent.ReflectionWritten && it.reflection.type == ReflectionType.QUOTE
+        }
+        if (historyEvents.isEmpty()) {
             item { Text(stringResource(R.string.unknown_date), modifier = Modifier.padding(horizontal = MementoSpacing.normal)) }
         } else {
-            items(state.timeline, key = { it.sortInstant.toEpochMilli().toString() + it.hashCode() }) { event ->
+            items(historyEvents, key = { it.sortInstant.toEpochMilli().toString() + it.hashCode() }) { event ->
                 TimelineRow(event, onEditReflection = { pendingEditReflection = it })
             }
         }
@@ -283,6 +328,26 @@ fun MediaDetailScreen(
             hint = stringResource(R.string.note_hint),
             onDismiss = { showNote = false },
             onSave = { text -> showNote = false; onAddNote(text) },
+        )
+    }
+    if (showQuote) {
+        TextEditorSheet(
+            title = stringResource(R.string.add_quote),
+            hint = stringResource(R.string.quote_hint),
+            enabled = !state.isWorking,
+            onDismiss = { showQuote = false },
+            onSave = { text -> showQuote = false; onAddQuote(text) },
+        )
+    }
+    if (showTags) {
+        TagEditorSheet(
+            attachedTags = detail.tags,
+            availableTags = state.availableTags,
+            enabled = !state.isWorking,
+            onDismiss = { showTags = false },
+            onCreate = onCreateTag,
+            onAttach = onAttachTag,
+            onRemove = onRemoveTag,
         )
     }
     if (showProgress && active != null) {
@@ -351,6 +416,156 @@ fun MediaDetailScreen(
                 onUpdateReflection(reflection.id, content)
             },
         )
+    }
+}
+
+@Composable
+private fun PersonalTagsSection(
+    tags: List<Tag>,
+    enabled: Boolean,
+    onManage: () -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
+        verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.your_tags), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+            TextButton(onClick = onManage, enabled = enabled) {
+                Icon(Icons.Outlined.LocalOffer, contentDescription = null)
+                Text(stringResource(R.string.edit_tags))
+            }
+        }
+        if (tags.isEmpty()) {
+            Text(
+                stringResource(R.string.no_personal_tags),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
+                items(tags, key = { it.id }) { tag ->
+                    InputChip(
+                        selected = true,
+                        onClick = { onRemove(tag.id) },
+                        enabled = enabled,
+                        label = { Text(tag.name) },
+                        trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.remove_tag)) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuoteCard(quote: Reflection, onEdit: () -> Unit) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.small)) {
+        Row(Modifier.fillMaxWidth().padding(MementoSpacing.normal), verticalAlignment = Alignment.Top) {
+            Icon(Icons.Outlined.FormatQuote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(
+                quote.content,
+                modifier = Modifier.weight(1f).padding(horizontal = MementoSpacing.medium),
+                style = MaterialTheme.typography.bodyLarge,
+                fontStyle = FontStyle.Italic,
+            )
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_reflection))
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun TextEditorSheet(
+    title: String,
+    hint: String,
+    enabled: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf("") }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().imePadding().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
+        ) {
+            Text(title, style = MaterialTheme.typography.headlineSmall)
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(hint) },
+                minLines = 5,
+            )
+            Button(
+                onClick = { onSave(text) },
+                enabled = enabled && text.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.save)) }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun TagEditorSheet(
+    attachedTags: List<Tag>,
+    availableTags: List<Tag>,
+    enabled: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+    onAttach: (String) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    val attachedIds = attachedTags.mapTo(mutableSetOf()) { it.id }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().imePadding().padding(bottom = MementoSpacing.huge),
+            verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
+        ) {
+            Text(
+                stringResource(R.string.your_tags),
+                modifier = Modifier.padding(horizontal = MementoSpacing.normal),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            if (availableTags.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.select_existing_tag),
+                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = MementoSpacing.normal),
+                    horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+                ) {
+                    items(availableTags, key = { it.id }) { tag ->
+                        val selected = tag.id in attachedIds
+                        FilterChip(
+                            selected = selected,
+                            onClick = { if (selected) onRemove(tag.id) else onAttach(tag.id) },
+                            enabled = enabled,
+                            label = { Text(tag.name) },
+                        )
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
+                label = { Text(stringResource(R.string.new_tag)) },
+                singleLine = true,
+            )
+            Button(
+                onClick = { onCreate(name); name = "" },
+                enabled = enabled && name.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
+            ) { Text(stringResource(R.string.create_and_add_tag)) }
+        }
     }
 }
 
@@ -671,6 +886,7 @@ private fun TimelineRow(event: TimelineEvent, onEditReflection: (Reflection) -> 
                         stringResource(
                             when (event.reflection.type) {
                                 ReflectionType.NOTE -> R.string.timeline_note
+                                ReflectionType.QUOTE -> R.string.timeline_quote
                                 ReflectionType.FINAL_REFLECTION -> R.string.timeline_final_reflection
                                 ReflectionType.LATER_REFLECTION -> R.string.timeline_later_reflection
                             },

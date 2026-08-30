@@ -32,6 +32,7 @@ object TimelineBuilder {
                 )
                 TimelineEventType.PROGRESS -> TimelineEvent.ProgressUpdated(requireNotNull(event.progress))
                 TimelineEventType.NOTE,
+                TimelineEventType.QUOTE,
                 TimelineEventType.FINAL_REFLECTION,
                 TimelineEventType.LATER_REFLECTION,
                 -> TimelineEvent.ReflectionWritten(reflections.first { it.id == event.reflectionId })

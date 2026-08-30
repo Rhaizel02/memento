@@ -7,6 +7,7 @@ import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.LibraryFilters
 import com.memento.app.domain.model.LibrarySort
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.Tag
 import com.memento.app.domain.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ data class LibraryUiState(
     val type: MediaType? = null,
     val filters: LibraryFilters = LibraryFilters(),
     val items: List<MediaItem> = emptyList(),
+    val availableTags: List<Tag> = emptyList(),
     val isLoading: Boolean = true,
 )
 
@@ -31,9 +33,10 @@ class LibraryViewModel @Inject constructor(repository: MediaRepository) : ViewMo
     private data class Request(val query: String = "", val type: MediaType? = null, val filters: LibraryFilters = LibraryFilters())
     private val request = MutableStateFlow(Request())
     private val items = request.flatMapLatest { repository.observeLibrary(it.query, it.type, it.filters) }
+    private val tags = repository.observeTags()
 
-    val state = combine(request, items) { current, media ->
-        LibraryUiState(current.query, current.type, current.filters, media, isLoading = false)
+    val state = combine(request, items, tags) { current, media, availableTags ->
+        LibraryUiState(current.query, current.type, current.filters, media, availableTags, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     fun setQuery(query: String) = request.update { it.copy(query = query) }
@@ -43,6 +46,9 @@ class LibraryViewModel @Inject constructor(repository: MediaRepository) : ViewMo
     fun setFavoritesOnly(enabled: Boolean) = updateFilters { copy(favoritesOnly = enabled) }
     fun setYear(year: Int?) = updateFilters { copy(year = year) }
     fun setSort(sort: LibrarySort) = updateFilters { copy(sort = sort) }
+    fun toggleTag(tagId: String) = updateFilters {
+        copy(tagIds = if (tagId in tagIds) tagIds - tagId else tagIds + tagId)
+    }
     fun clearAdditionalFilters() = request.update { it.copy(filters = LibraryFilters()) }
 
     private fun updateFilters(transform: LibraryFilters.() -> LibraryFilters) =

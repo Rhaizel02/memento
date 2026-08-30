@@ -11,6 +11,7 @@ import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.RecommendationFeedbackType
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.usecase.ProgressValidator
+import com.memento.app.domain.usecase.TagNameNormalizer
 import java.time.Instant
 import java.time.LocalDate
 
@@ -30,6 +31,8 @@ data class BackupData(
     val mediaCreators: List<BackupMediaCreator> = emptyList(),
     val genres: List<BackupGenre> = emptyList(),
     val mediaGenres: List<BackupMediaGenre> = emptyList(),
+    val tags: List<BackupTag> = emptyList(),
+    val mediaTags: List<BackupMediaTag> = emptyList(),
     val consumptions: List<BackupConsumption> = emptyList(),
     val progressEntries: List<BackupProgress> = emptyList(),
     val reflections: List<BackupReflection> = emptyList(),
@@ -49,6 +52,8 @@ data class BackupData(
 @Serializable data class BackupMediaCreator(val mediaItemId: String, val creatorId: String, val role: String)
 @Serializable data class BackupGenre(val id: String, val name: String, val normalizedName: String)
 @Serializable data class BackupMediaGenre(val mediaItemId: String, val genreId: String)
+@Serializable data class BackupTag(val id: String, val name: String, val normalizedName: String, val createdAt: String)
+@Serializable data class BackupMediaTag(val mediaItemId: String, val tagId: String)
 @Serializable data class BackupConsumption(
     val id: String, val mediaItemId: String, val status: String, val startedDate: String?, val completedDate: String?,
     val ratingHalfStars: Int?, val createdAt: String, val updatedAt: String,
@@ -78,7 +83,7 @@ data class BackupData(
 data class BackupPreview(val mediaItems: Int, val consumptions: Int, val reflections: Int, val exportedAt: Instant)
 
 object BackupCodec {
-    const val SCHEMA_VERSION = 2
+    const val SCHEMA_VERSION = 3
     const val MAX_IMPORT_BYTES = 10 * 1024 * 1024
     private val json = Json { prettyPrint = true; encodeDefaults = true }
 
@@ -106,10 +111,17 @@ object BackupCodec {
         require(data.mediaItems.map { it.id }.allUnique()) { "Hay obras duplicadas en el backup" }
         require(data.creators.map { it.id }.allUnique()) { "Hay creadores duplicados en el backup" }
         require(data.genres.map { it.id }.allUnique()) { "Hay géneros duplicados en el backup" }
+        require(data.tags.map { it.id }.allUnique()) { "Hay etiquetas duplicadas en el backup" }
+        require(data.tags.map { it.normalizedName }.allUnique()) { "Hay nombres de etiqueta duplicados en el backup" }
+        require(data.mediaTags.allUnique()) { "Hay relaciones de etiqueta duplicadas en el backup" }
         require(data.consumptions.map { it.id }.allUnique()) { "Hay consumos duplicados en el backup" }
         require(data.progressEntries.map { it.id }.allUnique()) { "Hay progresos duplicados en el backup" }
         require(data.reflections.map { it.id }.allUnique()) { "Hay reflexiones duplicadas en el backup" }
         require(data.mediaItems.all { it.id.isNotBlank() && it.title.isNotBlank() }) { "Todas las obras necesitan id y título" }
+        require(data.tags.all {
+            it.id.isNotBlank() && it.name.isNotBlank() &&
+                it.normalizedName == TagNameNormalizer.normalize(it.name)
+        }) { "Hay una etiqueta inválida en el backup" }
         require(data.consumptions.all { it.ratingHalfStars == null || it.ratingHalfStars in 1..10 }) { "Hay una valoración fuera de rango" }
         require(
             data.consumptions
@@ -123,11 +135,13 @@ object BackupCodec {
         val mediaIds = data.mediaItems.mapTo(mutableSetOf()) { it.id }
         val creatorIds = data.creators.mapTo(mutableSetOf()) { it.id }
         val genreIds = data.genres.mapTo(mutableSetOf()) { it.id }
+        val tagIds = data.tags.mapTo(mutableSetOf()) { it.id }
         val consumptionIds = data.consumptions.mapTo(mutableSetOf()) { it.id }
         val reflectionIds = data.reflections.mapTo(mutableSetOf()) { it.id }
         require(data.externalRefs.all { it.mediaItemId in mediaIds }) { "Una referencia apunta a una obra inexistente" }
         require(data.mediaCreators.all { it.mediaItemId in mediaIds && it.creatorId in creatorIds }) { "Una relación de creador es inválida" }
         require(data.mediaGenres.all { it.mediaItemId in mediaIds && it.genreId in genreIds }) { "Una relación de género es inválida" }
+        require(data.mediaTags.all { it.mediaItemId in mediaIds && it.tagId in tagIds }) { "Una relación de etiqueta es inválida" }
         require(data.consumptions.all { it.mediaItemId in mediaIds }) { "Un consumo apunta a una obra inexistente" }
         require(data.progressEntries.all { it.consumptionId in consumptionIds }) { "Un progreso apunta a un consumo inexistente" }
         require(data.reflections.all { it.consumptionId in consumptionIds }) { "Una reflexión apunta a un consumo inexistente" }
@@ -147,6 +161,7 @@ object BackupCodec {
             }
             data.externalRefs.forEach { MetadataProvider.valueOf(it.provider); MediaType.valueOf(it.mediaType) }
             data.mediaCreators.forEach { CreatorRole.valueOf(it.role) }
+            data.tags.forEach { Instant.parse(it.createdAt) }
             data.consumptions.forEach {
                 ConsumptionStatus.valueOf(it.status)
                 it.startedDate?.let(LocalDate::parse)

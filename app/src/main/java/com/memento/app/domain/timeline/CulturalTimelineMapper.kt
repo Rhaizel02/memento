@@ -126,6 +126,7 @@ object CulturalTimelineMapper {
 
     private fun ReflectionType.toTimelineEventType() = when (this) {
         ReflectionType.NOTE -> TimelineEventType.NOTE
+        ReflectionType.QUOTE -> TimelineEventType.QUOTE
         ReflectionType.FINAL_REFLECTION -> TimelineEventType.FINAL_REFLECTION
         ReflectionType.LATER_REFLECTION -> TimelineEventType.LATER_REFLECTION
     }
@@ -149,9 +150,10 @@ object CulturalTimelineMapper {
     private fun priority(type: TimelineEventType): Int = when (type) {
         TimelineEventType.LATER_REFLECTION -> 6
         TimelineEventType.FINAL_REFLECTION -> 5
-        TimelineEventType.NOTE -> 4
-        TimelineEventType.COMPLETED -> 3
-        TimelineEventType.PROGRESS -> 2
-        TimelineEventType.STARTED -> 1
+        TimelineEventType.QUOTE -> 4
+        TimelineEventType.NOTE -> 3
+        TimelineEventType.COMPLETED -> 2
+        TimelineEventType.PROGRESS -> 1
+        TimelineEventType.STARTED -> 0
     }
 }

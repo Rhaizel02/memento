@@ -7,6 +7,7 @@ import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.EditMediaInput
+import com.memento.app.domain.model.Tag
 import com.memento.app.domain.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ data class MediaDetailUiState(
     val isWorking: Boolean = false,
     val message: String? = null,
     val wasDeleted: Boolean = false,
+    val availableTags: List<Tag> = emptyList(),
 )
 
 private data class DetailOperationState(
@@ -42,8 +44,9 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
     private val detail = mediaId.flatMapLatest { id -> id?.let(repository::observeMediaDetail) ?: flowOf(null) }
     private val timeline = mediaId.flatMapLatest { id -> id?.let(repository::observeTimeline) ?: flowOf(emptyList()) }
     private val operation = MutableStateFlow(DetailOperationState())
+    private val tags = repository.observeTags()
 
-    val state = combine(detail, timeline, operation) { item, events, currentOperation ->
+    val state = combine(detail, timeline, operation, tags) { item, events, currentOperation, availableTags ->
         MediaDetailUiState(
             detail = item,
             timeline = events,
@@ -51,6 +54,7 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
             isWorking = currentOperation.isWorking,
             message = currentOperation.message,
             wasDeleted = currentOperation.wasDeleted,
+            availableTags = availableTags,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MediaDetailUiState())
 
@@ -77,6 +81,17 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
         val consumptionId = state.value.detail?.activeConsumption?.id ?: return
         runAction { repository.saveReflection(consumptionId, ReflectionType.NOTE, content) }
     }
+
+    fun addQuote(content: String) {
+        val consumptionId = state.value.detail?.activeConsumption?.id ?: return
+        runAction { repository.saveReflection(consumptionId, ReflectionType.QUOTE, content) }
+    }
+
+    fun createTag(name: String) = mediaAction { repository.createAndAttachTag(it, name) }
+
+    fun attachTag(tagId: String) = mediaAction { repository.attachTag(it, tagId) }
+
+    fun removeTag(tagId: String) = mediaAction { repository.removeTag(it, tagId) }
 
     fun addProgress(
         type: ProgressType,

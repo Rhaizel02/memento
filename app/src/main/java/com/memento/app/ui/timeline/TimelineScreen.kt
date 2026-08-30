@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -317,6 +318,7 @@ private fun CulturalTimelineEvent.showsPoster() = when (eventType) {
     -> true
     TimelineEventType.PROGRESS,
     TimelineEventType.NOTE,
+    TimelineEventType.QUOTE,
     -> false
 }
 
@@ -325,6 +327,7 @@ private fun eventIcon(type: TimelineEventType): ImageVector = when (type) {
     TimelineEventType.COMPLETED -> Icons.Outlined.CheckCircle
     TimelineEventType.PROGRESS -> Icons.AutoMirrored.Outlined.TrendingUp
     TimelineEventType.NOTE -> Icons.Outlined.EditNote
+    TimelineEventType.QUOTE -> Icons.Outlined.FormatQuote
     TimelineEventType.FINAL_REFLECTION -> Icons.Outlined.AutoAwesome
     TimelineEventType.LATER_REFLECTION -> Icons.Outlined.History
 }
@@ -347,6 +350,7 @@ private fun eventLabel(event: CulturalTimelineEvent): String = when (event.event
     )
     TimelineEventType.PROGRESS -> stringResource(R.string.timeline_event_progress)
     TimelineEventType.NOTE -> stringResource(R.string.timeline_event_note)
+    TimelineEventType.QUOTE -> stringResource(R.string.timeline_event_quote)
     TimelineEventType.FINAL_REFLECTION -> stringResource(R.string.timeline_event_final_reflection)
     TimelineEventType.LATER_REFLECTION -> stringResource(R.string.timeline_event_later_reflection)
 }

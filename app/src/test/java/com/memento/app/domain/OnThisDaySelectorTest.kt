@@ -57,6 +57,20 @@ class OnThisDaySelectorTest {
         assertEquals(listOf("reflection", "completed"), selected.map { it.id })
     }
 
+    @Test
+    fun `quote priority sits between later reflection and completion`() {
+        val selected = OnThisDaySelector.select(
+            listOf(
+                event("completion", "2025-08-30", TimelineEventType.COMPLETED),
+                event("quote", "2025-08-30", TimelineEventType.QUOTE),
+                event("later", "2025-08-30", TimelineEventType.LATER_REFLECTION),
+            ),
+            today,
+        )
+
+        assertEquals(listOf("later", "quote", "completion"), selected.map { it.id })
+    }
+
     private fun event(
         id: String,
         date: String,

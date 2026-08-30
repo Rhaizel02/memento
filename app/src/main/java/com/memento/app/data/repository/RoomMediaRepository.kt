@@ -14,6 +14,8 @@ import com.memento.app.data.local.entity.MediaGenreCrossRef
 import com.memento.app.data.local.entity.MediaItemEntity
 import com.memento.app.data.local.entity.ProgressEntryEntity
 import com.memento.app.data.local.entity.ReflectionEntity
+import com.memento.app.data.local.entity.MediaTagCrossRef
+import com.memento.app.data.local.entity.TagEntity
 import com.memento.app.data.mapper.toDomain
 import com.memento.app.data.mapper.toEntity
 import com.memento.app.domain.model.AddMediaInput
@@ -32,10 +34,12 @@ import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.model.EditMediaInput
+import com.memento.app.domain.model.Tag
 import com.memento.app.domain.model.defaultCreatorRole
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.usecase.TimelineBuilder
 import com.memento.app.domain.usecase.ProgressValidator
+import com.memento.app.domain.usecase.TagNameNormalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -61,6 +65,8 @@ class RoomMediaRepository @Inject constructor(
             minRating = filters.minRatingHalfStars,
             year = filters.year,
             sort = filters.sort.name,
+            tagIds = filters.tagIds.toList(),
+            tagCount = filters.tagIds.size,
         ).map { rows -> rows.map { it.toDomain() } }
 
     override fun observeMediaDetail(mediaId: String): Flow<MediaDetail?> = combine(
@@ -70,6 +76,7 @@ class RoomMediaRepository @Inject constructor(
         consumptionDao.observeForMedia(mediaId),
         consumptionDao.observeProgressForMedia(mediaId),
         consumptionDao.observeReflectionsForMedia(mediaId),
+        mediaDao.observeTagsForMedia(mediaId),
     ) { values ->
         val media = (values[0] as MediaItemEntity?)?.toDomain() ?: return@combine null
         @Suppress("UNCHECKED_CAST")
@@ -80,8 +87,12 @@ class RoomMediaRepository @Inject constructor(
             consumptions = (values[3] as List<ConsumptionEntity>).map { it.toDomain() },
             progress = (values[4] as List<ProgressEntryEntity>).map { it.toDomain() },
             reflections = (values[5] as List<ReflectionEntity>).map { it.toDomain() },
+            tags = (values[6] as List<TagEntity>).map { it.toDomain() },
         )
     }
+
+    override fun observeTags(): Flow<List<Tag>> =
+        mediaDao.observeTags().map { rows -> rows.map { it.toDomain() } }
 
     override fun observeTimeline(mediaId: String): Flow<List<TimelineEvent>> =
         observeMediaDetail(mediaId).map { detail ->
@@ -119,6 +130,7 @@ class RoomMediaRepository @Inject constructor(
         consumptionDao.observeAll(),
         consumptionDao.observeAllProgress(),
         consumptionDao.observeAllReflections(),
+        mediaDao.observeAllTags(),
     ) { values ->
         val items = values[0] as List<MediaItemEntity>
         val creatorsByMedia = (values[1] as List<com.memento.app.data.local.dao.MediaNameRow>).groupBy({ it.mediaItemId }, { it.name })
@@ -126,6 +138,7 @@ class RoomMediaRepository @Inject constructor(
         val consumptionsByMedia = (values[3] as List<ConsumptionEntity>).groupBy { it.mediaItemId }
         val progressByConsumption = (values[4] as List<ProgressEntryEntity>).groupBy { it.consumptionId }
         val reflectionsByConsumption = (values[5] as List<ReflectionEntity>).groupBy { it.consumptionId }
+        val tagsByMedia = (values[6] as List<com.memento.app.data.local.dao.MediaTagRow>).groupBy { it.mediaItemId }
         items.map { media ->
             val consumptions = consumptionsByMedia[media.id].orEmpty()
             MediaDetail(
@@ -135,6 +148,7 @@ class RoomMediaRepository @Inject constructor(
                 consumptions = consumptions.map { it.toDomain() },
                 progress = consumptions.flatMap { progressByConsumption[it.id].orEmpty() }.map { it.toDomain() },
                 reflections = consumptions.flatMap { reflectionsByConsumption[it.id].orEmpty() }.map { it.toDomain() },
+                tags = tagsByMedia[media.id].orEmpty().map { Tag(it.tagId, it.name, it.normalizedName, it.createdAt) },
             )
         }
     }
@@ -348,7 +362,7 @@ class RoomMediaRepository @Inject constructor(
         database.withTransaction {
             val cleanContent = content.trim()
             require(cleanContent.isNotEmpty())
-            if (type == ReflectionType.NOTE) requireActiveConsumption(consumptionId)
+            if (type == ReflectionType.NOTE || type == ReflectionType.QUOTE) requireActiveConsumption(consumptionId)
             val now = Instant.now()
             val existing = if (type == ReflectionType.FINAL_REFLECTION) consumptionDao.getReflection(consumptionId, type) else null
             if (existing != null) {
@@ -369,6 +383,32 @@ class RoomMediaRepository @Inject constructor(
     }
 
     override suspend fun deleteConsumption(consumptionId: String) = consumptionDao.deleteById(consumptionId)
+
+    override suspend fun createAndAttachTag(mediaId: String, name: String): Tag = database.withTransaction {
+        require(mediaDao.getById(mediaId) != null) { "La obra ya no existe" }
+        val displayName = TagNameNormalizer.displayName(name)
+        val normalizedName = TagNameNormalizer.normalize(name)
+        require(displayName.isNotEmpty()) { "El nombre de la etiqueta es obligatorio" }
+        val tag = mediaDao.findTag(normalizedName) ?: TagEntity(
+            id = UUID.randomUUID().toString(),
+            name = displayName,
+            normalizedName = normalizedName,
+            createdAt = Instant.now(),
+        ).also { mediaDao.insertTag(it) }
+        mediaDao.insertMediaTag(MediaTagCrossRef(mediaId, tag.id))
+        tag.toDomain()
+    }
+
+    override suspend fun attachTag(mediaId: String, tagId: String) = database.withTransaction {
+        require(mediaDao.getById(mediaId) != null) { "La obra ya no existe" }
+        require(mediaDao.getTagById(tagId) != null) { "La etiqueta ya no existe" }
+        mediaDao.insertMediaTag(MediaTagCrossRef(mediaId, tagId))
+        Unit
+    }
+
+    override suspend fun removeTag(mediaId: String, tagId: String) {
+        mediaDao.deleteMediaTag(mediaId, tagId)
+    }
 
     private suspend fun insertInitialConsumption(
         mediaId: String,
@@ -436,6 +476,8 @@ class RoomMediaRepository @Inject constructor(
 private fun String.normalized(): String = Normalizer.normalize(lowercase(), Normalizer.Form.NFD)
     .replace("\\p{Mn}+".toRegex(), "")
     .trim()
+
+private fun TagEntity.toDomain() = Tag(id, name, normalizedName, createdAt)
 
 private fun HomeMediaRow.toHomeSummary() = HomeMediaSummary(
     media = media.toDomain(),

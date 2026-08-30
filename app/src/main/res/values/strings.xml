@@ -118,6 +118,9 @@
     <string name="drop_work">Abandonar</string>
     <string name="consume_again">Volver a disfrutar</string>
     <string name="add_note">Añadir nota</string>
+    <string name="add_quote">Añadir cita</string>
+    <string name="quotes">Citas</string>
+    <string name="quote_hint">Escribe la cita que quieres conservar…</string>
     <string name="update_progress">Actualizar progreso</string>
     <string name="quick_update_progress">Actualizar</string>
     <string name="quick_add_note">+ Nota</string>
@@ -160,6 +163,7 @@
     <string name="timeline_completed">Terminaste esta obra</string>
     <string name="timeline_dropped">Dejaste esta obra</string>
     <string name="timeline_note">Nota</string>
+    <string name="timeline_quote">Cita</string>
     <string name="timeline_final_reflection">Reflexión final</string>
     <string name="timeline_later_reflection">Reflexión posterior</string>
     <string name="timeline_global_title">Historia</string>
@@ -180,6 +184,7 @@
     <string name="timeline_event_recompleted">Volviste a terminar</string>
     <string name="timeline_event_progress">Avanzaste</string>
     <string name="timeline_event_note">Escribiste una nota</string>
+    <string name="timeline_event_quote">Guardaste una cita</string>
     <string name="timeline_event_final_reflection">Reflexión final</string>
     <string name="timeline_event_later_reflection">Volviste a pensar en</string>
     <string name="timeline_progress_update">Actualización de progreso</string>
@@ -345,6 +350,14 @@
     <string name="remember_now">Lo que piensas ahora</string>
     <string name="remember_saved">Tu nueva reflexión se ha guardado sin modificar la anterior.</string>
     <string name="filters">Filtros</string>
+    <string name="personal_tags">Etiquetas personales</string>
+    <string name="your_tags">Tus tags</string>
+    <string name="edit_tags">Editar</string>
+    <string name="no_personal_tags">Aún no has añadido tags personales.</string>
+    <string name="remove_tag">Quitar tag de esta obra</string>
+    <string name="select_existing_tag">Selecciona tags existentes</string>
+    <string name="new_tag">Nuevo tag</string>
+    <string name="create_and_add_tag">Crear y añadir</string>
     <string name="filters_count">Filtros (%1$d)</string>
     <string name="filter_library">Filtrar biblioteca</string>
     <string name="status">Estado</string>

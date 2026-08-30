@@ -9,7 +9,7 @@ enum class ConsumptionStatus { PLANNED, IN_PROGRESS, COMPLETED, DROPPED }
 
 enum class ProgressType { PAGES, EPISODE, HOURS, PERCENT, MINUTES }
 
-enum class ReflectionType { NOTE, FINAL_REFLECTION, LATER_REFLECTION }
+enum class ReflectionType { NOTE, QUOTE, FINAL_REFLECTION, LATER_REFLECTION }
 
 enum class CreatorRole { AUTHOR, DIRECTOR, DEVELOPER, CREATOR, OTHER }
 
@@ -25,6 +25,14 @@ data class LibraryFilters(
     val favoritesOnly: Boolean = false,
     val year: Int? = null,
     val sort: LibrarySort = LibrarySort.RECENT,
+    val tagIds: Set<String> = emptySet(),
+)
+
+data class Tag(
+    val id: String,
+    val name: String,
+    val normalizedName: String,
+    val createdAt: Instant,
 )
 
 data class MediaItem(
@@ -85,6 +93,7 @@ data class MediaDetail(
     val consumptions: List<Consumption>,
     val progress: List<ProgressEntry>,
     val reflections: List<Reflection>,
+    val tags: List<Tag> = emptyList(),
 ) {
     val activeConsumption: Consumption?
         get() = consumptions.firstOrNull {
