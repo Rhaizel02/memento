@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.AutoStories
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -97,6 +98,45 @@ internal fun HomeEmptyState(onAdd: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+internal fun CulturalHistoryCard(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
+            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+                Icon(
+                    Icons.Outlined.History,
+                    contentDescription = null,
+                    modifier = Modifier.padding(MementoSpacing.medium).size(24.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
+                Text(stringResource(R.string.timeline_header), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.timeline_home_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.timeline_home_action),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

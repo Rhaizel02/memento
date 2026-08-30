@@ -24,6 +24,7 @@ import com.memento.app.data.local.entity.RecommendationFeedbackEntity
 import com.memento.app.data.local.entity.AiInsightEntity
 import com.memento.app.data.local.entity.AiInsightSourceCrossRef
 import com.memento.app.data.local.dao.AiInsightDao
+import com.memento.app.data.local.dao.TimelineDao
 
 @Database(
     entities = [
@@ -42,7 +43,7 @@ import com.memento.app.data.local.dao.AiInsightDao
         AiInsightEntity::class,
         AiInsightSourceCrossRef::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(RoomConverters::class)
@@ -53,4 +54,5 @@ abstract class MementoDatabase : RoomDatabase() {
     abstract fun recommendationDao(): RecommendationDao
     abstract fun backupDao(): BackupDao
     abstract fun aiInsightDao(): AiInsightDao
+    abstract fun timelineDao(): TimelineDao
 }

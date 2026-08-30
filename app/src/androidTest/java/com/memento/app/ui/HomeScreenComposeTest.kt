@@ -44,6 +44,19 @@ class HomeScreenComposeTest {
     }
 
     @Test
+    fun culturalHistoryEntryOpensTimeline() {
+        var opens = 0
+        setHome(
+            HomeUiState(mediaCount = 1, isLoading = false),
+            onOpenTimeline = { opens++ },
+        )
+
+        composeRule.onNodeWithText("Ver mi historia").performScrollTo().performClick()
+
+        composeRule.runOnIdle { assertEquals(1, opens) }
+    }
+
+    @Test
     fun richInProgressCardShowsMetadataGenresProgressAndAccessibleRating() {
         setHome(
             HomeUiState(
@@ -197,6 +210,7 @@ class HomeScreenComposeTest {
         onAdd: () -> Unit = {},
         onOpenMedia: (String) -> Unit = {},
         onOpenRemember: (String) -> Unit = {},
+        onOpenTimeline: () -> Unit = {},
     ) {
         composeRule.setContent {
             MementoTheme(ThemeMode.LIGHT) {
@@ -208,6 +222,7 @@ class HomeScreenComposeTest {
                         onOpenRemember = onOpenRemember,
                         onOpenDiscover = {},
                         onOpenStats = {},
+                        onOpenTimeline = onOpenTimeline,
                     )
                 }
             }

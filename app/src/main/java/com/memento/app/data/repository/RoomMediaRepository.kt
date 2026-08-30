@@ -86,7 +86,7 @@ class RoomMediaRepository @Inject constructor(
     override fun observeTimeline(mediaId: String): Flow<List<TimelineEvent>> =
         observeMediaDetail(mediaId).map { detail ->
             if (detail == null) return@map emptyList()
-            TimelineBuilder.build(detail.consumptions, detail.progress, detail.reflections)
+            TimelineBuilder.build(detail.media, detail.consumptions, detail.progress, detail.reflections)
         }
 
     override fun observeInProgress(): Flow<List<MediaItem>> =

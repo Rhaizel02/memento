@@ -44,3 +44,11 @@ Lista manual breve para regresiones de las rutas críticas. Probar al menos una 
 - Objetivos táctiles de iconos mantienen al menos 48 dp; comprobar que no se solapan en ancho compacto.
 - Revisar escalas de fuente 1,0× y máxima: títulos, CTAs y diálogos no se recortan ni salen de pantalla.
 - Recorrer Home, Biblioteca, Descubrir, Detalle, Remember, Stats, Wrapped y Ajustes buscando estados vacíos accionables, jerarquía clara y contraste suficiente.
+
+## Historia cultural
+
+- Abrir **Historia** desde Inicio y recorrer varios años mediante scroll.
+- Abrir una obra desde un evento y comprobar que Volver conserva la posición.
+- Confirmar que dos consumos de una obra aparecen separados y el posterior usa “Volviste a…”.
+- Comprobar notas, reflexiones finales y reflexiones posteriores con extracto truncado.
+- Revisar Todo/Libros/Películas/Series/Juegos en claro, oscuro y las cuatro paletas.

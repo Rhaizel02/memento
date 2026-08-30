@@ -11,8 +11,10 @@ import com.memento.app.data.local.database.MementoDatabase
 import com.memento.app.data.local.database.MIGRATION_1_2
 import com.memento.app.data.local.database.MIGRATION_2_3
 import com.memento.app.data.local.database.MIGRATION_3_4
+import com.memento.app.data.local.database.MIGRATION_4_5
 import com.memento.app.data.local.database.HARDENING_DATABASE_CALLBACK
 import com.memento.app.data.local.dao.AiInsightDao
+import com.memento.app.data.local.dao.TimelineDao
 import com.memento.app.data.repository.RoomMediaRepository
 import com.memento.app.data.repository.RoomRememberRepository
 import com.memento.app.data.repository.RemoteMetadataRepository
@@ -29,7 +31,9 @@ import com.memento.app.domain.repository.BackupRepository
 import com.memento.app.ai.AiProcessor
 import com.memento.app.ai.MlKitAiProcessor
 import com.memento.app.data.repository.RoomAiInsightRepository
+import com.memento.app.data.repository.RoomCulturalTimelineRepository
 import com.memento.app.domain.repository.AiInsightRepository
+import com.memento.app.domain.repository.CulturalTimelineRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -51,7 +55,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MementoDatabase =
         Room.databaseBuilder(context, MementoDatabase::class.java, "memento.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .addCallback(HARDENING_DATABASE_CALLBACK)
             .build()
 
@@ -61,6 +65,7 @@ object DatabaseModule {
     @Provides fun provideRecommendationDao(database: MementoDatabase): RecommendationDao = database.recommendationDao()
     @Provides fun provideBackupDao(database: MementoDatabase): BackupDao = database.backupDao()
     @Provides fun provideAiInsightDao(database: MementoDatabase): AiInsightDao = database.aiInsightDao()
+    @Provides fun provideTimelineDao(database: MementoDatabase): TimelineDao = database.timelineDao()
 }
 
 @Module
@@ -97,6 +102,10 @@ object NetworkModule {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindCulturalTimelineRepository(implementation: RoomCulturalTimelineRepository): CulturalTimelineRepository
+
     @Binds
     @Singleton
     abstract fun bindMediaRepository(implementation: RoomMediaRepository): MediaRepository

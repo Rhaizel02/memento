@@ -24,6 +24,7 @@ fun HomeScreen(
     onOpenRemember: (String) -> Unit,
     onOpenDiscover: () -> Unit,
     onOpenStats: () -> Unit,
+    onOpenTimeline: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -58,6 +59,8 @@ fun HomeScreen(
                 RememberHero(memory = memory, onClick = { onOpenRemember(memory.consumptionId) })
             } ?: RememberEmptyState()
         }
+
+        item { CulturalHistoryCard(onClick = onOpenTimeline) }
 
         if (state.inProgress.isNotEmpty()) {
             item { HomeSectionHeader(stringResource(R.string.status_in_progress)) }

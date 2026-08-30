@@ -104,7 +104,7 @@ data class MediaGenreCrossRef(val mediaItemId: String, val genreId: String)
     foreignKeys = [
         ForeignKey(entity = MediaItemEntity::class, parentColumns = ["id"], childColumns = ["mediaItemId"], onDelete = ForeignKey.CASCADE),
     ],
-    indices = [Index("mediaItemId"), Index("status"), Index("completedDate"), Index("updatedAt")],
+    indices = [Index("mediaItemId"), Index("status"), Index("startedDate"), Index("completedDate"), Index("updatedAt")],
 )
 data class ConsumptionEntity(
     @PrimaryKey val id: String,
@@ -122,7 +122,7 @@ data class ConsumptionEntity(
     foreignKeys = [
         ForeignKey(entity = ConsumptionEntity::class, parentColumns = ["id"], childColumns = ["consumptionId"], onDelete = ForeignKey.CASCADE),
     ],
-    indices = [Index("consumptionId"), Index(value = ["consumptionId", "recordedAt"])],
+    indices = [Index("consumptionId"), Index("recordedAt"), Index(value = ["consumptionId", "recordedAt"])],
 )
 data class ProgressEntryEntity(
     @PrimaryKey val id: String,

@@ -47,6 +47,8 @@ import com.memento.app.ui.settings.SettingsScreen
 import com.memento.app.ui.settings.SettingsViewModel
 import com.memento.app.ui.stats.StatsScreen
 import com.memento.app.ui.stats.StatsViewModel
+import com.memento.app.ui.timeline.TimelineScreen
+import com.memento.app.ui.timeline.TimelineViewModel
 import com.memento.app.ui.wrapped.WrappedScreen
 import com.memento.app.ui.wrapped.WrappedViewModel
 import kotlinx.serialization.Serializable
@@ -61,6 +63,7 @@ import java.util.UUID
 @Serializable data class MediaDetailKey(val mediaId: String) : MementoKey
 @Serializable data class RememberKey(val consumptionId: String) : MementoKey
 @Serializable data object StatsKey : MementoKey
+@Serializable data object TimelineKey : MementoKey
 @Serializable data class WrappedKey(val year: Int) : MementoKey
 
 private fun newAddMediaKey(): AddMediaKey = AddMediaKey(UUID.randomUUID().toString())
@@ -137,6 +140,7 @@ fun MementoApp(
                             onOpenRemember = { backStack.add(RememberKey(it)) },
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
                             onOpenStats = { backStack.add(StatsKey) },
+                            onOpenTimeline = { backStack.add(TimelineKey) },
                         )
                     }
                     LibraryKey -> NavEntry(key) {
@@ -257,6 +261,18 @@ fun MementoApp(
                             onBack = { backStack.removeLastOrNull() },
                             onSelectYear = viewModel::selectYear,
                             onOpenWrapped = { backStack.add(WrappedKey(it)) },
+                        )
+                    }
+                    TimelineKey -> NavEntry(key) {
+                        val viewModel: TimelineViewModel = hiltViewModel()
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        TimelineScreen(
+                            state = state,
+                            onBack = { backStack.removeLastOrNull() },
+                            onMediaTypeSelected = viewModel::selectMediaType,
+                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                            onLoadMore = viewModel::loadMore,
+                            onRetry = viewModel::retry,
                         )
                     }
                     is WrappedKey -> NavEntry(key) {

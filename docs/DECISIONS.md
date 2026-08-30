@@ -12,7 +12,7 @@
 **Contexto.** Inicio, final, progreso y reflexiones ya son hechos persistidos.  
 **Decisión.** Derivar la timeline, sin tabla de eventos duplicada.  
 **Motivo.** Evita divergencias. `RememberExposure` sí persiste porque no puede derivarse.  
-**Consecuencias.** La presentación se recompone de datos fuente íntegros.
+**Consecuencias.** La presentación se recompone de datos fuente íntegros. La Historia global consulta ventanas `N+1` por fuente, las fusiona con un mapper común y amplía la ventana al acercarse al final; no carga toda la base ni incorpora Paging 3 para este caso local.
 
 ## ADR-003 — compileSdk 37 y targetSdk 36
 

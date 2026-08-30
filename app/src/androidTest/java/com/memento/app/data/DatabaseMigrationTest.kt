@@ -5,6 +5,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.memento.app.data.local.database.MIGRATION_3_4
+import com.memento.app.data.local.database.MIGRATION_4_5
 import com.memento.app.data.local.database.MementoDatabase
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -45,6 +46,17 @@ class DatabaseMigrationTest {
         db.close()
     }
 
+    @Test
+    fun migration4To5AddsGlobalTimelineIndexes() {
+        helper.createDatabase(DB_NAME_TIMELINE, 4).close()
+
+        val db = helper.runMigrationsAndValidate(DB_NAME_TIMELINE, 5, true, MIGRATION_4_5)
+
+        assertEquals(1, db.count("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_consumptions_startedDate'"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_progress_entries_recordedAt'"))
+        db.close()
+    }
+
     private fun SupportSQLiteDatabase.seedReflectionGraph() {
         execSQL("INSERT INTO media_items (id,type,title,originalTitle,description,releaseDate,releaseYear,posterUrl,backdropUrl,isFavorite,isManual,runtimeMinutes,pageCount,seasonCount,episodeCount,createdAt,updatedAt) VALUES ('m1','BOOK','Uno',NULL,NULL,NULL,NULL,NULL,NULL,0,1,NULL,NULL,NULL,NULL,1,1)")
         execSQL("INSERT INTO media_items (id,type,title,originalTitle,description,releaseDate,releaseYear,posterUrl,backdropUrl,isFavorite,isManual,runtimeMinutes,pageCount,seasonCount,episodeCount,createdAt,updatedAt) VALUES ('m2','BOOK','Dos',NULL,NULL,NULL,NULL,NULL,NULL,0,1,NULL,NULL,NULL,NULL,1,1)")
@@ -58,5 +70,8 @@ class DatabaseMigrationTest {
         cursor.getInt(0)
     }
 
-    private companion object { const val DB_NAME = "migration-hardening" }
+    private companion object {
+        const val DB_NAME = "migration-hardening"
+        const val DB_NAME_TIMELINE = "migration-timeline"
+    }
 }

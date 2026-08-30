@@ -18,11 +18,13 @@ Los ViewModels exponen `StateFlow`. Los repositorios coordinan transacciones y t
 
 ## Persistencia local
 
-Room v4 es la fuente de verdad de los datos personales. Se usan UUID internos, foreign keys con cascada, índices, schema exportado y migraciones explícitas `1→2→3→4`; no existe `fallbackToDestructiveMigration`.
+Room v5 es la fuente de verdad de los datos personales. Se usan UUID internos, foreign keys con cascada, índices, schema exportado y migraciones explícitas `1→2→3→4→5`; no existe `fallbackToDestructiveMigration`.
 
 Las fechas elegidas por el usuario son `LocalDate`; los timestamps técnicos son `Instant`. La timeline se deriva de consumos, progreso y reflexiones para evitar duplicidad. DataStore solo conserva tema y onboarding.
 
 Las consultas de Biblioteca aplican texto, tipo, estado, rating, favorito, año y orden en SQLite. Home usa proyecciones agregadas. Cuando Stats, Wrapped, recomendaciones o conexiones necesitan toda la historia, `observeAllDetails` ejecuta seis consultas bulk constantes —obras, creadores, géneros, consumos, progreso y reflexiones— y monta relaciones mediante mapas lineales. Se eliminó el patrón de cinco consultas adicionales por obra.
+
+Historia usa una ventana reactiva incremental. Cuatro consultas Room limitadas obtienen inicios, finalizaciones, progreso y reflexiones; cada fuente solicita `N+1`, el repositorio las transforma con `CulturalTimelineMapper`, las fusiona y conserva los `N` eventos globales más recientes. Esto evita tanto una tabla de eventos como un `UNION` rígido y mantiene acotada la memoria. `startedDate` y `recordedAt` tienen índices globales desde Room v5 para sostener esos recorridos cronológicos.
 
 ## Fuentes remotas
 

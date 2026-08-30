@@ -2,6 +2,8 @@ package com.memento.app.domain
 
 import com.memento.app.domain.model.Consumption
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.MediaItem
+import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.Reflection
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
@@ -34,7 +36,14 @@ class TimelineBuilderTest {
             updatedAt = Instant.parse("2026-02-10T11:00:00Z"),
         )
 
-        val result = TimelineBuilder.build(listOf(consumption), emptyList(), listOf(reflection))
+        val media = MediaItem(
+            id = "m1",
+            type = MediaType.BOOK,
+            title = "Una obra",
+            createdAt = Instant.EPOCH,
+            updatedAt = Instant.EPOCH,
+        )
+        val result = TimelineBuilder.build(media, listOf(consumption), emptyList(), listOf(reflection))
 
         assertEquals(3, result.size)
         assertTrue(result.first() is TimelineEvent.ReflectionWritten)
@@ -42,4 +51,3 @@ class TimelineBuilderTest {
         assertTrue(result.last() is TimelineEvent.ConsumptionStarted)
     }
 }
-
