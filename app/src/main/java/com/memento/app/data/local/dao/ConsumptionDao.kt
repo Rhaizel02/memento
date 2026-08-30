@@ -10,6 +10,15 @@ import com.memento.app.data.local.entity.ProgressEntryEntity
 import com.memento.app.data.local.entity.ReflectionEntity
 import com.memento.app.domain.model.ReflectionType
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
+import java.time.LocalDate
+
+data class CulturalProfileCompletionRow(
+    val mediaItemId: String,
+    val completedDate: LocalDate?,
+    val ratingHalfStars: Int?,
+    val updatedAt: Instant,
+)
 
 @Dao
 interface ConsumptionDao {
@@ -36,6 +45,16 @@ interface ConsumptionDao {
 
     @Query("SELECT * FROM consumptions ORDER BY mediaItemId, createdAt DESC")
     fun observeAll(): Flow<List<ConsumptionEntity>>
+
+    @Query(
+        """
+        SELECT mediaItemId, completedDate, ratingHalfStars, updatedAt
+        FROM consumptions
+        WHERE status = 'COMPLETED' AND completedDate IS NOT NULL
+        ORDER BY completedDate, updatedAt
+        """,
+    )
+    fun observeCulturalProfileCompletions(): Flow<List<CulturalProfileCompletionRow>>
 
     @Query("DELETE FROM consumptions WHERE id = :consumptionId")
     suspend fun deleteById(consumptionId: String)

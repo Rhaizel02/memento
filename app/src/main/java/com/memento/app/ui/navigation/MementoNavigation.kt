@@ -35,6 +35,8 @@ import com.memento.app.ui.add.AddMediaScreen
 import com.memento.app.ui.add.AddMediaViewModel
 import com.memento.app.ui.detail.MediaDetailScreen
 import com.memento.app.ui.detail.MediaDetailViewModel
+import com.memento.app.ui.culturalprofile.CulturalProfileScreen
+import com.memento.app.ui.culturalprofile.CulturalProfileViewModel
 import com.memento.app.ui.discover.DiscoverScreen
 import com.memento.app.ui.discover.DiscoverViewModel
 import com.memento.app.ui.home.HomeScreen
@@ -67,6 +69,7 @@ import java.util.UUID
 @Serializable data class RecommendationDetailKey(val provider: String, val externalId: String, val mediaType: String) : MementoKey
 @Serializable data class RememberKey(val consumptionId: String) : MementoKey
 @Serializable data object StatsKey : MementoKey
+@Serializable data object CulturalProfileKey : MementoKey
 @Serializable data object TimelineKey : MementoKey
 @Serializable data class WrappedKey(val year: Int) : MementoKey
 
@@ -150,6 +153,7 @@ fun MementoApp(
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
                             onOpenRecommendation = { backStack.add(it.toDetailKey()) },
                             onOpenStats = { backStack.add(StatsKey) },
+                            onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
                             onOpenTimeline = { backStack.add(TimelineKey) },
                             onOpenQuickProgress = viewModel::openQuickProgress,
                             onOpenQuickNote = viewModel::openQuickNote,
@@ -304,6 +308,15 @@ fun MementoApp(
                             onBack = { backStack.removeLastOrNull() },
                             onSelectYear = viewModel::selectYear,
                             onOpenWrapped = { backStack.add(WrappedKey(it)) },
+                            onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
+                        )
+                    }
+                    CulturalProfileKey -> NavEntry(key) {
+                        val viewModel: CulturalProfileViewModel = hiltViewModel()
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        CulturalProfileScreen(
+                            state = state,
+                            onBack = { backStack.removeLastOrNull() },
                         )
                     }
                     TimelineKey -> NavEntry(key) {

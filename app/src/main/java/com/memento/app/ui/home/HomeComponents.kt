@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -137,6 +138,45 @@ internal fun CulturalHistoryCard(onClick: () -> Unit) {
                 )
                 Text(
                     stringResource(R.string.timeline_home_action),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+internal fun CulturalProfileCard(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
+            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                Icon(
+                    Icons.Outlined.PersonOutline,
+                    contentDescription = null,
+                    modifier = Modifier.padding(MementoSpacing.medium).size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
+                Text(stringResource(R.string.cultural_profile), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.cultural_profile_home_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.open_cultural_profile),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )

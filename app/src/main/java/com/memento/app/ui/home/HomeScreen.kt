@@ -26,6 +26,7 @@ fun HomeScreen(
     onOpenDiscover: () -> Unit,
     onOpenRecommendation: (Recommendation) -> Unit = {},
     onOpenStats: () -> Unit,
+    onOpenCulturalProfile: () -> Unit = {},
     onOpenTimeline: () -> Unit = {},
     onOpenQuickProgress: (HomeMediaItem) -> Unit = {},
     onOpenQuickNote: (HomeMediaItem) -> Unit = {},
@@ -93,6 +94,8 @@ fun HomeScreen(
                 }
             }
         }
+
+        item { CulturalProfileCard(onClick = onOpenCulturalProfile) }
 
         item { CulturalHistoryCard(onClick = onOpenTimeline) }
 

@@ -25,6 +25,11 @@ import java.time.LocalDate
 
 data class MediaTypeCountRow(val type: MediaType, val count: Int)
 data class MediaNameRow(val mediaItemId: String, val name: String)
+data class CulturalProfileMediaRow(
+    val mediaItemId: String,
+    val mediaType: MediaType,
+    val isFavorite: Boolean,
+)
 data class MediaTagRow(
     val mediaItemId: String,
     val tagId: String,
@@ -127,6 +132,9 @@ interface MediaDao {
     @Query("SELECT COUNT(*) FROM media_items")
     fun observeMediaCount(): Flow<Int>
 
+    @Query("SELECT id AS mediaItemId, type AS mediaType, isFavorite FROM media_items ORDER BY id")
+    fun observeCulturalProfileMedia(): Flow<List<CulturalProfileMediaRow>>
+
     @Query(
         """
         SELECT mc.mediaItemId AS mediaItemId, c.name AS name
@@ -136,6 +144,17 @@ interface MediaDao {
         """,
     )
     fun observeAllCreatorNames(): Flow<List<MediaNameRow>>
+
+    @Query(
+        """
+        SELECT mc.mediaItemId AS mediaItemId, c.name AS name
+        FROM media_creator_cross_ref mc
+        INNER JOIN creators c ON c.id = mc.creatorId
+        WHERE mc.role != 'OTHER'
+        ORDER BY mc.mediaItemId, c.name
+        """,
+    )
+    fun observeCulturalProfileCreatorNames(): Flow<List<MediaNameRow>>
 
     @Query(
         """

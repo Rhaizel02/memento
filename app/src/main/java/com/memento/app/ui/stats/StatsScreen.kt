@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ fun StatsScreen(
     onBack: () -> Unit,
     onSelectYear: (Int) -> Unit,
     onOpenWrapped: (Int) -> Unit,
+    onOpenCulturalProfile: () -> Unit,
 ) {
     val summary = state.summary ?: return
     val yearIndex = state.availableYears.indexOf(state.selectedYear)
@@ -51,8 +53,17 @@ fun StatsScreen(
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
                 Text(stringResource(R.string.statistics), style = MaterialTheme.typography.headlineLarge)
-                IconButton(onClick = { onOpenWrapped(state.selectedYear) }) {
-                    Text(stringResource(R.string.wrapped_short), color = MaterialTheme.colorScheme.primary)
+                Row {
+                    IconButton(onClick = onOpenCulturalProfile) {
+                        Icon(
+                            Icons.Outlined.PersonOutline,
+                            contentDescription = stringResource(R.string.open_cultural_profile),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    IconButton(onClick = { onOpenWrapped(state.selectedYear) }) {
+                        Text(stringResource(R.string.wrapped_short), color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
