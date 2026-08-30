@@ -61,6 +61,8 @@ import com.memento.app.domain.model.Reflection
 import com.memento.app.domain.model.ReflectionType
 import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.ui.components.PosterArtwork
+import com.memento.app.ui.components.NumericTextField
+import com.memento.app.domain.usecase.ProgressCapturePolicy
 import com.memento.app.ui.components.ExpandableText
 import com.memento.app.ui.components.RatingText
 import com.memento.app.ui.components.RatingSelector
@@ -618,18 +620,18 @@ private fun ProgressDialog(
             Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
                 when (type) {
                     MediaType.BOOK -> {
-                        NumberField(first, { first = it }, R.string.current_value, decimal = false)
-                        NumberField(second.ifEmpty { pageCount?.toString().orEmpty() }, { second = it }, R.string.total_value, decimal = false)
+                        NumericTextField(first, { first = it }, R.string.current_value, decimal = false)
+                        NumericTextField(second.ifEmpty { pageCount?.toString().orEmpty() }, { second = it }, R.string.total_value, decimal = false)
                     }
                     MediaType.SERIES -> {
-                        NumberField(season, { season = it }, R.string.season_number, decimal = false)
-                        NumberField(episode, { episode = it }, R.string.episode_number, decimal = false)
+                        NumericTextField(season, { season = it }, R.string.season_number, decimal = false)
+                        NumericTextField(episode, { episode = it }, R.string.episode_number, decimal = false)
                     }
                     MediaType.GAME -> {
-                        NumberField(first, { first = it }, R.string.progress_hours, decimal = true)
-                        NumberField(second, { second = it }, R.string.approx_percent, decimal = true)
+                        NumericTextField(first, { first = it }, R.string.progress_hours, decimal = true)
+                        NumericTextField(second, { second = it }, R.string.approx_percent, decimal = true)
                     }
-                    MediaType.MOVIE -> NumberField(first, { first = it }, R.string.progress_minutes, decimal = false)
+                    MediaType.MOVIE -> NumericTextField(first, { first = it }, R.string.progress_minutes, decimal = false)
                 }
             }
         },
@@ -637,26 +639,15 @@ private fun ProgressDialog(
             TextButton(
                 onClick = {
                     when (type) {
-                        MediaType.BOOK -> onSave(ProgressType.PAGES, first.toDoubleOrNull(), second.ifEmpty { pageCount?.toString().orEmpty() }.toDoubleOrNull(), null, null)
-                        MediaType.SERIES -> onSave(ProgressType.EPISODE, null, null, season.toIntOrNull(), episode.toIntOrNull())
-                        MediaType.GAME -> onSave(ProgressType.HOURS, first.toDoubleOrNull(), second.toDoubleOrNull(), null, null)
-                        MediaType.MOVIE -> onSave(ProgressType.MINUTES, first.toDoubleOrNull(), null, null, null)
+                        MediaType.BOOK -> onSave(ProgressCapturePolicy.typeFor(type), first.toDoubleOrNull(), second.ifEmpty { pageCount?.toString().orEmpty() }.toDoubleOrNull(), null, null)
+                        MediaType.SERIES -> onSave(ProgressCapturePolicy.typeFor(type), null, null, season.toIntOrNull(), episode.toIntOrNull())
+                        MediaType.GAME -> onSave(ProgressCapturePolicy.typeFor(type), first.toDoubleOrNull(), second.toDoubleOrNull(), null, null)
+                        MediaType.MOVIE -> onSave(ProgressCapturePolicy.typeFor(type), first.toDoubleOrNull(), null, null, null)
                     }
                 },
             ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-@Composable
-private fun NumberField(value: String, onValueChanged: (String) -> Unit, label: Int, decimal: Boolean) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { incoming -> onValueChanged(incoming.filter { it.isDigit() || (decimal && (it == '.' || it == ',')) }.replace(',', '.')) },
-        label = { Text(stringResource(label)) },
-        keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
-        singleLine = true,
     )
 }
 

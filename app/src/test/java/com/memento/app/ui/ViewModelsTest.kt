@@ -24,6 +24,9 @@ import com.memento.app.ui.add.AddMediaViewModel
 import com.memento.app.ui.detail.MediaDetailViewModel
 import com.memento.app.ui.home.HomeViewModel
 import com.memento.app.ui.home.HomeProgress
+import com.memento.app.ui.home.HomeMediaItem
+import com.memento.app.ui.home.QuickCaptureSheet
+import com.memento.app.ui.home.QuickProgressField
 import com.memento.app.ui.library.LibraryViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -154,6 +157,143 @@ class ViewModelsTest {
         assertEquals(5, viewModel.state.value.onThisDay?.yearsAgo)
     }
 
+    @Test fun `quick progress saves one valid entry with preloaded values`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        val item = quickItem(
+            consumptionId = "active-book",
+            progress = HomeProgress.Pages(742.0, 1200.0, 0.62f),
+            pageCount = 1200,
+        )
+
+        viewModel.openQuickProgress(item)
+        viewModel.updateQuickProgress(QuickProgressField.CURRENT, "790")
+        viewModel.saveQuickProgress()
+        advanceUntilIdle()
+
+        val call = repository.progressSaveCalls.single()
+        assertEquals("active-book", call.consumptionId)
+        assertEquals(ProgressType.PAGES, call.type)
+        assertEquals(790.0, call.currentValue)
+        assertEquals(1200.0, call.totalValue)
+        assertEquals(null, viewModel.state.value.quickCapture)
+    }
+
+    @Test fun `quick progress rejects an invalid value before persistence`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickProgress(
+            quickItem(progress = HomeProgress.Pages(742.0, 1200.0, 0.62f), pageCount = 1200),
+        )
+
+        viewModel.updateQuickProgress(QuickProgressField.CURRENT, "1201")
+        viewModel.saveQuickProgress()
+        advanceUntilIdle()
+
+        assertTrue(repository.progressSaveCalls.isEmpty())
+        assertTrue((viewModel.state.value.quickCapture as QuickCaptureSheet.Progress).error?.isNotBlank() == true)
+    }
+
+    @Test fun `quick progress double submit creates only one entry`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickProgress(quickItem(progress = HomeProgress.Pages(100.0, 400.0, 0.25f)))
+
+        viewModel.saveQuickProgress()
+        viewModel.saveQuickProgress()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.progressSaveCalls.size)
+    }
+
+    @Test fun `quick progress uses the selected active consumption`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        val other = quickItem(consumptionId = "other", progress = HomeProgress.Episode(1, 2), type = MediaType.SERIES)
+        val selected = quickItem(consumptionId = "selected", progress = HomeProgress.Episode(3, 7), type = MediaType.SERIES)
+
+        viewModel.openQuickProgress(selected)
+        viewModel.saveQuickProgress()
+        advanceUntilIdle()
+
+        assertEquals("selected", repository.progressSaveCalls.single().consumptionId)
+        assertTrue(repository.progressSaveCalls.none { it.consumptionId == other.consumptionId })
+    }
+
+    @Test fun `quick note trims and saves exactly one note`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickNote(quickItem(consumptionId = "active-note"))
+
+        viewModel.updateQuickNote("  Una idea que quiero recordar.  ")
+        viewModel.saveQuickNote()
+        advanceUntilIdle()
+
+        val call = repository.reflectionSaveCalls.single()
+        assertEquals("active-note", call.consumptionId)
+        assertEquals(ReflectionType.NOTE, call.type)
+        assertEquals("Una idea que quiero recordar.", call.content)
+    }
+
+    @Test fun `quick note rejects blank content before persistence`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickNote(quickItem())
+
+        viewModel.updateQuickNote("   ")
+        viewModel.saveQuickNote()
+        advanceUntilIdle()
+
+        assertTrue(repository.reflectionSaveCalls.isEmpty())
+    }
+
+    @Test fun `quick note double submit creates only one note`() = runTest {
+        val repository = FakeMediaRepository()
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickNote(quickItem())
+        viewModel.updateQuickNote("Nota única")
+
+        viewModel.saveQuickNote()
+        viewModel.saveQuickNote()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.reflectionSaveCalls.size)
+    }
+
+    @Test fun `quick capture keeps each sheet open with a simple persistence error`() = runTest {
+        val repository = FakeMediaRepository().apply {
+            progressSaveHandler = { error("database unavailable") }
+            reflectionSaveHandler = { error("database unavailable") }
+        }
+        val viewModel = homeViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickProgress(quickItem(progress = HomeProgress.Pages(100.0, 400.0, 0.25f)))
+
+        viewModel.saveQuickProgress()
+        advanceUntilIdle()
+
+        assertEquals(
+            "No se pudo guardar el progreso.",
+            (viewModel.state.value.quickCapture as QuickCaptureSheet.Progress).error,
+        )
+        viewModel.dismissQuickCapture()
+        viewModel.openQuickNote(quickItem())
+        viewModel.updateQuickNote("Borrador conservado")
+        viewModel.saveQuickNote()
+        advanceUntilIdle()
+
+        val note = viewModel.state.value.quickCapture as QuickCaptureSheet.Note
+        assertEquals("No se pudo guardar la nota.", note.error)
+        assertEquals("Borrador conservado", note.content)
+    }
+
     @Test fun `library forwards search and type filters`() = runTest {
         val repository = FakeMediaRepository().apply { library.value = listOf(media) }
         val viewModel = LibraryViewModel(repository)
@@ -183,6 +323,28 @@ class ViewModelsTest {
         FakeRecommendationRepository(),
         timelineRepository,
         Clock.fixed(Instant.parse("2026-08-30T12:00:00Z"), ZoneOffset.UTC),
+    )
+
+    private fun quickItem(
+        consumptionId: String = "active",
+        progress: HomeProgress? = null,
+        pageCount: Int? = null,
+        type: MediaType = MediaType.BOOK,
+    ) = HomeMediaItem(
+        mediaId = "media-$consumptionId",
+        consumptionId = consumptionId,
+        type = type,
+        title = "Dune",
+        posterUrl = null,
+        backdropUrl = null,
+        isFavorite = false,
+        creator = null,
+        releaseYear = null,
+        genres = emptyList(),
+        additionalGenreCount = 0,
+        ratingHalfStars = null,
+        pageCount = pageCount,
+        progress = progress,
     )
 
     @Test fun `add media sends complete manual input`() = runTest {

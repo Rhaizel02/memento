@@ -119,6 +119,16 @@
     <string name="consume_again">Volver a disfrutar</string>
     <string name="add_note">Añadir nota</string>
     <string name="update_progress">Actualizar progreso</string>
+    <string name="quick_update_progress">Actualizar</string>
+    <string name="quick_add_note">+ Nota</string>
+    <string name="quick_update_progress_accessibility">Actualizar progreso de %1$s</string>
+    <string name="quick_add_note_accessibility">Añadir nota sobre %1$s</string>
+    <string name="quick_current_page">Página actual</string>
+    <string name="quick_total_pages">Total de páginas · opcional</string>
+    <string name="quick_page_total">de %1$s</string>
+    <string name="quick_game_hours">Horas jugadas</string>
+    <string name="quick_game_percent">Progreso (%)</string>
+    <string name="quick_note_prompt">¿Qué quieres recordar?</string>
     <string name="personal_history">Tu historia con esta obra</string>
     <string name="previous_consumptions">Consumos</string>
     <string name="rating">Valoración</string>

@@ -141,6 +141,13 @@ fun MementoApp(
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
                             onOpenStats = { backStack.add(StatsKey) },
                             onOpenTimeline = { backStack.add(TimelineKey) },
+                            onOpenQuickProgress = viewModel::openQuickProgress,
+                            onOpenQuickNote = viewModel::openQuickNote,
+                            onQuickProgressChanged = viewModel::updateQuickProgress,
+                            onQuickNoteChanged = viewModel::updateQuickNote,
+                            onSaveQuickProgress = viewModel::saveQuickProgress,
+                            onSaveQuickNote = viewModel::saveQuickNote,
+                            onDismissQuickCapture = viewModel::dismissQuickCapture,
                         )
                     }
                     LibraryKey -> NavEntry(key) {

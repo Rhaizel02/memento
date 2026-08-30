@@ -23,6 +23,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -379,8 +381,15 @@ private fun RememberHeroContent(
 }
 
 @Composable
-internal fun InProgressMediaCard(item: HomeMediaItem, onClick: () -> Unit) {
+internal fun InProgressMediaCard(
+    item: HomeMediaItem,
+    onClick: () -> Unit,
+    onUpdateProgress: () -> Unit = {},
+    onAddNote: () -> Unit = {},
+) {
     val accent = MaterialTheme.mediaTypeColor(item.type)
+    val updateProgressLabel = stringResource(R.string.quick_update_progress_accessibility, item.title)
+    val addNoteLabel = stringResource(R.string.quick_add_note_accessibility, item.title)
     Card(
         onClick = onClick,
         modifier = Modifier.width(308.dp).heightIn(min = 222.dp),
@@ -388,49 +397,82 @@ internal fun InProgressMediaCard(item: HomeMediaItem, onClick: () -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth().heightIn(min = 222.dp).padding(MementoSpacing.medium),
-            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
+            verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
         ) {
-            HomePoster(item, Modifier.width(112.dp).aspectRatio(2f / 3f))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
             ) {
-                MediaTypeBadge(item.type)
-                Text(
-                    item.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                metadataLine(item)?.let { metadata ->
+                HomePoster(item, Modifier.width(112.dp).aspectRatio(2f / 3f))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+                ) {
+                    MediaTypeBadge(item.type)
                     Text(
-                        metadata,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        item.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                }
-                if (item.genres.isNotEmpty()) GenreRow(item.genres, item.additionalGenreCount)
-                item.progress?.let { progress ->
-                    Text(progressLabel(progress), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                    progress.fraction?.let { fraction ->
-                        LinearProgressIndicator(
-                            progress = { fraction },
-                            modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
-                            color = accent,
-                            trackColor = accent.copy(alpha = 0.16f),
+                    metadataLine(item)?.let { metadata ->
+                        Text(
+                            metadata,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
-                } ?: Text(
-                    stringResource(R.string.status_in_progress),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                item.ratingHalfStars?.let { CompactRating(it) }
+                    if (item.genres.isNotEmpty()) GenreRow(item.genres, item.additionalGenreCount)
+                    item.progress?.let { progress ->
+                        Text(progressLabel(progress), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        progress.fraction?.let { fraction ->
+                            LinearProgressIndicator(
+                                progress = { fraction },
+                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                                color = accent,
+                                trackColor = accent.copy(alpha = 0.16f),
+                            )
+                        }
+                    } ?: Text(
+                        stringResource(R.string.status_in_progress),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    item.ratingHalfStars?.let { CompactRating(it) }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = onUpdateProgress,
+                    modifier = Modifier.semantics { contentDescription = updateProgressLabel },
+                ) {
+                    Icon(
+                        Icons.Outlined.Update,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = MementoSpacing.xSmall).size(18.dp),
+                    )
+                    Text(stringResource(R.string.quick_update_progress))
+                }
+                TextButton(
+                    onClick = onAddNote,
+                    modifier = Modifier.semantics { contentDescription = addNoteLabel },
+                ) {
+                    Icon(
+                        Icons.Outlined.EditNote,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = MementoSpacing.xSmall).size(18.dp),
+                    )
+                    Text(stringResource(R.string.quick_add_note))
+                }
             }
         }
     }

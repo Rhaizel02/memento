@@ -19,6 +19,21 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.LocalDate
 
+data class ProgressSaveCall(
+    val consumptionId: String,
+    val type: ProgressType,
+    val currentValue: Double?,
+    val totalValue: Double?,
+    val season: Int?,
+    val episode: Int?,
+)
+
+data class ReflectionSaveCall(
+    val consumptionId: String,
+    val type: ReflectionType,
+    val content: String,
+)
+
 class FakeMediaRepository : MediaRepository {
     val library = MutableStateFlow<List<MediaItem>>(emptyList())
     val inProgress = MutableStateFlow<List<MediaItem>>(emptyList())
@@ -43,6 +58,10 @@ class FakeMediaRepository : MediaRepository {
     var addManualInvocations: Int = 0
     var addExternalInvocations: Int = 0
     var completedInput: CompletedMediaInput? = null
+    val progressSaveCalls = mutableListOf<ProgressSaveCall>()
+    val reflectionSaveCalls = mutableListOf<ReflectionSaveCall>()
+    var progressSaveHandler: suspend (ProgressSaveCall) -> Unit = {}
+    var reflectionSaveHandler: suspend (ReflectionSaveCall) -> Unit = {}
 
     override fun observeLibrary(query: String, type: MediaType?, filters: LibraryFilters): Flow<List<MediaItem>> {
         lastQuery = query
@@ -99,8 +118,17 @@ class FakeMediaRepository : MediaRepository {
         totalValue: Double?,
         season: Int?,
         episode: Int?,
-    ) = Unit
-    override suspend fun saveReflection(consumptionId: String, type: ReflectionType, content: String): String = "reflection"
+    ) {
+        val call = ProgressSaveCall(consumptionId, type, currentValue, totalValue, season, episode)
+        progressSaveCalls += call
+        progressSaveHandler(call)
+    }
+    override suspend fun saveReflection(consumptionId: String, type: ReflectionType, content: String): String {
+        val call = ReflectionSaveCall(consumptionId, type, content)
+        reflectionSaveCalls += call
+        reflectionSaveHandler(call)
+        return "reflection"
+    }
     override suspend fun updateReflection(reflectionId: String, content: String) {
         editedReflectionId = reflectionId
         editedReflectionContent = content

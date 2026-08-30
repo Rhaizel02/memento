@@ -25,6 +25,13 @@ fun HomeScreen(
     onOpenDiscover: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenTimeline: () -> Unit = {},
+    onOpenQuickProgress: (HomeMediaItem) -> Unit = {},
+    onOpenQuickNote: (HomeMediaItem) -> Unit = {},
+    onQuickProgressChanged: (QuickProgressField, String) -> Unit = { _, _ -> },
+    onQuickNoteChanged: (String) -> Unit = {},
+    onSaveQuickProgress: () -> Unit = {},
+    onSaveQuickNote: () -> Unit = {},
+    onDismissQuickCapture: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -74,7 +81,12 @@ fun HomeScreen(
                     contentPadding = PaddingValues(end = MementoSpacing.normal),
                 ) {
                     items(state.inProgress, key = { it.mediaId }) { item ->
-                        InProgressMediaCard(item = item, onClick = { onOpenMedia(item.mediaId) })
+                        InProgressMediaCard(
+                            item = item,
+                            onClick = { onOpenMedia(item.mediaId) },
+                            onUpdateProgress = { onOpenQuickProgress(item) },
+                            onAddNote = { onOpenQuickNote(item) },
+                        )
                     }
                 }
             }
@@ -120,5 +132,16 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    state.quickCapture?.let { sheet ->
+        HomeQuickCaptureSheet(
+            sheet = sheet,
+            onDismiss = onDismissQuickCapture,
+            onProgressChanged = onQuickProgressChanged,
+            onNoteChanged = onQuickNoteChanged,
+            onSaveProgress = onSaveQuickProgress,
+            onSaveNote = onSaveQuickNote,
+        )
     }
 }

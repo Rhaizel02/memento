@@ -12,7 +12,11 @@ import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.domain.repository.RememberRepository
 import com.memento.app.domain.repository.RecommendationRepository
 import com.memento.app.domain.recommendation.Recommendation
+import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.usecase.ProgressCapturePolicy
+import com.memento.app.domain.usecase.ProgressValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -28,6 +32,7 @@ data class HomeUiState(
     val recentlyCompleted: List<HomeMediaItem> = emptyList(),
     val remember: RememberCandidate? = null,
     val onThisDay: OnThisDayMemory? = null,
+    val quickCapture: QuickCaptureSheet? = null,
     val recommendation: Recommendation? = null,
     val recommendationProfileReady: Boolean = false,
     val summaryYear: Int = 0,
@@ -39,6 +44,32 @@ data class OnThisDayMemory(
     val event: CulturalTimelineEvent,
     val yearsAgo: Int,
 )
+
+sealed interface QuickCaptureSheet {
+    val item: HomeMediaItem
+    val isSaving: Boolean
+    val error: String?
+
+    data class Progress(
+        override val item: HomeMediaItem,
+        val currentValue: String = "",
+        val totalValue: String = "",
+        val isTotalEditable: Boolean = false,
+        val season: String = "",
+        val episode: String = "",
+        override val isSaving: Boolean = false,
+        override val error: String? = null,
+    ) : QuickCaptureSheet
+
+    data class Note(
+        override val item: HomeMediaItem,
+        val content: String = "",
+        override val isSaving: Boolean = false,
+        override val error: String? = null,
+    ) : QuickCaptureSheet
+}
+
+enum class QuickProgressField { CURRENT, TOTAL, SEASON, EPISODE }
 
 data class HomeMediaItem(
     val mediaId: String,
@@ -53,6 +84,7 @@ data class HomeMediaItem(
     val genres: List<String>,
     val additionalGenreCount: Int,
     val ratingHalfStars: Int?,
+    val pageCount: Int? = null,
     val progress: HomeProgress? = null,
     val completedDate: LocalDate? = null,
 )
@@ -71,7 +103,7 @@ sealed interface HomeProgress {
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    repository: MediaRepository,
+    private val repository: MediaRepository,
     rememberRepository: RememberRepository,
     private val recommendationRepository: RecommendationRepository,
     culturalTimelineRepository: CulturalTimelineRepository,
@@ -82,7 +114,8 @@ class HomeViewModel @Inject constructor(
     private val remember = rememberRepository.observeRemember().onEach { candidate ->
         candidate?.let { rememberRepository.recordExposure(it.consumptionId) }
     }
-    val state = combine(
+    private val quickCapture = MutableStateFlow<QuickCaptureSheet?>(null)
+    private val content = combine(
         repository.observeHomeMedia(),
         remember,
         recommendationRepository.observeFeed(),
@@ -103,12 +136,127 @@ class HomeViewModel @Inject constructor(
             completedByType = completedCounts,
             isLoading = false,
         )
+    }
+    val state = combine(content, quickCapture) { home, capture ->
+        home.copy(quickCapture = capture)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init {
         viewModelScope.launch { runCatching { recommendationRepository.refreshCandidates() } }
     }
+
+    fun openQuickProgress(item: HomeMediaItem) {
+        if (quickCapture.value?.isSaving == true) return
+        val progress = item.progress
+        val bookTotal = (progress as? HomeProgress.Pages)?.total ?: item.pageCount?.toDouble()
+        quickCapture.value = QuickCaptureSheet.Progress(
+            item = item,
+            currentValue = when (progress) {
+                is HomeProgress.Pages -> progress.current.draftNumber()
+                is HomeProgress.Game -> progress.hours.draftNumber()
+                is HomeProgress.Minutes -> progress.minutes.draftNumber()
+                else -> ""
+            },
+            totalValue = when (progress) {
+                is HomeProgress.Pages -> progress.total?.draftNumber().orEmpty()
+                is HomeProgress.Game -> progress.percent?.draftNumber().orEmpty()
+                else -> item.pageCount?.toString().orEmpty()
+            },
+            isTotalEditable = item.type == MediaType.BOOK && bookTotal == null,
+            season = (progress as? HomeProgress.Episode)?.season?.toString().orEmpty(),
+            episode = (progress as? HomeProgress.Episode)?.episode?.toString().orEmpty(),
+        )
+    }
+
+    fun openQuickNote(item: HomeMediaItem) {
+        if (quickCapture.value?.isSaving == true) return
+        quickCapture.value = QuickCaptureSheet.Note(item)
+    }
+
+    fun dismissQuickCapture() {
+        if (quickCapture.value?.isSaving != true) quickCapture.value = null
+    }
+
+    fun updateQuickProgress(field: QuickProgressField, value: String) {
+        val current = quickCapture.value as? QuickCaptureSheet.Progress ?: return
+        if (current.isSaving) return
+        quickCapture.value = when (field) {
+            QuickProgressField.CURRENT -> current.copy(currentValue = value, error = null)
+            QuickProgressField.TOTAL -> current.copy(totalValue = value, error = null)
+            QuickProgressField.SEASON -> current.copy(season = value, error = null)
+            QuickProgressField.EPISODE -> current.copy(episode = value, error = null)
+        }
+    }
+
+    fun updateQuickNote(content: String) {
+        val current = quickCapture.value as? QuickCaptureSheet.Note ?: return
+        if (!current.isSaving) quickCapture.value = current.copy(content = content, error = null)
+    }
+
+    fun saveQuickProgress() {
+        val draft = quickCapture.value as? QuickCaptureSheet.Progress ?: return
+        if (draft.isSaving) return
+        val values = runCatching { draft.toProgressValues() }.getOrElse { error ->
+            quickCapture.value = draft.copy(error = error.message ?: "El progreso no es válido")
+            return
+        }
+        quickCapture.value = draft.copy(isSaving = true, error = null)
+        viewModelScope.launch {
+            runCatching {
+                repository.addProgress(
+                    draft.item.consumptionId,
+                    values.type,
+                    values.currentValue,
+                    values.totalValue,
+                    values.season,
+                    values.episode,
+                )
+            }.onSuccess {
+                quickCapture.value = null
+            }.onFailure {
+                quickCapture.value = draft.copy(error = "No se pudo guardar el progreso.")
+            }
+        }
+    }
+
+    fun saveQuickNote() {
+        val draft = quickCapture.value as? QuickCaptureSheet.Note ?: return
+        if (draft.isSaving) return
+        val content = draft.content.trim()
+        if (content.isEmpty()) {
+            quickCapture.value = draft.copy(error = "Escribe una nota antes de guardar.")
+            return
+        }
+        quickCapture.value = draft.copy(isSaving = true, error = null)
+        viewModelScope.launch {
+            runCatching { repository.saveReflection(draft.item.consumptionId, ReflectionType.NOTE, content) }
+                .onSuccess { quickCapture.value = null }
+                .onFailure { quickCapture.value = draft.copy(error = "No se pudo guardar la nota.") }
+        }
+    }
 }
+
+private data class QuickProgressValues(
+    val type: ProgressType,
+    val currentValue: Double?,
+    val totalValue: Double?,
+    val season: Int?,
+    val episode: Int?,
+)
+
+private fun QuickCaptureSheet.Progress.toProgressValues(): QuickProgressValues {
+    val type = ProgressCapturePolicy.typeFor(item.type)
+    val values = when (item.type) {
+        MediaType.BOOK -> QuickProgressValues(type, currentValue.toDoubleOrNull(), totalValue.toDoubleOrNull(), null, null)
+        MediaType.SERIES -> QuickProgressValues(type, null, null, season.toIntOrNull(), episode.toIntOrNull())
+        MediaType.GAME -> QuickProgressValues(type, currentValue.toDoubleOrNull(), totalValue.toDoubleOrNull(), null, null)
+        MediaType.MOVIE -> QuickProgressValues(type, currentValue.toDoubleOrNull(), null, null, null)
+    }
+    ProgressValidator.validate(type, values.currentValue, values.totalValue, values.season, values.episode)
+    return values
+}
+
+private fun Double.draftNumber(): String = if (this % 1.0 == 0.0) toLong().toString() else toString()
 
 private fun HomeMediaSummary.toHomeItem() = HomeMediaItem(
     mediaId = media.id,
@@ -123,6 +271,7 @@ private fun HomeMediaSummary.toHomeItem() = HomeMediaItem(
     genres = genres,
     additionalGenreCount = additionalGenreCount,
     ratingHalfStars = ratingHalfStars,
+    pageCount = media.pageCount,
     progress = latestProgress?.let { entry ->
         when (entry.progressType) {
             ProgressType.PAGES -> entry.currentValue?.let { current ->

@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
@@ -24,6 +27,7 @@ import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.ui.home.HomeMediaItem
 import com.memento.app.ui.home.HomeProgress
 import com.memento.app.ui.home.OnThisDayMemory
+import com.memento.app.ui.home.QuickCaptureSheet
 import com.memento.app.ui.home.HomeScreen
 import com.memento.app.ui.home.HomeUiState
 import com.memento.app.ui.theme.MementoTheme
@@ -117,6 +121,54 @@ class HomeScreenComposeTest {
         composeRule.onNodeWithText("Ciencia ficción").assertIsDisplayed()
         composeRule.onNodeWithText("103 / 412 páginas").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Valoración: 4.5 de 5").assertIsDisplayed()
+    }
+
+    @Test
+    fun quickActionsOpenAndCancelBothSheetsWithoutOpeningMediaDetail() {
+        var openedMediaId: String? = null
+        val item = homeItem(
+            title = "Dune",
+            progress = HomeProgress.Pages(742.0, 1200.0, 0.62f),
+            pageCount = 1200,
+        )
+        var state by mutableStateOf(HomeUiState(mediaCount = 1, inProgress = listOf(item), isLoading = false))
+        composeRule.setContent {
+            MementoTheme(ThemeMode.LIGHT) {
+                Surface {
+                    HomeScreen(
+                        state = state,
+                        onAdd = {},
+                        onOpenMedia = { openedMediaId = it },
+                        onOpenRemember = {},
+                        onOpenDiscover = {},
+                        onOpenStats = {},
+                        onOpenQuickProgress = {
+                            state = state.copy(
+                                quickCapture = QuickCaptureSheet.Progress(
+                                    item = it,
+                                    currentValue = "742",
+                                    totalValue = "1200",
+                                ),
+                            )
+                        },
+                        onOpenQuickNote = { state = state.copy(quickCapture = QuickCaptureSheet.Note(it)) },
+                        onDismissQuickCapture = { state = state.copy(quickCapture = null) },
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Actualizar progreso de Dune").performScrollTo().performClick()
+        composeRule.onNodeWithText("Página actual").assertIsDisplayed()
+        composeRule.onNodeWithText("de 1200").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancelar").performClick()
+        composeRule.onNodeWithText("Página actual").assertDoesNotExist()
+
+        composeRule.onNodeWithContentDescription("Añadir nota sobre Dune").performClick()
+        composeRule.onNodeWithText("¿Qué quieres recordar?").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancelar").performClick()
+
+        composeRule.runOnIdle { assertEquals(null, openedMediaId) }
     }
 
     @Test
@@ -273,6 +325,7 @@ class HomeScreenComposeTest {
         additionalGenreCount: Int = 0,
         ratingHalfStars: Int? = null,
         progress: HomeProgress? = null,
+        pageCount: Int? = null,
     ) = HomeMediaItem(
         mediaId = "media",
         consumptionId = "consumption",
@@ -286,6 +339,7 @@ class HomeScreenComposeTest {
         genres = genres,
         additionalGenreCount = additionalGenreCount,
         ratingHalfStars = ratingHalfStars,
+        pageCount = pageCount,
         progress = progress,
     )
 }

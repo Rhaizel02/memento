@@ -232,6 +232,36 @@ class MediaRepositoryRoomTest {
     }
 
     @Test
+    fun quickCaptureRejectsProgressAndNotesAfterConsumptionStopsBeingActive() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val mediaId = repository.addManual(
+                AddMediaInput(MediaType.BOOK, "Consumo concurrente", pageCount = 300),
+                ConsumptionStatus.IN_PROGRESS,
+            )
+            val consumptionId = repository.observeMediaDetail(mediaId).first { it != null }!!.activeConsumption!!.id
+            repository.completeConsumption(mediaId, LocalDate.of(2026, 8, 30))
+
+            val progressRejected = runCatching {
+                repository.addProgress(consumptionId, ProgressType.PAGES, 120.0, 300.0)
+            }.isFailure
+            val noteRejected = runCatching {
+                repository.saveReflection(consumptionId, ReflectionType.NOTE, "Ya no debe guardarse")
+            }.isFailure
+            val detail = repository.observeMediaDetail(mediaId).first { it?.activeConsumption == null }!!
+
+            assertTrue(progressRejected)
+            assertTrue(noteRejected)
+            assertTrue(detail.progress.isEmpty())
+            assertTrue(detail.reflections.isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun homeProjectionReturnsRichRowsWithoutPerCardQueries() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()

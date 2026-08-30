@@ -336,27 +336,30 @@ class RoomMediaRepository @Inject constructor(
         totalValue: Double?,
         season: Int?,
         episode: Int?,
-    ) {
+    ) = database.withTransaction {
         ProgressValidator.validate(type, currentValue, totalValue, season, episode)
+        requireActiveConsumption(consumptionId)
         consumptionDao.insertProgress(
             ProgressEntryEntity(UUID.randomUUID().toString(), consumptionId, type, currentValue, totalValue, season, episode, Instant.now()),
         )
     }
 
-    override suspend fun saveReflection(consumptionId: String, type: ReflectionType, content: String): String {
-        val cleanContent = content.trim()
-        require(cleanContent.isNotEmpty())
-        val now = Instant.now()
-        val existing = if (type == ReflectionType.FINAL_REFLECTION) consumptionDao.getReflection(consumptionId, type) else null
-        return if (existing != null) {
-            consumptionDao.updateReflection(existing.copy(content = cleanContent, updatedAt = now))
-            existing.id
-        } else {
-            UUID.randomUUID().toString().also { id ->
-                consumptionDao.insertReflection(ReflectionEntity(id, consumptionId, type, cleanContent, now, now))
+    override suspend fun saveReflection(consumptionId: String, type: ReflectionType, content: String): String =
+        database.withTransaction {
+            val cleanContent = content.trim()
+            require(cleanContent.isNotEmpty())
+            if (type == ReflectionType.NOTE) requireActiveConsumption(consumptionId)
+            val now = Instant.now()
+            val existing = if (type == ReflectionType.FINAL_REFLECTION) consumptionDao.getReflection(consumptionId, type) else null
+            if (existing != null) {
+                consumptionDao.updateReflection(existing.copy(content = cleanContent, updatedAt = now))
+                existing.id
+            } else {
+                UUID.randomUUID().toString().also { id ->
+                    consumptionDao.insertReflection(ReflectionEntity(id, consumptionId, type, cleanContent, now, now))
+                }
             }
         }
-    }
 
     override suspend fun updateReflection(reflectionId: String, content: String) {
         val cleanContent = content.trim()
@@ -419,6 +422,14 @@ class RoomMediaRepository @Inject constructor(
 
     private fun validateRating(rating: Int?) {
         require(rating == null || rating in 1..10) { "La valoración debe estar entre 0,5 y 5 estrellas" }
+    }
+
+    private suspend fun requireActiveConsumption(consumptionId: String) {
+        val consumption = consumptionDao.getById(consumptionId)
+        require(
+            consumption?.status == ConsumptionStatus.PLANNED ||
+                consumption?.status == ConsumptionStatus.IN_PROGRESS,
+        ) { "Este consumo ya no está activo" }
     }
 }
 
