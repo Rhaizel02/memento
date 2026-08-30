@@ -9,10 +9,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -256,18 +256,18 @@ internal fun InProgressMediaCard(item: HomeMediaItem, onClick: () -> Unit) {
     val accent = MaterialTheme.mediaTypeColor(item.type)
     Card(
         onClick = onClick,
-        modifier = Modifier.width(308.dp).height(222.dp),
+        modifier = Modifier.width(308.dp).heightIn(min = 222.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(MementoSpacing.medium),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 222.dp).padding(MementoSpacing.medium),
             horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
         ) {
             HomePoster(item, Modifier.width(112.dp).aspectRatio(2f / 3f))
             Column(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
             ) {
                 MediaTypeBadge(item.type)
@@ -288,7 +288,6 @@ internal fun InProgressMediaCard(item: HomeMediaItem, onClick: () -> Unit) {
                     )
                 }
                 if (item.genres.isNotEmpty()) GenreRow(item.genres, item.additionalGenreCount)
-                Spacer(Modifier.weight(1f))
                 item.progress?.let { progress ->
                     Text(progressLabel(progress), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     progress.fraction?.let { fraction ->
@@ -378,16 +377,19 @@ private fun MediaTypeBadge(type: MediaType) {
 
 @Composable
 private fun GenreRow(genres: List<String>, additionalCount: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
-        genres.take(2).forEach { genre -> MediaGenreChip(genre) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
+    ) {
+        genres.take(2).forEach { genre -> MediaGenreChip(genre, Modifier.weight(1f, fill = false)) }
         if (additionalCount > 0) MediaGenreChip(stringResource(R.string.additional_genres, additionalCount))
     }
 }
 
 @Composable
-private fun MediaGenreChip(label: String) {
+private fun MediaGenreChip(label: String, modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier.widthIn(max = 78.dp),
+        modifier = modifier.widthIn(max = 78.dp),
         color = MaterialTheme.colorScheme.surface,
         shape = CircleShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),

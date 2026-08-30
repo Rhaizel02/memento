@@ -1,12 +1,20 @@
 package com.memento.app.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.ReflectionType
@@ -59,6 +67,54 @@ class HomeScreenComposeTest {
         composeRule.onNodeWithText("Frank Herbert · 1965").assertIsDisplayed()
         composeRule.onNodeWithText("Ciencia ficción").assertIsDisplayed()
         composeRule.onNodeWithText("103 / 412 páginas").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Valoración: 4.5 de 5").assertIsDisplayed()
+    }
+
+    @Test
+    fun denseInProgressCardKeepsImportantContentVisibleAtFontScaleOnePointFive() {
+        val title = "Borat: Cultural Learnings of America for Make Benefit Glorious Nation of Kazakhstan"
+        val state = HomeUiState(
+            mediaCount = 1,
+            inProgress = listOf(
+                homeItem(
+                    title = title,
+                    creator = "Larry Charles",
+                    releaseYear = 2006,
+                    genres = listOf("Comedia", "Falso documental"),
+                    additionalGenreCount = 3,
+                    ratingHalfStars = 9,
+                    progress = HomeProgress.Pages(742.0, 1200.0, 0.62f),
+                ),
+            ),
+            isLoading = false,
+        )
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1.5f)) {
+                MementoTheme(ThemeMode.LIGHT) {
+                    Surface {
+                        Box(Modifier.width(320.dp).height(640.dp)) {
+                            HomeScreen(
+                                state = state,
+                                onAdd = {},
+                                onOpenMedia = {},
+                                onOpenRemember = {},
+                                onOpenDiscover = {},
+                                onOpenStats = {},
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("En progreso").performScrollTo()
+        composeRule.onNodeWithText(title).assertIsDisplayed()
+        composeRule.onNodeWithText("Larry Charles · 2006").assertIsDisplayed()
+        composeRule.onNodeWithText("Comedia").assertIsDisplayed()
+        composeRule.onNodeWithText("Falso documental").assertIsDisplayed()
+        composeRule.onNodeWithText("+3").assertIsDisplayed()
+        composeRule.onNodeWithText("742 / 1200 páginas").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Valoración: 4.5 de 5").assertIsDisplayed()
     }
 

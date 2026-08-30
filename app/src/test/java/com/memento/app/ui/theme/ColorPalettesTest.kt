@@ -39,6 +39,36 @@ class ColorPalettesTest {
     }
 
     @Test
+    fun surfaceContainerFamiliesAreDistinctOrderedAndReadable() {
+        ThemePalette.entries.forEach { palette ->
+            listOf(false, true).forEach { dark ->
+                val scheme = colorSchemeFor(palette, dark)
+                val containers = containerFamily(scheme)
+
+                assertEquals("$palette dark=$dark must define five tonal levels", 5, containers.distinct().size)
+                containers.zipWithNext().forEach { (lowerRole, higherRole) ->
+                    val ordered = if (dark) {
+                        lowerRole.luminance() < higherRole.luminance()
+                    } else {
+                        lowerRole.luminance() > higherRole.luminance()
+                    }
+                    assertTrue("$palette dark=$dark surface container hierarchy", ordered)
+                }
+                assertTrue(
+                    "$palette dark=$dark surfaceDim must be dimmer than surfaceBright",
+                    scheme.surfaceDim.luminance() < scheme.surfaceBright.luminance(),
+                )
+                surfaceRoles(scheme).forEach { surfaceRole ->
+                    assertTrue(
+                        "$palette dark=$dark onSurface contrast=${contrast(scheme.onSurface, surfaceRole)}",
+                        contrast(scheme.onSurface, surfaceRole) >= MIN_TEXT_CONTRAST,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
     fun mediaTypeColorsAreStableAcrossPalettesAndAdaptToLighting() {
         MediaType.entries.forEach { type ->
             val light = semanticColorsFor(dark = false)
@@ -61,6 +91,20 @@ class ColorPalettesTest {
         scheme.onSurfaceVariant to scheme.surfaceVariant,
         scheme.onError to scheme.error,
         scheme.onErrorContainer to scheme.errorContainer,
+    )
+
+    private fun containerFamily(scheme: ColorScheme) = listOf(
+        scheme.surfaceContainerLowest,
+        scheme.surfaceContainerLow,
+        scheme.surfaceContainer,
+        scheme.surfaceContainerHigh,
+        scheme.surfaceContainerHighest,
+    )
+
+    private fun surfaceRoles(scheme: ColorScheme) = listOf(
+        scheme.surfaceDim,
+        scheme.surfaceBright,
+        *containerFamily(scheme).toTypedArray(),
     )
 
     private fun contrast(first: Color, second: Color): Float {

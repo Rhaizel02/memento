@@ -1,10 +1,12 @@
 package com.memento.app.ui.home
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.tooling.preview.Preview
 import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.data.preferences.ThemePalette
@@ -37,6 +39,27 @@ private fun HomeNoblePreview() = HomePreview(ThemeMode.LIGHT, ThemePalette.NOBLE
 @Preview(name = "Ink", group = "Home 2.0", widthDp = 412, heightDp = 900)
 @Composable
 private fun HomeInkPreview() = HomePreview(ThemeMode.DARK, ThemePalette.INK)
+
+@Preview(
+    name = "In progress · 320dp · Font 1.5",
+    group = "Home responsive",
+    widthDp = 320,
+    heightDp = 420,
+    fontScale = 1.5f,
+)
+@Composable
+private fun DenseInProgressPreview() {
+    MementoTheme(themeMode = ThemeMode.LIGHT, palette = ThemePalette.MEMENTO) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                InProgressMediaCard(item = denseInProgressPreviewItem, onClick = {})
+            }
+        }
+    }
+}
 
 @Composable
 private fun HomePreview(themeMode: ThemeMode, palette: ThemePalette) {
@@ -162,4 +185,20 @@ private val previewState = HomeUiState(
         MediaType.GAME to 3,
     ),
     isLoading = false,
+)
+
+private val denseInProgressPreviewItem = HomeMediaItem(
+    mediaId = "dense-preview",
+    consumptionId = "dense-consumption",
+    type = MediaType.MOVIE,
+    title = "Borat: Cultural Learnings of America for Make Benefit Glorious Nation of Kazakhstan",
+    posterUrl = null,
+    backdropUrl = null,
+    isFavorite = true,
+    creator = "Larry Charles",
+    releaseYear = 2006,
+    genres = listOf("Comedia", "Falso documental"),
+    additionalGenreCount = 3,
+    ratingHalfStars = 9,
+    progress = HomeProgress.Minutes(minutes = 62.0, fraction = 0.73f),
 )
