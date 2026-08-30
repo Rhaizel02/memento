@@ -94,6 +94,30 @@ class MediaRepositoryRoomTest {
     }
 
     @Test
+    fun quoteOnCompletedWorkUsesLatestHistoricalConsumption() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val mediaId = repository.addManual(
+                AddMediaInput(MediaType.BOOK, "Terminada"),
+                ConsumptionStatus.COMPLETED,
+                CompletedMediaInput(LocalDate.of(2024, 6, 1)),
+            )
+            val latestConsumption = repository.observeMediaDetail(mediaId).first { it != null }!!.latestConsumption!!
+
+            repository.saveReflection(latestConsumption.id, ReflectionType.QUOTE, "Todavía resuena")
+
+            val quote = repository.observeMediaDetail(mediaId).first { detail ->
+                detail?.reflections?.any { it.type == ReflectionType.QUOTE } == true
+            }!!.reflections.single { it.type == ReflectionType.QUOTE }
+            assertEquals(latestConsumption.id, quote.consumptionId)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun completedAddRequiresExplicitCompletionDataBeforeAnyInsert() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()

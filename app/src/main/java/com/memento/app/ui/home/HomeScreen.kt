@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.memento.app.R
 import com.memento.app.ui.theme.MementoSpacing
+import com.memento.app.domain.recommendation.Recommendation
 
 @Composable
 fun HomeScreen(
@@ -23,6 +24,7 @@ fun HomeScreen(
     onOpenMedia: (String) -> Unit,
     onOpenRemember: (String) -> Unit,
     onOpenDiscover: () -> Unit,
+    onOpenRecommendation: (Recommendation) -> Unit = {},
     onOpenStats: () -> Unit,
     onOpenTimeline: () -> Unit = {},
     onOpenQuickProgress: (HomeMediaItem) -> Unit = {},
@@ -99,7 +101,7 @@ fun HomeScreen(
             state.recommendation?.let { recommendation ->
                 HomeRecommendationCard(
                     recommendation = recommendation,
-                    onClick = onOpenDiscover,
+                    onClick = { onOpenRecommendation(recommendation) },
                     modifier = Modifier.padding(top = MementoSpacing.medium),
                 )
             } ?: RecommendationLearningState(

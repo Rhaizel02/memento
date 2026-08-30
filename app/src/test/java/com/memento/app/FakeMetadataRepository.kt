@@ -6,6 +6,7 @@ import com.memento.app.domain.model.MetadataSearchOutcome
 import com.memento.app.domain.repository.MetadataRepository
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.repository.MetadataDetailsOutcome
+import com.memento.app.domain.recommendation.RecommendationAnchor
 
 class FakeMetadataRepository : MetadataRepository {
     var outcome: MetadataSearchOutcome = MetadataSearchOutcome.Success(MetadataProvider.OPEN_LIBRARY, emptyList())
@@ -28,6 +29,7 @@ class FakeMetadataRepository : MetadataRepository {
         type: MediaType,
         preferredGenres: List<String>,
         preferredCreators: List<String>,
+        anchors: List<RecommendationAnchor>,
     ): List<MetadataSearchResult> {
         recommendationRequests++
         return recommendationResult

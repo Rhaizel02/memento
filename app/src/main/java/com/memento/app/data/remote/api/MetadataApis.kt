@@ -41,6 +41,22 @@ interface TmdbApi {
         @Query("append_to_response") appendToResponse: String = "credits",
     ): TmdbSeriesDetailsDto
 
+    @GET("3/movie/{id}/recommendations")
+    suspend fun movieRecommendations(
+        @Path("id") id: String,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "es-ES",
+        @Query("page") page: Int = 1,
+    ): TmdbMovieSearchResponse
+
+    @GET("3/tv/{id}/recommendations")
+    suspend fun seriesRecommendations(
+        @Path("id") id: String,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "es-ES",
+        @Query("page") page: Int = 1,
+    ): TmdbSeriesSearchResponse
+
     @GET("3/discover/movie")
     suspend fun discoverMovies(
         @Query("api_key") apiKey: String,
@@ -48,6 +64,7 @@ interface TmdbApi {
         @Query("language") language: String = "es-ES",
         @Query("sort_by") sortBy: String = "vote_count.desc",
         @Query("include_adult") includeAdult: Boolean = false,
+        @Query("vote_count.gte") minimumVoteCount: Int = 120,
         @Query("page") page: Int = 1,
     ): TmdbMovieSearchResponse
 
@@ -58,6 +75,7 @@ interface TmdbApi {
         @Query("language") language: String = "es-ES",
         @Query("sort_by") sortBy: String = "vote_count.desc",
         @Query("include_adult") includeAdult: Boolean = false,
+        @Query("vote_count.gte") minimumVoteCount: Int = 80,
         @Query("page") page: Int = 1,
     ): TmdbSeriesSearchResponse
 }
@@ -66,7 +84,7 @@ interface OpenLibraryApi {
     @GET("search.json")
     suspend fun searchBooks(
         @Query("q") query: String,
-        @Query("fields") fields: String = "key,title,author_name,first_publish_year,cover_i,number_of_pages_median,subject",
+        @Query("fields") fields: String = "key,title,author_name,first_publish_year,cover_i,number_of_pages_median,subject,ratings_average,ratings_count,want_to_read_count",
         @Query("limit") limit: Int = 20,
         @Query("lang") language: String = "es",
     ): OpenLibrarySearchResponse
@@ -99,9 +117,11 @@ interface RawgApi {
     @GET("api/games")
     suspend fun discoverGames(
         @Query("key") apiKey: String,
-        @Query("genres") genreSlug: String,
+        @Query("genres") genreSlugs: String? = null,
+        @Query("developers") developerSlugs: String? = null,
+        @Query("tags") tagSlugs: String? = null,
         @Query("ordering") ordering: String = "-metacritic",
-        @Query("page_size") pageSize: Int = 20,
+        @Query("page_size") pageSize: Int = 30,
     ): RawgSearchResponse
 }
 
@@ -118,6 +138,9 @@ data class TmdbMovieDto(
     @SerialName("poster_path") val posterPath: String? = null,
     @SerialName("backdrop_path") val backdropPath: String? = null,
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+    @SerialName("vote_average") val voteAverage: Double? = null,
+    @SerialName("vote_count") val voteCount: Int? = null,
+    val popularity: Double? = null,
 )
 
 @Serializable
@@ -132,6 +155,9 @@ data class TmdbMovieDetailsDto(
     val genres: List<TmdbGenreDto> = emptyList(),
     val runtime: Int? = null,
     val credits: TmdbCreditsDto? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
+    @SerialName("vote_count") val voteCount: Int? = null,
+    val popularity: Double? = null,
 )
 
 @Serializable
@@ -147,6 +173,9 @@ data class TmdbSeriesDto(
     @SerialName("poster_path") val posterPath: String? = null,
     @SerialName("backdrop_path") val backdropPath: String? = null,
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+    @SerialName("vote_average") val voteAverage: Double? = null,
+    @SerialName("vote_count") val voteCount: Int? = null,
+    val popularity: Double? = null,
 )
 
 @Serializable
@@ -164,6 +193,9 @@ data class TmdbSeriesDetailsDto(
     @SerialName("number_of_seasons") val seasonCount: Int? = null,
     @SerialName("number_of_episodes") val episodeCount: Int? = null,
     val credits: TmdbCreditsDto? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
+    @SerialName("vote_count") val voteCount: Int? = null,
+    val popularity: Double? = null,
 )
 
 @Serializable data class TmdbGenreDto(val name: String)
@@ -187,6 +219,9 @@ data class OpenLibraryBookDto(
     @SerialName("cover_i") val coverId: Long? = null,
     @SerialName("number_of_pages_median") val pageCount: Int? = null,
     val subject: List<String> = emptyList(),
+    @SerialName("ratings_average") val ratingsAverage: Double? = null,
+    @SerialName("ratings_count") val ratingsCount: Int? = null,
+    @SerialName("want_to_read_count") val wantToReadCount: Int? = null,
 )
 
 @Serializable
@@ -220,6 +255,11 @@ data class RawgGameDto(
     val released: String? = null,
     @SerialName("background_image") val backgroundImage: String? = null,
     val genres: List<RawgGenreDto> = emptyList(),
+    val developers: List<RawgNamedDto> = emptyList(),
+    val tags: List<RawgNamedDto> = emptyList(),
+    val rating: Double? = null,
+    @SerialName("ratings_count") val ratingsCount: Int? = null,
+    val metacritic: Int? = null,
 )
 
 @Serializable
@@ -233,6 +273,10 @@ data class RawgGameDetailsDto(
     @SerialName("background_image") val backgroundImage: String? = null,
     val genres: List<RawgGenreDto> = emptyList(),
     val developers: List<RawgNamedDto> = emptyList(),
+    val tags: List<RawgNamedDto> = emptyList(),
+    val rating: Double? = null,
+    @SerialName("ratings_count") val ratingsCount: Int? = null,
+    val metacritic: Int? = null,
 )
 
 @Serializable

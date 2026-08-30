@@ -9,6 +9,7 @@ import com.memento.app.data.repository.RoomRecommendationRepository
 import com.memento.app.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -46,6 +47,16 @@ class RecommendationCacheRepositoryTest {
 
         assertTrue(metadata.recommendationRequests > 0)
         assertTrue(dao.candidates.value.isEmpty())
+    }
+
+    @Test fun `legacy cached candidate remains rankable offline`() = runTest {
+        val cached = candidateEntity(Instant.now())
+        val dao = FakeRecommendationDao(latest = cached.fetchedAt).apply { candidates.value = listOf(cached) }
+        val repository = RoomRecommendationRepository(readyHistory(), dao, FakeMetadataRepository())
+
+        val feed = repository.observeFeed().first()
+
+        assertEquals("OL1W", feed.recommendations.single().candidate.externalId)
     }
 
     private fun readyHistory() = FakeMediaRepository().apply {

@@ -94,6 +94,7 @@ data class MediaDetail(
     val progress: List<ProgressEntry>,
     val reflections: List<Reflection>,
     val tags: List<Tag> = emptyList(),
+    val externalRefs: List<MediaExternalReference> = emptyList(),
 ) {
     val activeConsumption: Consumption?
         get() = consumptions.firstOrNull {
@@ -103,6 +104,13 @@ data class MediaDetail(
     val latestConsumption: Consumption?
         get() = activeConsumption ?: consumptions.maxByOrNull { it.updatedAt }
 }
+
+data class MediaExternalReference(
+    val provider: MetadataProvider,
+    val externalId: String,
+    val mediaType: MediaType,
+    val externalUrl: String? = null,
+)
 
 data class HomeMediaSummary(
     val media: MediaItem,
@@ -164,6 +172,12 @@ data class MetadataSearchResult(
     val pageCount: Int? = null,
     val seasonCount: Int? = null,
     val episodeCount: Int? = null,
+    val externalRating: Double? = null,
+    val externalVoteCount: Int? = null,
+    val popularity: Double? = null,
+    val externalTags: List<String> = emptyList(),
+    val sourceAnchorMediaIds: List<String> = emptyList(),
+    val sourceAnchorTitles: List<String> = emptyList(),
 )
 
 data class SaveExternalResult(val mediaId: String, val wasDuplicate: Boolean)

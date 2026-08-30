@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.time.Instant
 import java.util.UUID
@@ -61,10 +62,12 @@ class RoomRecommendationRepository @Inject constructor(
         if (!profile.isReady) return
         val genres = profile.genreWeights.filterValues { it > 0 }.entries.sortedByDescending { it.value }.map { it.key }.take(3)
         val creators = profile.creatorWeights.filterValues { it > 0 }.entries.sortedByDescending { it.value }.map { it.key }.take(3)
-        val preferredTypes = profile.typeWeights.filterValues { it > 0 }.keys
         val candidates = coroutineScope {
-            preferredTypes.map { type ->
-                async { metadataRepository.recommendationCandidates(type, genres, creators) }
+            MediaType.entries.map { type ->
+                async {
+                    runCatching { metadataRepository.recommendationCandidates(type, genres, creators, profile.anchors) }
+                        .getOrDefault(emptyList())
+                }
             }.flatMap { it.await() }
         }.distinctBy { Triple(it.provider, it.externalId, it.type) }
         if (candidates.isNotEmpty()) {
@@ -86,25 +89,34 @@ class RoomRecommendationRepository @Inject constructor(
         )
     }
 
-    private fun RecommendationCandidateEntity.toDomain() = MetadataSearchResult(
-        provider = provider,
-        externalId = externalId,
-        externalUrl = externalUrl,
-        type = mediaType,
-        title = title,
-        originalTitle = originalTitle,
-        description = description,
-        releaseDate = releaseDate,
-        releaseYear = releaseYear,
-        posterUrl = posterUrl,
-        backdropUrl = backdropUrl,
-        creators = runCatching { json.decodeFromString<List<String>>(creatorsJson) }.getOrDefault(emptyList()),
-        genres = runCatching { json.decodeFromString<List<String>>(genresJson) }.getOrDefault(emptyList()),
-        runtimeMinutes = runtimeMinutes,
-        pageCount = pageCount,
-        seasonCount = seasonCount,
-        episodeCount = episodeCount,
-    )
+    private fun RecommendationCandidateEntity.toDomain(): MetadataSearchResult {
+        val signals = decodeCandidateSignals(genresJson)
+        return MetadataSearchResult(
+            provider = provider,
+            externalId = externalId,
+            externalUrl = externalUrl,
+            type = mediaType,
+            title = title,
+            originalTitle = originalTitle,
+            description = description,
+            releaseDate = releaseDate,
+            releaseYear = releaseYear,
+            posterUrl = posterUrl,
+            backdropUrl = backdropUrl,
+            creators = runCatching { json.decodeFromString<List<String>>(creatorsJson) }.getOrDefault(emptyList()),
+            genres = signals.genres,
+            runtimeMinutes = runtimeMinutes,
+            pageCount = pageCount,
+            seasonCount = seasonCount,
+            episodeCount = episodeCount,
+            externalRating = signals.externalRating,
+            externalVoteCount = signals.externalVoteCount,
+            popularity = signals.popularity,
+            externalTags = signals.externalTags,
+            sourceAnchorMediaIds = signals.sourceAnchorMediaIds,
+            sourceAnchorTitles = signals.sourceAnchorTitles,
+        )
+    }
 
     private fun MetadataSearchResult.toEntity(fetchedAt: Instant) = RecommendationCandidateEntity(
         provider = provider,
@@ -119,11 +131,38 @@ class RoomRecommendationRepository @Inject constructor(
         posterUrl = posterUrl,
         backdropUrl = backdropUrl,
         creatorsJson = json.encodeToString(creators),
-        genresJson = json.encodeToString(genres),
+        genresJson = json.encodeToString(
+            CachedCandidateSignals(
+                genres = genres,
+                externalRating = externalRating,
+                externalVoteCount = externalVoteCount,
+                popularity = popularity,
+                externalTags = externalTags,
+                sourceAnchorMediaIds = sourceAnchorMediaIds,
+                sourceAnchorTitles = sourceAnchorTitles,
+            ),
+        ),
         runtimeMinutes = runtimeMinutes,
         pageCount = pageCount,
         seasonCount = seasonCount,
         episodeCount = episodeCount,
         fetchedAt = fetchedAt,
     )
+
+    private fun decodeCandidateSignals(payload: String): CachedCandidateSignals =
+        runCatching { json.decodeFromString<CachedCandidateSignals>(payload) }
+            .getOrElse {
+                CachedCandidateSignals(genres = runCatching { json.decodeFromString<List<String>>(payload) }.getOrDefault(emptyList()))
+            }
 }
+
+@Serializable
+private data class CachedCandidateSignals(
+    val genres: List<String> = emptyList(),
+    val externalRating: Double? = null,
+    val externalVoteCount: Int? = null,
+    val popularity: Double? = null,
+    val externalTags: List<String> = emptyList(),
+    val sourceAnchorMediaIds: List<String> = emptyList(),
+    val sourceAnchorTitles: List<String> = emptyList(),
+)

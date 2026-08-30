@@ -41,6 +41,9 @@ import com.memento.app.ui.home.HomeScreen
 import com.memento.app.ui.home.HomeViewModel
 import com.memento.app.ui.library.LibraryScreen
 import com.memento.app.ui.library.LibraryViewModel
+import com.memento.app.ui.recommendation.RecommendationDetailScreen
+import com.memento.app.ui.recommendation.RecommendationDetailViewModel
+import com.memento.app.domain.recommendation.Recommendation
 import com.memento.app.ui.remember.RememberScreen
 import com.memento.app.ui.remember.RememberViewModel
 import com.memento.app.ui.settings.SettingsScreen
@@ -61,12 +64,18 @@ import java.util.UUID
 @Serializable data object SettingsKey : MementoKey
 @Serializable data class AddMediaKey(val sessionId: String) : MementoKey
 @Serializable data class MediaDetailKey(val mediaId: String) : MementoKey
+@Serializable data class RecommendationDetailKey(val provider: String, val externalId: String, val mediaType: String) : MementoKey
 @Serializable data class RememberKey(val consumptionId: String) : MementoKey
 @Serializable data object StatsKey : MementoKey
 @Serializable data object TimelineKey : MementoKey
 @Serializable data class WrappedKey(val year: Int) : MementoKey
 
 private fun newAddMediaKey(): AddMediaKey = AddMediaKey(UUID.randomUUID().toString())
+private fun Recommendation.toDetailKey() = RecommendationDetailKey(
+    candidate.provider.name,
+    candidate.externalId,
+    candidate.type.name,
+)
 
 private data class TopDestination(
     val key: MementoKey,
@@ -139,6 +148,7 @@ fun MementoApp(
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onOpenRemember = { backStack.add(RememberKey(it)) },
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
+                            onOpenRecommendation = { backStack.add(it.toDetailKey()) },
                             onOpenStats = { backStack.add(StatsKey) },
                             onOpenTimeline = { backStack.add(TimelineKey) },
                             onOpenQuickProgress = viewModel::openQuickProgress,
@@ -174,7 +184,8 @@ fun MementoApp(
                         DiscoverScreen(
                             state = state,
                             onRefresh = viewModel::refresh,
-                            onFeedback = viewModel::feedback,
+                            onTypeSelected = viewModel::setType,
+                            onOpenRecommendation = { backStack.add(it.toDetailKey()) },
                         )
                     }
                     SettingsKey -> NavEntry(key) {
@@ -250,6 +261,26 @@ fun MementoApp(
                             onDeleteConsumption = viewModel::deleteConsumption,
                             onUpdateReflection = viewModel::updateReflection,
                             onDelete = viewModel::delete,
+                        )
+                    }
+                    is RecommendationDetailKey -> NavEntry(key) {
+                        val viewModel: RecommendationDetailViewModel = hiltViewModel()
+                        LaunchedEffect(key) { viewModel.load(key.provider, key.externalId, key.mediaType) }
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        LaunchedEffect(state.savedMediaId, state.wasDismissed) {
+                            state.savedMediaId?.let { mediaId ->
+                                backStack.removeLastOrNull()
+                                backStack.add(MediaDetailKey(mediaId))
+                            }
+                            if (state.wasDismissed) backStack.removeLastOrNull()
+                        }
+                        RecommendationDetailScreen(
+                            state = state,
+                            onBack = { backStack.removeLastOrNull() },
+                            onAddToPlanned = viewModel::addToPlanned,
+                            onStartNow = viewModel::startNow,
+                            onComplete = viewModel::complete,
+                            onNotInterested = viewModel::notInterested,
                         )
                     }
                     is RememberKey -> NavEntry(key) {

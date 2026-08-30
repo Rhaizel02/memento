@@ -32,6 +32,9 @@ fun TmdbMovieDto.toMetadataResult() = MetadataSearchResult(
     posterUrl = posterPath?.let { "${TMDB_IMAGE_BASE}w500$it" },
     backdropUrl = backdropPath?.let { "${TMDB_IMAGE_BASE}w780$it" },
     genres = genreIds.mapNotNull(movieGenres::get),
+    externalRating = voteAverage,
+    externalVoteCount = voteCount,
+    popularity = popularity,
 )
 
 fun TmdbSeriesDto.toMetadataResult() = MetadataSearchResult(
@@ -47,6 +50,9 @@ fun TmdbSeriesDto.toMetadataResult() = MetadataSearchResult(
     posterUrl = posterPath?.let { "${TMDB_IMAGE_BASE}w500$it" },
     backdropUrl = backdropPath?.let { "${TMDB_IMAGE_BASE}w780$it" },
     genres = genreIds.mapNotNull(tvGenres::get),
+    externalRating = voteAverage,
+    externalVoteCount = voteCount,
+    popularity = popularity,
 )
 
 fun OpenLibraryBookDto.toMetadataResult(): MetadataSearchResult {
@@ -62,6 +68,8 @@ fun OpenLibraryBookDto.toMetadataResult(): MetadataSearchResult {
     creators = authors,
     genres = subject.take(5),
     pageCount = pageCount,
+    externalRating = ratingsAverage?.times(2.0),
+    externalVoteCount = ratingsCount ?: wantToReadCount,
 )
 }
 
@@ -76,6 +84,10 @@ fun RawgGameDto.toMetadataResult() = MetadataSearchResult(
     posterUrl = backgroundImage,
     backdropUrl = backgroundImage,
     genres = genres.map { it.name },
+    creators = developers.map { it.name },
+    externalTags = tags.map { it.name },
+    externalRating = metacritic?.div(10.0) ?: rating?.times(2.0),
+    externalVoteCount = ratingsCount,
 )
 
 fun TmdbMovieDetailsDto.toMetadataResult() = MetadataSearchResult(
@@ -96,6 +108,9 @@ fun TmdbMovieDetailsDto.toMetadataResult() = MetadataSearchResult(
         .distinct(),
     genres = genres.map { it.name },
     runtimeMinutes = runtime,
+    externalRating = voteAverage,
+    externalVoteCount = voteCount,
+    popularity = popularity,
 )
 
 fun TmdbSeriesDetailsDto.toMetadataResult() = MetadataSearchResult(
@@ -115,6 +130,9 @@ fun TmdbSeriesDetailsDto.toMetadataResult() = MetadataSearchResult(
     runtimeMinutes = episodeRunTime.firstOrNull(),
     seasonCount = seasonCount,
     episodeCount = episodeCount,
+    externalRating = voteAverage,
+    externalVoteCount = voteCount,
+    popularity = popularity,
 )
 
 fun OpenLibraryWorkDto.toMetadataResult(
@@ -143,6 +161,9 @@ fun RawgGameDetailsDto.toMetadataResult() = MetadataSearchResult(
     backdropUrl = backgroundImage,
     creators = developers.map { it.name },
     genres = genres.map { it.name },
+    externalTags = tags.map { it.name },
+    externalRating = metacritic?.div(10.0) ?: rating?.times(2.0),
+    externalVoteCount = ratingsCount,
 )
 
 private fun kotlinx.serialization.json.JsonElement?.toPlainText(): String? = when (this) {

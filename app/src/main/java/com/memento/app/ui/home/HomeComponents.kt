@@ -57,6 +57,7 @@ import com.memento.app.domain.model.CulturalTimelineEvent
 import com.memento.app.domain.model.TimelineEventType
 import com.memento.app.domain.recommendation.Recommendation
 import com.memento.app.domain.recommendation.RecommendationReason
+import com.memento.app.domain.recommendation.RecommendationCategory
 import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.ui.components.PosterArtwork
 import com.memento.app.ui.components.icon
@@ -631,7 +632,7 @@ internal fun HomeRecommendationCard(
                     )
                 }
                 Text(
-                    compatibilityLabel(recommendation.affinityScore),
+                    compatibilityLabel(recommendation.category),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -746,19 +747,22 @@ private fun progressLabel(progress: HomeProgress): String = when (progress) {
 }
 
 @Composable
-private fun compatibilityLabel(affinity: Int): String = stringResource(
-    when {
-        affinity >= 85 -> R.string.compatibility_high
-        affinity >= 70 -> R.string.compatibility_medium
-        else -> R.string.compatibility_possible
+private fun compatibilityLabel(category: RecommendationCategory): String = stringResource(
+    when (category) {
+        RecommendationCategory.VERY_AFFINE -> R.string.recommendation_very_affine
+        RecommendationCategory.GOOD_BET -> R.string.recommendation_good_bet
+        RecommendationCategory.EXPLORATION -> R.string.recommendation_exploration
     },
 )
 
 @Composable
 private fun recommendationReason(reason: RecommendationReason): String = when (reason) {
+    is RecommendationReason.AnchorWorks -> stringResource(R.string.reason_anchors, reason.titles.joinToString(" y "))
     is RecommendationReason.Genre -> stringResource(R.string.reason_genre, reason.name)
     is RecommendationReason.Creator -> stringResource(R.string.reason_creator, reason.name)
     is RecommendationReason.MediaKind -> stringResource(R.string.reason_type, mediaTypeLabel(reason.type))
+    is RecommendationReason.Exploration -> reason.anchorTitle?.let { stringResource(R.string.reason_exploration_anchor, it) }
+        ?: stringResource(R.string.reason_exploration)
 }
 
 @Composable

@@ -83,7 +83,10 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
     }
 
     fun addQuote(content: String) {
-        val consumptionId = state.value.detail?.activeConsumption?.id ?: return
+        val detail = state.value.detail ?: return
+        val consumptionId = detail.activeConsumption?.id
+            ?: detail.consumptions.maxByOrNull { it.updatedAt }?.id
+            ?: return
         runAction { repository.saveReflection(consumptionId, ReflectionType.QUOTE, content) }
     }
 

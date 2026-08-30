@@ -47,6 +47,8 @@ import java.time.Clock
 import java.time.ZoneOffset
 import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.model.Consumption
+import com.memento.app.domain.model.MediaDetail
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ViewModelsTest {
@@ -660,5 +662,32 @@ class ViewModelsTest {
         assertEquals("c2", repository.deletedConsumptionId)
         assertEquals("r1", repository.editedReflectionId)
         assertEquals("Texto corregido por la persona", repository.editedReflectionContent)
+    }
+
+    @Test fun `detail quote on completed work uses latest historical consumption`() = runTest {
+        val repository = FakeMediaRepository().apply {
+            detail.value = MediaDetail(
+                media = media,
+                creators = emptyList(),
+                genres = emptyList(),
+                consumptions = listOf(
+                    Consumption("older", media.id, ConsumptionStatus.COMPLETED, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
+                    Consumption("latest", media.id, ConsumptionStatus.COMPLETED, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH.plusSeconds(10)),
+                ),
+                progress = emptyList(),
+                reflections = emptyList(),
+            )
+        }
+        val viewModel = MediaDetailViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.load(media.id)
+        advanceUntilIdle()
+
+        viewModel.addQuote("Cita retrospectiva")
+        advanceUntilIdle()
+
+        val call = repository.reflectionSaveCalls.single()
+        assertEquals("latest", call.consumptionId)
+        assertEquals(ReflectionType.QUOTE, call.type)
     }
 }

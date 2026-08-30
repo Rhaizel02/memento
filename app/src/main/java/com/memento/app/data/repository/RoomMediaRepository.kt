@@ -35,6 +35,7 @@ import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.Tag
+import com.memento.app.domain.model.MediaExternalReference
 import com.memento.app.domain.model.defaultCreatorRole
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.usecase.TimelineBuilder
@@ -131,6 +132,7 @@ class RoomMediaRepository @Inject constructor(
         consumptionDao.observeAllProgress(),
         consumptionDao.observeAllReflections(),
         mediaDao.observeAllTags(),
+        mediaDao.observeAllExternalRefs(),
     ) { values ->
         val items = values[0] as List<MediaItemEntity>
         val creatorsByMedia = (values[1] as List<com.memento.app.data.local.dao.MediaNameRow>).groupBy({ it.mediaItemId }, { it.name })
@@ -139,6 +141,7 @@ class RoomMediaRepository @Inject constructor(
         val progressByConsumption = (values[4] as List<ProgressEntryEntity>).groupBy { it.consumptionId }
         val reflectionsByConsumption = (values[5] as List<ReflectionEntity>).groupBy { it.consumptionId }
         val tagsByMedia = (values[6] as List<com.memento.app.data.local.dao.MediaTagRow>).groupBy { it.mediaItemId }
+        val externalRefsByMedia = (values[7] as List<ExternalMediaRefEntity>).groupBy { it.mediaItemId }
         items.map { media ->
             val consumptions = consumptionsByMedia[media.id].orEmpty()
             MediaDetail(
@@ -149,6 +152,9 @@ class RoomMediaRepository @Inject constructor(
                 progress = consumptions.flatMap { progressByConsumption[it.id].orEmpty() }.map { it.toDomain() },
                 reflections = consumptions.flatMap { reflectionsByConsumption[it.id].orEmpty() }.map { it.toDomain() },
                 tags = tagsByMedia[media.id].orEmpty().map { Tag(it.tagId, it.name, it.normalizedName, it.createdAt) },
+                externalRefs = externalRefsByMedia[media.id].orEmpty().map {
+                    MediaExternalReference(it.provider, it.externalId, it.mediaType, it.externalUrl)
+                },
             )
         }
     }
@@ -362,7 +368,10 @@ class RoomMediaRepository @Inject constructor(
         database.withTransaction {
             val cleanContent = content.trim()
             require(cleanContent.isNotEmpty())
-            if (type == ReflectionType.NOTE || type == ReflectionType.QUOTE) requireActiveConsumption(consumptionId)
+            if (type == ReflectionType.NOTE) requireActiveConsumption(consumptionId)
+            if (type == ReflectionType.QUOTE) require(consumptionDao.getById(consumptionId) != null) {
+                "El consumo ya no existe"
+            }
             val now = Instant.now()
             val existing = if (type == ReflectionType.FINAL_REFLECTION) consumptionDao.getReflection(consumptionId, type) else null
             if (existing != null) {

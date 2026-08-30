@@ -254,7 +254,7 @@ fun MediaDetailScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.quotes), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                if (active?.status == ConsumptionStatus.IN_PROGRESS) {
+                if (detail.consumptions.isNotEmpty()) {
                     TextButton(onClick = { showQuote = true }, enabled = !state.isWorking) {
                         Icon(Icons.Outlined.Add, contentDescription = null)
                         Text(stringResource(R.string.add_quote))

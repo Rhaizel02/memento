@@ -213,6 +213,14 @@
     <string name="see_why">Ver por qué</string>
     <string name="explore_by_genre">Explorar por género</string>
     <string name="affinity_format">Afinidad %1$d %%</string>
+    <string name="recommendation_very_affine">MUY AFÍN</string>
+    <string name="recommendation_good_bet">BUENA APUESTA</string>
+    <string name="recommendation_exploration">EXPLORACIÓN</string>
+    <string name="reason_anchors">Porque te encantaron %1$s.</string>
+    <string name="reason_exploration_anchor">Una apuesta algo distinta relacionada con %1$s.</string>
+    <string name="reason_exploration">Una apuesta algo distinta dentro de tus gustos.</string>
+    <string name="external_quality_format">Valoración externa %1$.1f/10 · %2$d votos</string>
+    <string name="view_outside_memento">Ver fuera de Memento</string>
     <string name="reason_genre">Porque has conectado con obras de %1$s.</string>
     <string name="reason_creator">Porque te han gustado otras obras de %1$s.</string>
     <string name="reason_type">Tus valoraciones muestran afinidad con %1$s.</string>

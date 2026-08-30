@@ -2,9 +2,8 @@ package com.memento.app.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.memento.app.domain.model.RecommendationFeedbackType
+import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.recommendation.Recommendation
-import com.memento.app.domain.recommendation.RecommendationKey
 import com.memento.app.domain.recommendation.TasteProfile
 import com.memento.app.domain.repository.RecommendationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +18,7 @@ data class DiscoverUiState(
     val profile: TasteProfile = TasteProfile(0, emptyMap(), emptyMap(), emptyMap()),
     val recommendations: List<Recommendation> = emptyList(),
     val isRefreshing: Boolean = false,
+    val selectedType: MediaType? = null,
 )
 
 @HiltViewModel
@@ -26,8 +26,14 @@ class DiscoverViewModel @Inject constructor(
     private val repository: RecommendationRepository,
 ) : ViewModel() {
     private val refreshing = MutableStateFlow(false)
-    val state = combine(repository.observeFeed(), refreshing) { feed, isRefreshing ->
-        DiscoverUiState(feed.profile, feed.recommendations, isRefreshing)
+    private val selectedType = MutableStateFlow<MediaType?>(null)
+    val state = combine(repository.observeFeed(), refreshing, selectedType) { feed, isRefreshing, type ->
+        DiscoverUiState(
+            profile = feed.profile,
+            recommendations = feed.recommendations.filter { type == null || it.candidate.type == type },
+            isRefreshing = isRefreshing,
+            selectedType = type,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiscoverUiState())
 
     init { refresh(force = false) }
@@ -43,10 +49,5 @@ class DiscoverViewModel @Inject constructor(
         }
     }
 
-    fun feedback(recommendation: Recommendation, type: RecommendationFeedbackType) {
-        viewModelScope.launch {
-            val candidate = recommendation.candidate
-            repository.setFeedback(RecommendationKey(candidate.provider, candidate.externalId, candidate.type), type)
-        }
-    }
+    fun setType(type: MediaType?) { selectedType.value = type }
 }

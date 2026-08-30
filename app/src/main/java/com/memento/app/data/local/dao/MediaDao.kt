@@ -158,6 +158,9 @@ interface MediaDao {
     )
     fun observeAllTags(): Flow<List<MediaTagRow>>
 
+    @Query("SELECT * FROM external_media_refs ORDER BY mediaItemId, provider, externalId")
+    fun observeAllExternalRefs(): Flow<List<ExternalMediaRefEntity>>
+
     @Query(
         """
         SELECT DISTINCT m.* FROM media_items m
