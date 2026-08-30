@@ -167,6 +167,7 @@
     <string name="timeline_event_restarted_watch">Volviste a ver</string>
     <string name="timeline_event_restarted_game">Volviste a jugar</string>
     <string name="timeline_event_completed">Terminaste</string>
+    <string name="timeline_event_recompleted">Volviste a terminar</string>
     <string name="timeline_event_progress">Avanzaste</string>
     <string name="timeline_event_note">Escribiste una nota</string>
     <string name="timeline_event_final_reflection">Reflexión final</string>
@@ -177,6 +178,13 @@
     <string name="timeline_accessibility_date_pattern">d \'de\' MMMM \'de\' uuuu</string>
     <string name="timeline_event_accessibility">%1$s. %2$s %3$s.%4$s</string>
     <string name="timeline_rating_accessibility_suffix"> Valoración %1$s de 5.</string>
+    <string name="on_this_day_title">Tal día como hoy</string>
+    <plurals name="on_this_day_years_ago">
+        <item quantity="one">Hace %1$d año</item>
+        <item quantity="other">Hace %1$d años</item>
+    </plurals>
+    <string name="on_this_day_year_and_age">%1$d · %2$s</string>
+    <string name="on_this_day_accessibility">Tal día como hoy: %1$s, %2$d, %3$s</string>
     <string name="edit_reflection">Editar reflexión</string>
     <string name="discover_empty_title">Todavía estoy aprendiendo tus gustos</string>
     <string name="discover_intro">Pocas sugerencias, ordenadas con señales reales de tu biblioteca.</string>

@@ -5,13 +5,16 @@ import com.memento.app.MainDispatcherRule
 import com.memento.app.FakeRememberRepository
 import com.memento.app.FakeMetadataRepository
 import com.memento.app.FakeRecommendationRepository
+import com.memento.app.FakeCulturalTimelineRepository
 import com.memento.app.domain.model.ConsumptionStatus
+import com.memento.app.domain.model.CulturalTimelineEvent
 import com.memento.app.domain.model.HomeMediaFeed
 import com.memento.app.domain.model.HomeMediaSummary
 import com.memento.app.domain.model.MediaItem
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.ProgressEntry
 import com.memento.app.domain.model.ProgressType
+import com.memento.app.domain.model.TimelineEventType
 import com.memento.app.domain.model.LibrarySort
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.MetadataProvider
@@ -37,6 +40,8 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Clock
+import java.time.ZoneOffset
 import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.domain.model.ReflectionType
 
@@ -61,7 +66,7 @@ class ViewModelsTest {
             )
             completedCounts.value = mapOf(MediaType.BOOK to 1)
         }
-        val viewModel = HomeViewModel(repository, FakeRememberRepository(), FakeRecommendationRepository())
+        val viewModel = homeViewModel(repository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
         advanceUntilIdle()
 
@@ -94,7 +99,7 @@ class ViewModelsTest {
                 ),
             )
         }
-        val viewModel = HomeViewModel(repository, FakeRememberRepository(), FakeRecommendationRepository())
+        val viewModel = homeViewModel(repository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
         advanceUntilIdle()
 
@@ -114,11 +119,39 @@ class ViewModelsTest {
                 "r1", ReflectionType.FINAL_REFLECTION, "Idea", 1, null,
             )
         }
-        val viewModel = HomeViewModel(FakeMediaRepository(), remember, FakeRecommendationRepository())
+        val viewModel = homeViewModel(FakeMediaRepository(), remember)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
         advanceUntilIdle()
 
         assertEquals(listOf("c1"), remember.recordedExposures)
+    }
+
+    @Test fun `home requests today from the injected clock and exposes one historical memory`() = runTest {
+        val repository = FakeMediaRepository().apply {
+            homeMedia.value = HomeMediaFeed(mediaCount = 1)
+        }
+        val timeline = FakeCulturalTimelineRepository().apply {
+            onThisDay.value = listOf(
+                CulturalTimelineEvent(
+                    id = "completed:c1",
+                    date = LocalDate.of(2021, 8, 30),
+                    occurredAt = null,
+                    mediaItemId = "m1",
+                    consumptionId = "c1",
+                    mediaType = MediaType.BOOK,
+                    title = "Dune",
+                    posterUrl = null,
+                    eventType = TimelineEventType.COMPLETED,
+                ),
+            )
+        }
+        val viewModel = homeViewModel(repository, timelineRepository = timeline)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        advanceUntilIdle()
+
+        assertEquals(LocalDate.of(2026, 8, 30), timeline.requestedOnThisDayDate)
+        assertEquals("completed:c1", viewModel.state.value.onThisDay?.event?.id)
+        assertEquals(5, viewModel.state.value.onThisDay?.yearsAgo)
     }
 
     @Test fun `library forwards search and type filters`() = runTest {
@@ -139,6 +172,18 @@ class ViewModelsTest {
         assertEquals(LibrarySort.RATING, repository.lastFilters.sort)
         assertEquals(listOf(media), viewModel.state.value.items)
     }
+
+    private fun homeViewModel(
+        repository: FakeMediaRepository,
+        rememberRepository: FakeRememberRepository = FakeRememberRepository(),
+        timelineRepository: FakeCulturalTimelineRepository = FakeCulturalTimelineRepository(),
+    ) = HomeViewModel(
+        repository,
+        rememberRepository,
+        FakeRecommendationRepository(),
+        timelineRepository,
+        Clock.fixed(Instant.parse("2026-08-30T12:00:00Z"), ZoneOffset.UTC),
+    )
 
     @Test fun `add media sends complete manual input`() = runTest {
         val repository = FakeMediaRepository()

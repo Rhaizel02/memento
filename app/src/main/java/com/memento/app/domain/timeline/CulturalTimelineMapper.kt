@@ -18,13 +18,15 @@ object CulturalTimelineMapper {
         reflections: List<Reflection>,
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): List<CulturalTimelineEvent> {
-        val orderedConsumptions = consumptions.sortedWith(compareBy<Consumption>({ it.createdAt }, { it.id }))
+        val orderedConsumptions = consumptions.sortedWith(
+            compareBy<Consumption>({ historicalDate(it, zoneId) }, { it.createdAt }, { it.id }),
+        )
         val reconsumptionIds = orderedConsumptions.drop(1).mapTo(mutableSetOf()) { it.id }
         return sort(
             buildList {
                 consumptions.forEach { consumption ->
                     started(media, consumption, consumption.id in reconsumptionIds)?.let(::add)
-                    completed(media, consumption)?.let(::add)
+                    completed(media, consumption, consumption.id in reconsumptionIds)?.let(::add)
                 }
                 progress.forEach { entry -> add(progress(media, entry, zoneId)) }
                 reflections.forEach { reflection -> add(reflection(media, reflection, zoneId)) }
@@ -55,6 +57,7 @@ object CulturalTimelineMapper {
     fun completed(
         media: TimelineMediaContext,
         consumption: Consumption,
+        isReconsumption: Boolean = false,
     ): CulturalTimelineEvent? {
         if (consumption.status != ConsumptionStatus.COMPLETED) return null
         return consumption.completedDate?.let { date ->
@@ -68,6 +71,7 @@ object CulturalTimelineMapper {
                 title = media.title,
                 posterUrl = media.posterUrl,
                 eventType = TimelineEventType.COMPLETED,
+                isReconsumption = isReconsumption,
                 ratingHalfStars = consumption.ratingHalfStars,
                 isFavorite = media.isFavorite,
             )
@@ -112,6 +116,13 @@ object CulturalTimelineMapper {
     )
 
     fun sort(events: List<CulturalTimelineEvent>): List<CulturalTimelineEvent> = events.sortedWith(EVENT_COMPARATOR)
+
+    fun historicalDate(
+        consumption: Consumption,
+        zoneId: ZoneId = ZoneId.systemDefault(),
+    ) = consumption.startedDate
+        ?: consumption.completedDate
+        ?: consumption.createdAt.atZone(zoneId).toLocalDate()
 
     private fun ReflectionType.toTimelineEventType() = when (this) {
         ReflectionType.NOTE -> TimelineEventType.NOTE

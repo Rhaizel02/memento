@@ -342,7 +342,9 @@ private fun eventLabel(event: CulturalTimelineEvent): String = when (event.event
             },
         )
     }
-    TimelineEventType.COMPLETED -> stringResource(R.string.timeline_event_completed)
+    TimelineEventType.COMPLETED -> stringResource(
+        if (event.isReconsumption) R.string.timeline_event_recompleted else R.string.timeline_event_completed,
+    )
     TimelineEventType.PROGRESS -> stringResource(R.string.timeline_event_progress)
     TimelineEventType.NOTE -> stringResource(R.string.timeline_event_note)
     TimelineEventType.FINAL_REFLECTION -> stringResource(R.string.timeline_event_final_reflection)

@@ -68,7 +68,15 @@ interface TimelineDao {
             CASE WHEN EXISTS (
                 SELECT 1 FROM consumptions previous
                 WHERE previous.mediaItemId = c.mediaItemId
-                  AND (previous.createdAt < c.createdAt OR (previous.createdAt = c.createdAt AND previous.id < c.id))
+                  AND (
+                    COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                        < COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                    OR (
+                        COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                            = COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                        AND (previous.createdAt < c.createdAt OR (previous.createdAt = c.createdAt AND previous.id < c.id))
+                    )
+                  )
             ) THEN 1 ELSE 0 END AS isReconsumption
         FROM consumptions c
         INNER JOIN media_items m ON m.id = c.mediaItemId
@@ -89,7 +97,15 @@ interface TimelineDao {
             CASE WHEN EXISTS (
                 SELECT 1 FROM consumptions previous
                 WHERE previous.mediaItemId = c.mediaItemId
-                  AND (previous.createdAt < c.createdAt OR (previous.createdAt = c.createdAt AND previous.id < c.id))
+                  AND (
+                    COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                        < COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                    OR (
+                        COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                            = COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                        AND (previous.createdAt < c.createdAt OR (previous.createdAt = c.createdAt AND previous.id < c.id))
+                    )
+                  )
             ) THEN 1 ELSE 0 END AS isReconsumption
         FROM consumptions c
         INNER JOIN media_items m ON m.id = c.mediaItemId
@@ -133,4 +149,101 @@ interface TimelineDao {
         """,
     )
     fun observeReflections(mediaType: MediaType?, limit: Int): Flow<List<TimelineReflectionRow>>
+
+    @Query(
+        """
+        SELECT c.id AS consumptionId, c.mediaItemId AS mediaItemId, c.status AS status,
+            c.startedDate AS startedDate, c.completedDate AS completedDate,
+            c.ratingHalfStars AS ratingHalfStars, c.createdAt AS consumptionCreatedAt,
+            c.updatedAt AS consumptionUpdatedAt, m.type AS mediaType, m.title AS title,
+            m.posterUrl AS posterUrl, m.isFavorite AS isFavorite,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM consumptions previous
+                WHERE previous.mediaItemId = c.mediaItemId
+                  AND (
+                    COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                        < COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                    OR (
+                        COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                            = COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                        AND (previous.createdAt < c.createdAt OR (previous.createdAt = c.createdAt AND previous.id < c.id))
+                    )
+                  )
+            ) THEN 1 ELSE 0 END AS isReconsumption
+        FROM consumptions c
+        INNER JOIN media_items m ON m.id = c.mediaItemId
+        WHERE c.startedDate IS NOT NULL
+          AND substr(c.startedDate, 6, 5) = :monthDay
+          AND CAST(substr(c.startedDate, 1, 4) AS INTEGER) < :currentYear
+        ORDER BY c.startedDate DESC, c.createdAt DESC, c.id DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeStartedOnThisDay(monthDay: String, currentYear: Int, limit: Int): Flow<List<TimelineConsumptionRow>>
+
+    @Query(
+        """
+        SELECT c.id AS consumptionId, c.mediaItemId AS mediaItemId, c.status AS status,
+            c.startedDate AS startedDate, c.completedDate AS completedDate,
+            c.ratingHalfStars AS ratingHalfStars, c.createdAt AS consumptionCreatedAt,
+            c.updatedAt AS consumptionUpdatedAt, m.type AS mediaType, m.title AS title,
+            m.posterUrl AS posterUrl, m.isFavorite AS isFavorite,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM consumptions previous
+                WHERE previous.mediaItemId = c.mediaItemId
+                  AND (
+                    COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                        < COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                    OR (
+                        COALESCE(previous.startedDate, previous.completedDate, date(previous.createdAt / 1000, 'unixepoch', 'localtime'))
+                            = COALESCE(c.startedDate, c.completedDate, date(c.createdAt / 1000, 'unixepoch', 'localtime'))
+                        AND (previous.createdAt < c.createdAt OR (previous.createdAt = c.createdAt AND previous.id < c.id))
+                    )
+                  )
+            ) THEN 1 ELSE 0 END AS isReconsumption
+        FROM consumptions c
+        INNER JOIN media_items m ON m.id = c.mediaItemId
+        WHERE c.status = 'COMPLETED' AND c.completedDate IS NOT NULL
+          AND substr(c.completedDate, 6, 5) = :monthDay
+          AND CAST(substr(c.completedDate, 1, 4) AS INTEGER) < :currentYear
+        ORDER BY c.completedDate DESC, c.createdAt DESC, c.id DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeCompletedOnThisDay(monthDay: String, currentYear: Int, limit: Int): Flow<List<TimelineConsumptionRow>>
+
+    @Query(
+        """
+        SELECT p.id AS progressId, p.consumptionId AS consumptionId,
+            p.progressType AS progressType, p.currentValue AS currentValue,
+            p.totalValue AS totalValue, p.season AS season, p.episode AS episode,
+            p.recordedAt AS recordedAt, m.id AS mediaItemId, m.type AS mediaType,
+            m.title AS title, m.posterUrl AS posterUrl, m.isFavorite AS isFavorite
+        FROM progress_entries p
+        INNER JOIN consumptions c ON c.id = p.consumptionId
+        INNER JOIN media_items m ON m.id = c.mediaItemId
+        WHERE strftime('%m-%d', p.recordedAt / 1000, 'unixepoch', 'localtime') = :monthDay
+          AND CAST(strftime('%Y', p.recordedAt / 1000, 'unixepoch', 'localtime') AS INTEGER) < :currentYear
+        ORDER BY p.recordedAt DESC, p.id DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeProgressOnThisDay(monthDay: String, currentYear: Int, limit: Int): Flow<List<TimelineProgressRow>>
+
+    @Query(
+        """
+        SELECT r.id AS reflectionId, r.consumptionId AS consumptionId,
+            r.type AS reflectionType, r.content AS content, r.createdAt AS createdAt,
+            r.updatedAt AS updatedAt, m.id AS mediaItemId, m.type AS mediaType,
+            m.title AS title, m.posterUrl AS posterUrl, m.isFavorite AS isFavorite
+        FROM reflections r
+        INNER JOIN consumptions c ON c.id = r.consumptionId
+        INNER JOIN media_items m ON m.id = c.mediaItemId
+        WHERE strftime('%m-%d', r.createdAt / 1000, 'unixepoch', 'localtime') = :monthDay
+          AND CAST(strftime('%Y', r.createdAt / 1000, 'unixepoch', 'localtime') AS INTEGER) < :currentYear
+        ORDER BY r.createdAt DESC, r.id DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeReflectionsOnThisDay(monthDay: String, currentYear: Int, limit: Int): Flow<List<TimelineReflectionRow>>
 }

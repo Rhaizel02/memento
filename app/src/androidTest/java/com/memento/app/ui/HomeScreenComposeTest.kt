@@ -17,10 +17,13 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.domain.model.MediaType
+import com.memento.app.domain.model.CulturalTimelineEvent
 import com.memento.app.domain.model.ReflectionType
+import com.memento.app.domain.model.TimelineEventType
 import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.ui.home.HomeMediaItem
 import com.memento.app.ui.home.HomeProgress
+import com.memento.app.ui.home.OnThisDayMemory
 import com.memento.app.ui.home.HomeScreen
 import com.memento.app.ui.home.HomeUiState
 import com.memento.app.ui.theme.MementoTheme
@@ -54,6 +57,39 @@ class HomeScreenComposeTest {
         composeRule.onNodeWithText("Ver mi historia").performScrollTo().performClick()
 
         composeRule.runOnIdle { assertEquals(1, opens) }
+    }
+
+    @Test
+    fun onThisDayMemoryShowsContextAndOpensItsMedia() {
+        var openedMediaId: String? = null
+        val event = CulturalTimelineEvent(
+            id = "reflection:c1",
+            date = LocalDate.of(2021, 8, 30),
+            occurredAt = null,
+            mediaItemId = "dune",
+            consumptionId = "c1",
+            mediaType = MediaType.BOOK,
+            title = "Dune",
+            posterUrl = null,
+            eventType = TimelineEventType.FINAL_REFLECTION,
+            ratingHalfStars = 9,
+            reflectionContent = "El miedo es el asesino de la mente.",
+        )
+        setHome(
+            HomeUiState(
+                mediaCount = 1,
+                onThisDay = OnThisDayMemory(event, yearsAgo = 5),
+                isLoading = false,
+            ),
+            onOpenMedia = { openedMediaId = it },
+        )
+
+        composeRule.onNodeWithText("Tal día como hoy").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("2021 · Hace 5 años").assertIsDisplayed()
+        composeRule.onNodeWithText("Reflexión final").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Tal día como hoy: Dune, 2021, Hace 5 años").performClick()
+
+        composeRule.runOnIdle { assertEquals("dune", openedMediaId) }
     }
 
     @Test

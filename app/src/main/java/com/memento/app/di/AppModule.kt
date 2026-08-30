@@ -47,6 +47,15 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.time.Clock
+
+@Module
+@InstallIn(SingletonComponent::class)
+object TimeModule {
+    @Provides
+    @Singleton
+    fun provideClock(): Clock = Clock.systemDefaultZone()
+}
 
 @Module
 @InstallIn(SingletonComponent::class)

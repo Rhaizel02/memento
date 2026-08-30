@@ -69,6 +69,35 @@ class CulturalTimelineMapperTest {
     }
 
     @Test
+    fun `retrospective consumption becomes historical first even when inserted later`() {
+        val insertedFirst = consumption(
+            "c-2025",
+            started = "2025-08-30",
+            completed = "2025-09-10",
+            createdAt = "2025-09-10T10:00:00Z",
+        )
+        val insertedLater = consumption(
+            "c-2021",
+            started = "2021-08-30",
+            completed = "2021-09-10",
+            createdAt = "2026-08-30T10:00:00Z",
+        )
+
+        val events = CulturalTimelineMapper.build(
+            media,
+            listOf(insertedFirst, insertedLater),
+            emptyList(),
+            emptyList(),
+            ZoneOffset.UTC,
+        )
+
+        val events2021 = events.filter { it.consumptionId == "c-2021" }
+        val events2025 = events.filter { it.consumptionId == "c-2025" }
+        assertTrue(events2021.all { !it.isReconsumption })
+        assertTrue(events2025.all { it.isReconsumption })
+    }
+
+    @Test
     fun `different sources use date real timestamp semantic priority and stable id`() {
         val consumption = consumption(
             id = "c1",

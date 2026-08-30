@@ -60,7 +60,11 @@ fun HomeScreen(
             } ?: RememberEmptyState()
         }
 
-        item { CulturalHistoryCard(onClick = onOpenTimeline) }
+        state.onThisDay?.let { memory ->
+            item {
+                OnThisDayCard(memory = memory, onClick = { onOpenMedia(memory.event.mediaItemId) })
+            }
+        }
 
         if (state.inProgress.isNotEmpty()) {
             item { HomeSectionHeader(stringResource(R.string.status_in_progress)) }
@@ -75,6 +79,8 @@ fun HomeScreen(
                 }
             }
         }
+
+        item { CulturalHistoryCard(onClick = onOpenTimeline) }
 
         item {
             HomeSectionHeader(stringResource(R.string.recommendation_for_you))

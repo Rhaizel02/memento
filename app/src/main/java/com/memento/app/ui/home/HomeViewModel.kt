@@ -3,9 +3,11 @@ package com.memento.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memento.app.domain.model.HomeMediaSummary
+import com.memento.app.domain.model.CulturalTimelineEvent
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.ProgressType
 import com.memento.app.domain.repository.MediaRepository
+import com.memento.app.domain.repository.CulturalTimelineRepository
 import com.memento.app.domain.remember.RememberCandidate
 import com.memento.app.domain.repository.RememberRepository
 import com.memento.app.domain.repository.RecommendationRepository
@@ -18,17 +20,24 @@ import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.Clock
 
 data class HomeUiState(
     val mediaCount: Int = 0,
     val inProgress: List<HomeMediaItem> = emptyList(),
     val recentlyCompleted: List<HomeMediaItem> = emptyList(),
     val remember: RememberCandidate? = null,
+    val onThisDay: OnThisDayMemory? = null,
     val recommendation: Recommendation? = null,
     val recommendationProfileReady: Boolean = false,
-    val summaryYear: Int = LocalDate.now().year,
+    val summaryYear: Int = 0,
     val completedByType: Map<MediaType, Int> = emptyMap(),
     val isLoading: Boolean = true,
+)
+
+data class OnThisDayMemory(
+    val event: CulturalTimelineEvent,
+    val yearsAgo: Int,
 )
 
 data class HomeMediaItem(
@@ -65,8 +74,11 @@ class HomeViewModel @Inject constructor(
     repository: MediaRepository,
     rememberRepository: RememberRepository,
     private val recommendationRepository: RecommendationRepository,
+    culturalTimelineRepository: CulturalTimelineRepository,
+    clock: Clock,
 ) : ViewModel() {
-    private val currentYear = LocalDate.now().year
+    private val currentDate = LocalDate.now(clock)
+    private val currentYear = currentDate.year
     private val remember = rememberRepository.observeRemember().onEach { candidate ->
         candidate?.let { rememberRepository.recordExposure(it.consumptionId) }
     }
@@ -75,12 +87,16 @@ class HomeViewModel @Inject constructor(
         remember,
         recommendationRepository.observeFeed(),
         repository.observeCompletedCounts(currentYear),
-    ) { homeMedia, remember, recommendationFeed, completedCounts ->
+        culturalTimelineRepository.observeOnThisDay(currentDate),
+    ) { homeMedia, remember, recommendationFeed, completedCounts, onThisDayEvents ->
         HomeUiState(
             mediaCount = homeMedia.mediaCount,
             inProgress = homeMedia.inProgress.map(HomeMediaSummary::toHomeItem),
             recentlyCompleted = homeMedia.recentlyCompleted.map(HomeMediaSummary::toHomeItem),
             remember = remember,
+            onThisDay = onThisDayEvents.firstOrNull()?.let { event ->
+                OnThisDayMemory(event = event, yearsAgo = currentYear - event.date.year)
+            },
             recommendation = recommendationFeed.recommendations.firstOrNull(),
             recommendationProfileReady = recommendationFeed.profile.isReady,
             summaryYear = currentYear,

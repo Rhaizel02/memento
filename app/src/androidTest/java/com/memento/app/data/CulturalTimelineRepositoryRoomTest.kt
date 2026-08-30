@@ -75,6 +75,75 @@ class CulturalTimelineRepositoryRoomTest {
         }
     }
 
+    @Test
+    fun retrospectiveConsumptionUsesHistoricalDatesForReconsumption() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            database.mediaDao().insert(media("book", MediaType.BOOK, "Dune"))
+            val consumptionDao = database.consumptionDao()
+            consumptionDao.insert(
+                consumption("book-2025", "book", "2025-08-30", "2025-09-10", "2025-09-10T10:00:00Z"),
+            )
+            consumptionDao.insert(
+                consumption("book-2021", "book", "2021-08-30", "2021-09-10", "2026-08-30T10:00:00Z"),
+            )
+
+            val events = RoomCulturalTimelineRepository(database.timelineDao()).observeWindow(null, 20).first().events
+
+            assertTrue(events.filter { it.consumptionId == "book-2021" }.all { !it.isReconsumption })
+            assertTrue(events.filter { it.consumptionId == "book-2025" }.all { it.isReconsumption })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun onThisDayQueriesOnlyPriorMatchingDatesAndAppliesPriority() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            database.mediaDao().insert(media("book", MediaType.BOOK, "Dune"))
+            val consumptionDao = database.consumptionDao()
+            consumptionDao.insert(consumption("matching", "book", "2024-08-01", "2024-08-30", "2024-08-01T10:00:00Z"))
+            consumptionDao.insert(consumption("current", "book", "2026-08-01", "2026-08-30", "2026-08-01T10:00:00Z"))
+            consumptionDao.insert(consumption("different", "book", "2025-08-01", "2025-08-29", "2025-08-01T10:00:00Z"))
+            consumptionDao.insertProgress(
+                ProgressEntryEntity(
+                    "matching-progress",
+                    "matching",
+                    ProgressType.PAGES,
+                    200.0,
+                    400.0,
+                    null,
+                    null,
+                    Instant.parse("2025-08-30T12:00:00Z"),
+                ),
+            )
+            consumptionDao.insertReflection(
+                ReflectionEntity(
+                    "matching-reflection",
+                    "matching",
+                    ReflectionType.FINAL_REFLECTION,
+                    "Una idea que permanece.",
+                    Instant.parse("2022-08-30T12:00:00Z"),
+                    Instant.parse("2022-08-30T12:00:00Z"),
+                ),
+            )
+
+            val events = RoomCulturalTimelineRepository(database.timelineDao())
+                .observeOnThisDay(LocalDate.of(2026, 8, 30))
+                .first()
+
+            assertEquals(
+                listOf("reflection:matching-reflection", "completed:matching", "progress:matching-progress"),
+                events.map { it.id },
+            )
+        } finally {
+            database.close()
+        }
+    }
+
     private fun media(id: String, type: MediaType, title: String) = MediaItemEntity(
         id = id,
         type = type,

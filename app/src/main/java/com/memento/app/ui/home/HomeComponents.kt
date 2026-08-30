@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.memento.app.R
 import com.memento.app.domain.model.MediaType
+import com.memento.app.domain.model.CulturalTimelineEvent
+import com.memento.app.domain.model.TimelineEventType
 import com.memento.app.domain.recommendation.Recommendation
 import com.memento.app.domain.recommendation.RecommendationReason
 import com.memento.app.domain.remember.RememberCandidate
@@ -139,6 +141,91 @@ internal fun CulturalHistoryCard(onClick: () -> Unit) {
             Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         }
     }
+}
+
+@Composable
+internal fun OnThisDayCard(memory: OnThisDayMemory, onClick: () -> Unit) {
+    val event = memory.event
+    val accent = MaterialTheme.mediaTypeColor(event.mediaType)
+    val age = pluralStringResource(R.plurals.on_this_day_years_ago, memory.yearsAgo, memory.yearsAgo)
+    val accessibilityLabel = stringResource(R.string.on_this_day_accessibility, event.title, event.date.year, age)
+    Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium)) {
+        HomeSectionHeader(stringResource(R.string.on_this_day_title))
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = accessibilityLabel }
+                .clickable(role = Role.Button, onClick = onClick),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.large,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
+                horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
+            ) {
+                Box(Modifier.width(78.dp).aspectRatio(2f / 3f).clearAndSetSemantics { }) {
+                    PosterArtwork(event.mediaType, event.title, event.posterUrl, Modifier.fillMaxSize())
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+                ) {
+                    Text(
+                        stringResource(R.string.on_this_day_year_and_age, event.date.year, age),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        event.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(event.mediaType.icon(), contentDescription = null, modifier = Modifier.size(16.dp), tint = accent)
+                        Text(onThisDayEventLabel(event), style = MaterialTheme.typography.labelLarge, color = accent)
+                    }
+                    event.ratingHalfStars?.let { CompactRating(it) }
+                    event.reflectionContent?.takeIf(String::isNotBlank)?.let { reflection ->
+                        Text(
+                            stringResource(R.string.quoted_reflection, reflection),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun onThisDayEventLabel(event: CulturalTimelineEvent): String = when (event.eventType) {
+    TimelineEventType.STARTED -> if (!event.isReconsumption) {
+        stringResource(R.string.timeline_event_started)
+    } else {
+        stringResource(
+            when (event.mediaType) {
+                MediaType.BOOK -> R.string.timeline_event_restarted_book
+                MediaType.MOVIE, MediaType.SERIES -> R.string.timeline_event_restarted_watch
+                MediaType.GAME -> R.string.timeline_event_restarted_game
+            },
+        )
+    }
+    TimelineEventType.COMPLETED -> stringResource(
+        if (event.isReconsumption) R.string.timeline_event_recompleted else R.string.timeline_event_completed,
+    )
+    TimelineEventType.PROGRESS -> stringResource(R.string.timeline_event_progress)
+    TimelineEventType.NOTE -> stringResource(R.string.timeline_event_note)
+    TimelineEventType.FINAL_REFLECTION -> stringResource(R.string.timeline_event_final_reflection)
+    TimelineEventType.LATER_REFLECTION -> stringResource(R.string.timeline_event_later_reflection)
 }
 
 @Composable
