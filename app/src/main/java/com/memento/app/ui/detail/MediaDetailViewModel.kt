@@ -9,12 +9,18 @@ import com.memento.app.domain.model.TimelineEvent
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.Tag
 import com.memento.app.domain.repository.MediaRepository
+import com.memento.app.domain.repository.WatchAvailabilityRepository
+import com.memento.app.domain.watch.WatchAvailabilityRequest
+import com.memento.app.ui.watch.WatchAvailabilityUiState
+import com.memento.app.ui.watch.toUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,6 +35,7 @@ data class MediaDetailUiState(
     val message: String? = null,
     val wasDeleted: Boolean = false,
     val availableTags: List<Tag> = emptyList(),
+    val watchAvailability: WatchAvailabilityUiState = WatchAvailabilityUiState.Hidden,
 )
 
 private data class DetailOperationState(
@@ -39,14 +46,38 @@ private data class DetailOperationState(
 
 @HiltViewModel
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class MediaDetailViewModel @Inject constructor(private val repository: MediaRepository) : ViewModel() {
+class MediaDetailViewModel @Inject constructor(
+    private val repository: MediaRepository,
+    private val watchAvailabilityRepository: WatchAvailabilityRepository,
+) : ViewModel() {
     private val mediaId = MutableStateFlow<String?>(null)
     private val detail = mediaId.flatMapLatest { id -> id?.let(repository::observeMediaDetail) ?: flowOf(null) }
     private val timeline = mediaId.flatMapLatest { id -> id?.let(repository::observeTimeline) ?: flowOf(emptyList()) }
     private val operation = MutableStateFlow(DetailOperationState())
     private val tags = repository.observeTags()
+    private val watchAvailability = detail.map { item ->
+        val type = item?.media?.type ?: return@map null
+        item.externalRefs.firstNotNullOfOrNull { reference ->
+            if (reference.mediaType != type) null
+            else WatchAvailabilityRequest.create(type, reference.provider, reference.externalId)
+        }
+    }.distinctUntilChanged().flatMapLatest { request ->
+        if (request == null) {
+            flowOf<WatchAvailabilityUiState>(WatchAvailabilityUiState.Hidden)
+        } else {
+            kotlinx.coroutines.flow.flow<WatchAvailabilityUiState> {
+                emit(WatchAvailabilityUiState.Loading)
+                emit(
+                    runCatching {
+                        watchAvailabilityRepository.get(request.mediaType, request.tmdbId).toUiState()
+                    }.getOrDefault(WatchAvailabilityUiState.Hidden),
+                )
+            }
+        }
+    }
 
-    val state = combine(detail, timeline, operation, tags) { item, events, currentOperation, availableTags ->
+    val state = combine(detail, timeline, operation, tags, watchAvailability) {
+            item, events, currentOperation, availableTags, availability ->
         MediaDetailUiState(
             detail = item,
             timeline = events,
@@ -55,6 +86,7 @@ class MediaDetailViewModel @Inject constructor(private val repository: MediaRepo
             message = currentOperation.message,
             wasDeleted = currentOperation.wasDeleted,
             availableTags = availableTags,
+            watchAvailability = availability,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MediaDetailUiState())
 

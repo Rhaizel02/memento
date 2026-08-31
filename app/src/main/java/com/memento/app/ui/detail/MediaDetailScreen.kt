@@ -80,6 +80,8 @@ import com.memento.app.ui.components.mediaTypeLabel
 import com.memento.app.ui.components.creatorRoleLabel
 import com.memento.app.ui.components.StaticTag
 import com.memento.app.ui.theme.MementoSpacing
+import com.memento.app.ui.watch.WatchAvailabilitySection
+import com.memento.app.ui.watch.WatchAvailabilityUiState
 import java.time.ZoneId
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -188,6 +190,14 @@ fun MediaDetailScreen(
                     modifier = Modifier.padding(MementoSpacing.normal),
                     style = MaterialTheme.typography.bodyLarge,
                     collapsedMaxLines = 7,
+                )
+            }
+        }
+        if (state.watchAvailability != WatchAvailabilityUiState.Hidden) {
+            item {
+                WatchAvailabilitySection(
+                    state = state.watchAvailability,
+                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
                 )
             }
         }

@@ -35,10 +35,14 @@ import com.memento.app.data.repository.RoomAiInsightRepository
 import com.memento.app.data.repository.RoomCulturalTimelineRepository
 import com.memento.app.data.repository.RoomCulturalProfileRepository
 import com.memento.app.data.repository.RoomWrappedRepository
+import com.memento.app.data.repository.TmdbWatchAvailabilityRepository
 import com.memento.app.domain.repository.AiInsightRepository
 import com.memento.app.domain.repository.CulturalProfileRepository
 import com.memento.app.domain.repository.CulturalTimelineRepository
 import com.memento.app.domain.repository.WrappedRepository
+import com.memento.app.domain.repository.WatchAvailabilityRepository
+import com.memento.app.domain.watch.LocaleWatchRegionResolver
+import com.memento.app.domain.watch.WatchRegionResolver
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -116,6 +120,16 @@ object NetworkModule {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindWatchAvailabilityRepository(
+        implementation: TmdbWatchAvailabilityRepository,
+    ): WatchAvailabilityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchRegionResolver(implementation: LocaleWatchRegionResolver): WatchRegionResolver
+
     @Binds
     @Singleton
     abstract fun bindWrappedRepository(implementation: RoomWrappedRepository): WrappedRepository

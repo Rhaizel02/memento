@@ -6,6 +6,7 @@ import com.memento.app.FakeRememberRepository
 import com.memento.app.FakeMetadataRepository
 import com.memento.app.FakeRecommendationRepository
 import com.memento.app.FakeCulturalTimelineRepository
+import com.memento.app.FakeWatchAvailabilityRepository
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.CulturalTimelineEvent
 import com.memento.app.domain.model.HomeMediaFeed
@@ -636,7 +637,7 @@ class ViewModelsTest {
 
     @Test fun `detail starts a new consumption for loaded media`() = runTest {
         val repository = FakeMediaRepository()
-        val viewModel = MediaDetailViewModel(repository)
+        val viewModel = MediaDetailViewModel(repository, FakeWatchAvailabilityRepository())
         viewModel.load("m1")
         viewModel.start()
         advanceUntilIdle()
@@ -646,7 +647,7 @@ class ViewModelsTest {
 
     @Test fun `detail edits user owned metadata and deletes only selected consumption`() = runTest {
         val repository = FakeMediaRepository()
-        val viewModel = MediaDetailViewModel(repository)
+        val viewModel = MediaDetailViewModel(repository, FakeWatchAvailabilityRepository())
         viewModel.load("m1")
         val input = EditMediaInput("Dune revisado", 1965, "Descripción", listOf("Frank Herbert"), "https://image")
 
@@ -678,7 +679,7 @@ class ViewModelsTest {
                 reflections = emptyList(),
             )
         }
-        val viewModel = MediaDetailViewModel(repository)
+        val viewModel = MediaDetailViewModel(repository, FakeWatchAvailabilityRepository())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
         viewModel.load(media.id)
         advanceUntilIdle()

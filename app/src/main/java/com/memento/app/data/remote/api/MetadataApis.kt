@@ -41,6 +41,18 @@ interface TmdbApi {
         @Query("append_to_response") appendToResponse: String = "credits",
     ): TmdbSeriesDetailsDto
 
+    @GET("3/movie/{id}/watch/providers")
+    suspend fun movieWatchProviders(
+        @Path("id") id: String,
+        @Query("api_key") apiKey: String,
+    ): TmdbWatchProvidersResponse
+
+    @GET("3/tv/{id}/watch/providers")
+    suspend fun seriesWatchProviders(
+        @Path("id") id: String,
+        @Query("api_key") apiKey: String,
+    ): TmdbWatchProvidersResponse
+
     @GET("3/movie/{id}/recommendations")
     suspend fun movieRecommendations(
         @Path("id") id: String,
@@ -205,6 +217,27 @@ data class TmdbSeriesDetailsDto(
 data class TmdbCreditsDto(
     val cast: List<TmdbPersonDto> = emptyList(),
     val crew: List<TmdbCrewDto> = emptyList(),
+)
+
+@Serializable
+data class TmdbWatchProvidersResponse(
+    val results: Map<String, TmdbWatchRegionDto> = emptyMap(),
+)
+
+@Serializable
+data class TmdbWatchRegionDto(
+    val link: String? = null,
+    val flatrate: List<TmdbWatchProviderDto> = emptyList(),
+    val rent: List<TmdbWatchProviderDto> = emptyList(),
+    val buy: List<TmdbWatchProviderDto> = emptyList(),
+)
+
+@Serializable
+data class TmdbWatchProviderDto(
+    @SerialName("provider_id") val providerId: Int,
+    @SerialName("provider_name") val providerName: String,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("display_priority") val displayPriority: Int? = null,
 )
 
 @Serializable

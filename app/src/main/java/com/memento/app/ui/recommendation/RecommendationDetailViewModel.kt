@@ -13,6 +13,10 @@ import com.memento.app.domain.recommendation.RecommendationKey
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.repository.MetadataRepository
 import com.memento.app.domain.repository.RecommendationRepository
+import com.memento.app.domain.repository.WatchAvailabilityRepository
+import com.memento.app.domain.watch.WatchAvailabilityRequest
+import com.memento.app.ui.watch.WatchAvailabilityUiState
+import com.memento.app.ui.watch.toUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 data class RecommendationDetailUiState(
@@ -35,6 +40,7 @@ data class RecommendationDetailUiState(
     val error: String? = null,
     val savedMediaId: String? = null,
     val wasDismissed: Boolean = false,
+    val watchAvailability: WatchAvailabilityUiState = WatchAvailabilityUiState.Hidden,
 )
 
 private data class RecommendationOperationState(
@@ -50,10 +56,13 @@ class RecommendationDetailViewModel @Inject constructor(
     private val recommendationRepository: RecommendationRepository,
     private val metadataRepository: MetadataRepository,
     private val mediaRepository: MediaRepository,
+    private val watchAvailabilityRepository: WatchAvailabilityRepository,
 ) : ViewModel() {
     private val key = MutableStateFlow<RecommendationKey?>(null)
     private val detailedCandidate = MutableStateFlow<MetadataSearchResult?>(null)
     private val operation = MutableStateFlow(RecommendationOperationState())
+    private val watchAvailability = MutableStateFlow<WatchAvailabilityUiState>(WatchAvailabilityUiState.Hidden)
+    private var watchAvailabilityJob: Job? = null
     private val recommendation = key.flatMapLatest { currentKey ->
         currentKey?.let { wanted ->
             recommendationRepository.observeFeed().map { feed ->
@@ -65,7 +74,7 @@ class RecommendationDetailViewModel @Inject constructor(
         } ?: flowOf(null)
     }
 
-    val state = combine(recommendation, detailedCandidate, operation) { item, details, currentOperation ->
+    val state = combine(recommendation, detailedCandidate, operation, watchAvailability) { item, details, currentOperation, availability ->
         RecommendationDetailUiState(
             recommendation = item,
             candidate = details ?: item?.candidate,
@@ -74,6 +83,7 @@ class RecommendationDetailViewModel @Inject constructor(
             error = currentOperation.error,
             savedMediaId = currentOperation.savedMediaId,
             wasDismissed = currentOperation.wasDismissed,
+            watchAvailability = availability,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecommendationDetailUiState())
 
@@ -87,6 +97,21 @@ class RecommendationDetailViewModel @Inject constructor(
         key.value = loadedKey
         detailedCandidate.value = null
         operation.value = RecommendationOperationState()
+        watchAvailabilityJob?.cancel()
+        val watchRequest = WatchAvailabilityRequest.create(
+            mediaType = loadedKey.mediaType,
+            provider = loadedKey.provider,
+            externalId = loadedKey.externalId,
+        )
+        watchAvailability.value = if (watchRequest == null) WatchAvailabilityUiState.Hidden else WatchAvailabilityUiState.Loading
+        watchAvailabilityJob = watchRequest?.let { request ->
+            viewModelScope.launch {
+                val availability = runCatching {
+                    watchAvailabilityRepository.get(request.mediaType, request.tmdbId).toUiState()
+                }.getOrDefault(WatchAvailabilityUiState.Hidden)
+                if (key.value == loadedKey) watchAvailability.value = availability
+            }
+        }
         viewModelScope.launch {
             val item = recommendationRepository.observeFeed().map { feed ->
                 feed.recommendations.firstOrNull { recommendation ->

@@ -371,6 +371,14 @@
     <string name="calendar_day_without_events">%1$s, sin eventos</string>
     <string name="calendar_day_with_events">%1$s, %2$s: %3$s</string>
     <string name="calendar_today_description">%1$s, hoy</string>
+    <string name="watch_availability_title">Dónde verla</string>
+    <string name="watch_availability_loading">Consultando disponibilidad…</string>
+    <string name="watch_availability_empty">No tenemos información de disponibilidad para tu región.</string>
+    <string name="watch_streaming">Streaming</string>
+    <string name="watch_rent">Alquiler</string>
+    <string name="watch_buy">Compra</string>
+    <string name="watch_view_options">Ver opciones</string>
+    <string name="watch_justwatch_attribution">Datos de disponibilidad proporcionados por JustWatch</string>
     <plurals name="calendar_month_memory_summary">
         <item quantity="one">%1$d día activo · %2$d eventos</item>
         <item quantity="other">%1$d días activos · %2$d eventos</item>

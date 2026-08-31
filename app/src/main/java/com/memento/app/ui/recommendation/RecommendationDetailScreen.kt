@@ -52,6 +52,8 @@ import com.memento.app.ui.components.RatingSelector
 import com.memento.app.ui.components.StaticTag
 import com.memento.app.ui.components.mediaTypeLabel
 import com.memento.app.ui.theme.MementoSpacing
+import com.memento.app.ui.watch.WatchAvailabilitySection
+import com.memento.app.ui.watch.WatchAvailabilityUiState
 import java.time.LocalDate
 
 @Composable
@@ -140,6 +142,14 @@ fun RecommendationDetailScreen(
                     modifier = Modifier.padding(horizontal = MementoSpacing.normal),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        if (state.watchAvailability != WatchAvailabilityUiState.Hidden) {
+            item {
+                WatchAvailabilitySection(
+                    state = state.watchAvailability,
+                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
                 )
             }
         }

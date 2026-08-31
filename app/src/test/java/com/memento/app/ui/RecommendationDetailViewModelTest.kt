@@ -4,6 +4,7 @@ import com.memento.app.FakeMediaRepository
 import com.memento.app.FakeMetadataRepository
 import com.memento.app.FakeRecommendationRepository
 import com.memento.app.MainDispatcherRule
+import com.memento.app.FakeWatchAvailabilityRepository
 import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.MediaType
@@ -87,7 +88,12 @@ class RecommendationDetailViewModelTest {
     @Test
     fun `not interested records feedback and removes candidate`() = runTest {
         val recommendations = FakeRecommendationRepository().apply { feed.value = readyFeed() }
-        val viewModel = RecommendationDetailViewModel(recommendations, FakeMetadataRepository(), FakeMediaRepository())
+        val viewModel = RecommendationDetailViewModel(
+            recommendations,
+            FakeMetadataRepository(),
+            FakeMediaRepository(),
+            FakeWatchAvailabilityRepository(),
+        )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
         viewModel.load("TMDB", "42", "MOVIE")
         advanceUntilIdle()
@@ -102,7 +108,12 @@ class RecommendationDetailViewModelTest {
 
     private fun viewModel(media: FakeMediaRepository): RecommendationDetailViewModel {
         val recommendations = FakeRecommendationRepository().apply { feed.value = readyFeed() }
-        return RecommendationDetailViewModel(recommendations, FakeMetadataRepository(), media)
+        return RecommendationDetailViewModel(
+            recommendations,
+            FakeMetadataRepository(),
+            media,
+            FakeWatchAvailabilityRepository(),
+        )
     }
 
     private fun readyFeed() = RecommendationFeed(
