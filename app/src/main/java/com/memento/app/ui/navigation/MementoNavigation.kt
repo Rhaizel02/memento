@@ -37,6 +37,8 @@ import com.memento.app.ui.detail.MediaDetailScreen
 import com.memento.app.ui.detail.MediaDetailViewModel
 import com.memento.app.ui.culturalprofile.CulturalProfileScreen
 import com.memento.app.ui.culturalprofile.CulturalProfileViewModel
+import com.memento.app.ui.calendar.CulturalCalendarScreen
+import com.memento.app.ui.calendar.CulturalCalendarViewModel
 import com.memento.app.ui.discover.DiscoverScreen
 import com.memento.app.ui.discover.DiscoverViewModel
 import com.memento.app.ui.home.HomeScreen
@@ -71,6 +73,7 @@ import java.util.UUID
 @Serializable data object StatsKey : MementoKey
 @Serializable data object CulturalProfileKey : MementoKey
 @Serializable data object TimelineKey : MementoKey
+@Serializable data object CulturalCalendarKey : MementoKey
 @Serializable data class WrappedKey(val year: Int) : MementoKey
 
 private fun newAddMediaKey(): AddMediaKey = AddMediaKey(UUID.randomUUID().toString())
@@ -329,6 +332,23 @@ fun MementoApp(
                             onMediaTypeSelected = viewModel::selectMediaType,
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onLoadMore = viewModel::loadMore,
+                            onRetry = viewModel::retry,
+                            onOpenCalendar = { backStack.add(CulturalCalendarKey) },
+                        )
+                    }
+                    CulturalCalendarKey -> NavEntry(key) {
+                        val viewModel: CulturalCalendarViewModel = hiltViewModel()
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        CulturalCalendarScreen(
+                            state = state,
+                            onBack = { backStack.removeLastOrNull() },
+                            onPrevious = viewModel::previousPeriod,
+                            onNext = viewModel::nextPeriod,
+                            onShowYear = viewModel::showYear,
+                            onShowMonth = viewModel::showMonth,
+                            onSelectDay = viewModel::selectDay,
+                            onToday = viewModel::goToToday,
+                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onRetry = viewModel::retry,
                         )
                     }

@@ -17,6 +17,7 @@ import com.memento.app.domain.timeline.OnThisDaySelector
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,19 +35,23 @@ class RoomCulturalTimelineRepository @Inject constructor(
             timelineDao.observeProgress(mediaType, sourceLimit),
             timelineDao.observeReflections(mediaType, sourceLimit),
         ) { startedRows, completedRows, progressRows, reflectionRows ->
-            val merged = CulturalTimelineMapper.sort(
-                buildList {
-                    startedRows.forEach { row ->
-                        CulturalTimelineMapper.started(row.media(), row.consumption(), row.isReconsumption)?.let(::add)
-                    }
-                    completedRows.forEach { row ->
-                        CulturalTimelineMapper.completed(row.media(), row.consumption(), row.isReconsumption)?.let(::add)
-                    }
-                    progressRows.forEach { row -> add(CulturalTimelineMapper.progress(row.media(), row.progress())) }
-                    reflectionRows.forEach { row -> add(CulturalTimelineMapper.reflection(row.media(), row.reflection())) }
-                },
-            )
+            val merged = timelineEvents(startedRows, completedRows, progressRows, reflectionRows)
             CulturalTimelineWindow(events = merged.take(limit), hasMore = merged.size > limit)
+        }
+    }
+
+    override fun observeRange(from: LocalDate, until: LocalDate): Flow<List<CulturalTimelineEvent>> {
+        require(from < until) { "Timeline range must be non-empty" }
+        val zoneId = ZoneId.systemDefault()
+        val fromInstant = from.atStartOfDay(zoneId).toInstant()
+        val untilInstant = until.atStartOfDay(zoneId).toInstant()
+        return combine(
+            timelineDao.observeStartedBetween(from, until),
+            timelineDao.observeCompletedBetween(from, until),
+            timelineDao.observeProgressBetween(fromInstant, untilInstant),
+            timelineDao.observeReflectionsBetween(fromInstant, untilInstant),
+        ) { startedRows, completedRows, progressRows, reflectionRows ->
+            timelineEvents(startedRows, completedRows, progressRows, reflectionRows)
         }
     }
 
@@ -60,20 +65,29 @@ class RoomCulturalTimelineRepository @Inject constructor(
             timelineDao.observeProgressOnThisDay(monthDay, date.year, sourceLimit),
             timelineDao.observeReflectionsOnThisDay(monthDay, date.year, sourceLimit),
         ) { startedRows, completedRows, progressRows, reflectionRows ->
-            val candidates = buildList {
-                startedRows.forEach { row ->
-                    CulturalTimelineMapper.started(row.media(), row.consumption(), row.isReconsumption)?.let(::add)
-                }
-                completedRows.forEach { row ->
-                    CulturalTimelineMapper.completed(row.media(), row.consumption(), row.isReconsumption)?.let(::add)
-                }
-                progressRows.forEach { row -> add(CulturalTimelineMapper.progress(row.media(), row.progress())) }
-                reflectionRows.forEach { row -> add(CulturalTimelineMapper.reflection(row.media(), row.reflection())) }
-            }
+            val candidates = timelineEvents(startedRows, completedRows, progressRows, reflectionRows)
             OnThisDaySelector.select(candidates, date, limit)
         }
     }
 }
+
+private fun timelineEvents(
+    startedRows: List<TimelineConsumptionRow>,
+    completedRows: List<TimelineConsumptionRow>,
+    progressRows: List<TimelineProgressRow>,
+    reflectionRows: List<TimelineReflectionRow>,
+): List<CulturalTimelineEvent> = CulturalTimelineMapper.sort(
+    buildList {
+        startedRows.forEach { row ->
+            CulturalTimelineMapper.started(row.media(), row.consumption(), row.isReconsumption)?.let(::add)
+        }
+        completedRows.forEach { row ->
+            CulturalTimelineMapper.completed(row.media(), row.consumption(), row.isReconsumption)?.let(::add)
+        }
+        progressRows.forEach { row -> add(CulturalTimelineMapper.progress(row.media(), row.progress())) }
+        reflectionRows.forEach { row -> add(CulturalTimelineMapper.reflection(row.media(), row.reflection())) }
+    },
+)
 
 private fun TimelineConsumptionRow.media() = TimelineMediaContext(mediaItemId, mediaType, title, posterUrl, isFavorite)
 

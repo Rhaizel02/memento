@@ -8,5 +8,6 @@ import java.time.LocalDate
 
 interface CulturalTimelineRepository {
     fun observeWindow(mediaType: MediaType?, limit: Int): Flow<CulturalTimelineWindow>
+    fun observeRange(from: LocalDate, until: LocalDate): Flow<List<CulturalTimelineEvent>>
     fun observeOnThisDay(date: LocalDate, limit: Int = 5): Flow<List<CulturalTimelineEvent>>
 }

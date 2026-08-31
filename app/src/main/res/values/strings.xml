@@ -357,6 +357,52 @@
     <string name="wrapped_total_comparison">Terminaste un %1$d %% %2$s de historias que en %3$d.</string>
     <string name="wrapped_share_reflection_title">Compartir esta reflexión</string>
     <string name="wrapped_share_reflection_body">La imagen incluirá el texto completo que escribiste. Solo se compartirá si confirmas esta acción.</string>
+    <string name="cultural_calendar_title">Calendario</string>
+    <string name="open_cultural_calendar">Abrir calendario cultural</string>
+    <string name="calendar_go_today">Ir a hoy</string>
+    <string name="calendar_previous_period">Periodo anterior</string>
+    <string name="calendar_next_period">Periodo siguiente</string>
+    <string name="calendar_choose_month_year">Elegir mes y año</string>
+    <string name="calendar_empty_month">No hay recuerdos registrados este mes.</string>
+    <string name="calendar_empty_day">No hay recuerdos registrados este día.</string>
+    <string name="calendar_error">No se pudo cargar este periodo del calendario.</string>
+    <string name="calendar_selected_date_pattern">d \'de\' MMMM</string>
+    <string name="calendar_accessibility_date_pattern">d \'de\' MMMM</string>
+    <string name="calendar_day_without_events">%1$s, sin eventos</string>
+    <string name="calendar_day_with_events">%1$s, %2$s: %3$s</string>
+    <string name="calendar_today_description">%1$s, hoy</string>
+    <plurals name="calendar_month_memory_summary">
+        <item quantity="one">%1$d día activo · %2$d eventos</item>
+        <item quantity="other">%1$d días activos · %2$d eventos</item>
+    </plurals>
+    <plurals name="calendar_events">
+        <item quantity="one">%1$d evento</item>
+        <item quantity="other">%1$d eventos</item>
+    </plurals>
+    <plurals name="calendar_active_days">
+        <item quantity="one">%1$d día con recuerdos</item>
+        <item quantity="other">%1$d días con recuerdos</item>
+    </plurals>
+    <plurals name="calendar_books">
+        <item quantity="one">%1$d evento de libro</item>
+        <item quantity="other">%1$d eventos de libros</item>
+    </plurals>
+    <plurals name="calendar_movies">
+        <item quantity="one">%1$d evento de película</item>
+        <item quantity="other">%1$d eventos de películas</item>
+    </plurals>
+    <plurals name="calendar_series">
+        <item quantity="one">%1$d evento de serie</item>
+        <item quantity="other">%1$d eventos de series</item>
+    </plurals>
+    <plurals name="calendar_games">
+        <item quantity="one">%1$d evento de juego</item>
+        <item quantity="other">%1$d eventos de juegos</item>
+    </plurals>
+    <plurals name="calendar_reflections">
+        <item quantity="one">%1$d reflexión</item>
+        <item quantity="other">%1$d reflexiones</item>
+    </plurals>
     <string name="appearance">Apariencia</string>
     <string name="theme">Tema</string>
     <string name="theme_mode">Modo</string>

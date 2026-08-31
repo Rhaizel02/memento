@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.FormatQuote
@@ -88,6 +89,7 @@ fun TimelineScreen(
     onOpenMedia: (String) -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
+    onOpenCalendar: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
 ) {
     Scaffold(
@@ -97,6 +99,14 @@ fun TimelineScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onOpenCalendar) {
+                        Icon(
+                            Icons.Outlined.CalendarMonth,
+                            contentDescription = stringResource(R.string.open_cultural_calendar),
+                        )
                     }
                 },
             )
@@ -231,7 +241,12 @@ private fun TimelineEventGroup(
 }
 
 @Composable
-private fun TimelineEventRow(event: CulturalTimelineEvent, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun TimelineEventRow(
+    event: CulturalTimelineEvent,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    reflectionMaxLines: Int = 4,
+) {
     val accent = MaterialTheme.mediaTypeColor(event.mediaType)
     val importantReflection = event.eventType == TimelineEventType.FINAL_REFLECTION ||
         event.eventType == TimelineEventType.LATER_REFLECTION
@@ -294,7 +309,7 @@ private fun TimelineEventRow(event: CulturalTimelineEvent, onClick: () -> Unit, 
                     stringResource(R.string.quoted_reflection, content),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 4,
+                    maxLines = reflectionMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
