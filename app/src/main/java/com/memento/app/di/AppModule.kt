@@ -3,6 +3,7 @@ package com.memento.app.di
 import android.content.Context
 import androidx.room.Room
 import com.memento.app.data.local.dao.ConsumptionDao
+import com.memento.app.data.local.dao.GlobalSearchDao
 import com.memento.app.data.local.dao.MediaDao
 import com.memento.app.data.local.dao.RememberDao
 import com.memento.app.data.local.dao.RecommendationDao
@@ -17,6 +18,7 @@ import com.memento.app.data.local.database.HARDENING_DATABASE_CALLBACK
 import com.memento.app.data.local.dao.AiInsightDao
 import com.memento.app.data.local.dao.TimelineDao
 import com.memento.app.data.repository.RoomMediaRepository
+import com.memento.app.data.repository.RoomGlobalSearchRepository
 import com.memento.app.data.repository.RoomRememberRepository
 import com.memento.app.data.repository.RemoteMetadataRepository
 import com.memento.app.data.repository.RoomRecommendationRepository
@@ -25,6 +27,7 @@ import com.memento.app.data.remote.api.OpenLibraryApi
 import com.memento.app.data.remote.api.RawgApi
 import com.memento.app.data.remote.api.TmdbApi
 import com.memento.app.domain.repository.MediaRepository
+import com.memento.app.domain.repository.GlobalSearchRepository
 import com.memento.app.domain.repository.MetadataRepository
 import com.memento.app.domain.repository.RememberRepository
 import com.memento.app.domain.repository.RecommendationRepository
@@ -84,6 +87,7 @@ object DatabaseModule {
     @Provides fun provideBackupDao(database: MementoDatabase): BackupDao = database.backupDao()
     @Provides fun provideAiInsightDao(database: MementoDatabase): AiInsightDao = database.aiInsightDao()
     @Provides fun provideTimelineDao(database: MementoDatabase): TimelineDao = database.timelineDao()
+    @Provides fun provideGlobalSearchDao(database: MementoDatabase): GlobalSearchDao = database.globalSearchDao()
 }
 
 @Module
@@ -120,6 +124,10 @@ object NetworkModule {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindGlobalSearchRepository(implementation: RoomGlobalSearchRepository): GlobalSearchRepository
+
     @Binds
     @Singleton
     abstract fun bindWatchAvailabilityRepository(

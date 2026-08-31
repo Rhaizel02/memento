@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.memento.app.data.local.converter.RoomConverters
 import com.memento.app.data.local.dao.ConsumptionDao
+import com.memento.app.data.local.dao.GlobalSearchDao
 import com.memento.app.data.local.dao.MediaDao
 import com.memento.app.data.local.dao.RememberDao
 import com.memento.app.data.local.dao.RecommendationDao
@@ -59,4 +60,5 @@ abstract class MementoDatabase : RoomDatabase() {
     abstract fun backupDao(): BackupDao
     abstract fun aiInsightDao(): AiInsightDao
     abstract fun timelineDao(): TimelineDao
+    abstract fun globalSearchDao(): GlobalSearchDao
 }

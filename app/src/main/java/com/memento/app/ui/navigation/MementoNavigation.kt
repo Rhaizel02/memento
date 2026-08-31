@@ -47,6 +47,8 @@ import com.memento.app.ui.library.LibraryScreen
 import com.memento.app.ui.library.LibraryViewModel
 import com.memento.app.ui.recommendation.RecommendationDetailScreen
 import com.memento.app.ui.recommendation.RecommendationDetailViewModel
+import com.memento.app.ui.search.GlobalSearchScreen
+import com.memento.app.ui.search.GlobalSearchViewModel
 import com.memento.app.domain.recommendation.Recommendation
 import com.memento.app.ui.remember.RememberScreen
 import com.memento.app.ui.remember.RememberViewModel
@@ -75,6 +77,7 @@ import java.util.UUID
 @Serializable data object TimelineKey : MementoKey
 @Serializable data object CulturalCalendarKey : MementoKey
 @Serializable data class WrappedKey(val year: Int) : MementoKey
+@Serializable data object GlobalSearchKey : MementoKey
 
 private fun newAddMediaKey(): AddMediaKey = AddMediaKey(UUID.randomUUID().toString())
 private fun Recommendation.toDetailKey() = RecommendationDetailKey(
@@ -151,6 +154,7 @@ fun MementoApp(
                         HomeScreen(
                             state = state,
                             onAdd = { backStack.add(newAddMediaKey()) },
+                            onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onOpenRemember = { backStack.add(RememberKey(it)) },
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
@@ -184,6 +188,19 @@ fun MementoApp(
                             onClearFilters = viewModel::clearAdditionalFilters,
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onAdd = { backStack.add(newAddMediaKey()) },
+                            onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
+                        )
+                    }
+                    GlobalSearchKey -> NavEntry(key) {
+                        val viewModel: GlobalSearchViewModel = hiltViewModel()
+                        val state by viewModel.state.collectAsStateWithLifecycle()
+                        GlobalSearchScreen(
+                            state = state,
+                            onBack = { backStack.removeLastOrNull() },
+                            onQueryChanged = viewModel::setQuery,
+                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                            onSelectFacet = viewModel::selectFacet,
+                            onClearFacet = viewModel::clearFacet,
                         )
                     }
                     DiscoverKey -> NavEntry(key) {

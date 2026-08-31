@@ -379,6 +379,26 @@
     <string name="watch_buy">Compra</string>
     <string name="watch_view_options">Ver opciones</string>
     <string name="watch_justwatch_attribution">Datos de disponibilidad proporcionados por JustWatch</string>
+    <string name="global_search_title">Búsqueda global</string>
+    <string name="global_search_field">Buscar en Memento</string>
+    <string name="global_search_hint">Busca obras, personas, tags o recuerdos.</string>
+    <string name="global_search_no_results">No encontramos nada para «%1$s».</string>
+    <string name="global_search_error">No pudimos completar la búsqueda local.</string>
+    <string name="global_search_media">Obras</string>
+    <string name="global_search_tags">Tags</string>
+    <string name="global_search_creators">Creadores</string>
+    <string name="global_search_genres">Géneros</string>
+    <string name="global_search_quotes">Citas</string>
+    <string name="global_search_reflections">Reflexiones</string>
+    <string name="global_search_all_results">Todos los resultados</string>
+    <string name="global_search_no_associated_media">No hay obras asociadas entre los resultados actuales.</string>
+    <string name="global_search_match_tag">Tag: %1$s</string>
+    <string name="global_search_match_genre">Género: %1$s</string>
+    <string name="global_search_match_creator">%1$s: %2$s</string>
+    <plurals name="global_search_media_count">
+        <item quantity="one">%1$d obra</item>
+        <item quantity="other">%1$d obras</item>
+    </plurals>
     <plurals name="calendar_month_memory_summary">
         <item quantity="one">%1$d día activo · %2$d eventos</item>
         <item quantity="other">%1$d días activos · %2$d eventos</item>

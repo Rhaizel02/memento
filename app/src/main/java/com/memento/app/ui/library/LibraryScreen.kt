@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +26,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,14 +61,19 @@ fun LibraryScreen(
     onClearFilters: () -> Unit,
     onOpenMedia: (String) -> Unit,
     onAdd: () -> Unit,
+    onOpenGlobalSearch: () -> Unit = {},
 ) {
     var showFilters by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        Text(
-            stringResource(R.string.library),
-            modifier = Modifier.padding(start = MementoSpacing.normal, top = MementoSpacing.normal),
-            style = MaterialTheme.typography.headlineLarge,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = MementoSpacing.normal, top = MementoSpacing.normal),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(stringResource(R.string.library), style = MaterialTheme.typography.headlineLarge)
+            IconButton(onClick = onOpenGlobalSearch) {
+                Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.global_search_title))
+            }
+        }
         MementoSearchField(
             value = state.query,
             onValueChange = onQueryChanged,

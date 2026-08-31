@@ -3,15 +3,22 @@ package com.memento.app.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import com.memento.app.R
 import com.memento.app.ui.theme.MementoSpacing
@@ -21,6 +28,7 @@ import com.memento.app.domain.recommendation.Recommendation
 fun HomeScreen(
     state: HomeUiState,
     onAdd: () -> Unit,
+    onOpenGlobalSearch: () -> Unit = {},
     onOpenMedia: (String) -> Unit,
     onOpenRemember: (String) -> Unit,
     onOpenDiscover: () -> Unit,
@@ -48,13 +56,25 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.xLarge),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
-                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
-                Text(
-                    stringResource(R.string.app_tagline),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
+                ) {
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
+                    Text(
+                        stringResource(R.string.app_tagline),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onOpenGlobalSearch) {
+                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.global_search_title))
+                }
             }
         }
 
