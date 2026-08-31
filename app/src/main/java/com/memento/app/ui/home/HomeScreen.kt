@@ -26,6 +26,7 @@ fun HomeScreen(
     onOpenDiscover: () -> Unit,
     onOpenRecommendation: (Recommendation) -> Unit = {},
     onOpenStats: () -> Unit,
+    onOpenWrapped: (Int) -> Unit = {},
     onOpenCulturalProfile: () -> Unit = {},
     onOpenTimeline: () -> Unit = {},
     onOpenQuickProgress: (HomeMediaItem) -> Unit = {},
@@ -134,6 +135,7 @@ fun HomeScreen(
                     year = state.summaryYear,
                     completedByType = state.completedByType,
                     onOpenStats = onOpenStats,
+                    onOpenWrapped = { onOpenWrapped(state.summaryYear) },
                 )
             }
         }

@@ -29,6 +29,9 @@ data class CulturalProfileMediaRow(
     val mediaItemId: String,
     val mediaType: MediaType,
     val isFavorite: Boolean,
+    val title: String,
+    val posterUrl: String?,
+    val backdropUrl: String?,
 )
 data class MediaTagRow(
     val mediaItemId: String,
@@ -132,7 +135,13 @@ interface MediaDao {
     @Query("SELECT COUNT(*) FROM media_items")
     fun observeMediaCount(): Flow<Int>
 
-    @Query("SELECT id AS mediaItemId, type AS mediaType, isFavorite FROM media_items ORDER BY id")
+    @Query(
+        """
+        SELECT id AS mediaItemId, type AS mediaType, isFavorite, title, posterUrl, backdropUrl
+        FROM media_items
+        ORDER BY id
+        """,
+    )
     fun observeCulturalProfileMedia(): Flow<List<CulturalProfileMediaRow>>
 
     @Query(

@@ -318,6 +318,45 @@
     <string name="wrapped_share_reflections">Ideas que decidí no dejar escapar.</string>
     <string name="wrapped_share_revisited">Algunas historias merecen otra visita.</string>
     <string name="wrapped_share_finale">Mi año en historias, guardado en Memento.</string>
+    <string name="wrapped_select_year">Seleccionar año</string>
+    <string name="wrapped_empty_title">Tu historia cultural está empezando</string>
+    <string name="wrapped_empty_body">Termina alguna obra o guarda una reflexión para crear tu resumen anual.</string>
+    <string name="wrapped_year">Tu %1$d</string>
+    <string name="wrapped_year_to_date">Tu %1$d hasta ahora</string>
+    <string name="wrapped_taking_shape">Tu %1$d todavía está tomando forma.</string>
+    <plurals name="wrapped_stories">
+        <item quantity="one">%1$d historia que formó parte de tu año.</item>
+        <item quantity="other">%1$d historias que formaron parte de tu año.</item>
+    </plurals>
+    <string name="wrapped_media_summary">Qué consumiste</string>
+    <string name="wrapped_genre_of_year">El género de tu año</string>
+    <string name="wrapped_genre_body">%1$d obras · ★%2$.1f</string>
+    <string name="wrapped_best_medium">Lo que mejor valoraste</string>
+    <string name="wrapped_best_medium_body">★%1$.1f de media</string>
+    <string name="wrapped_featured_creator">Creador destacado</string>
+    <string name="wrapped_personal_tags">Tus palabras para recordarlas</string>
+    <string name="wrapped_tag_rating_body">%1$d obras · ★%2$.1f de media</string>
+    <plurals name="wrapped_tag_count_body">
+        <item quantity="one">Apareció en %1$d obra.</item>
+        <item quantity="other">Apareció en %1$d obras.</item>
+    </plurals>
+    <string name="wrapped_intense_month">Tu mes más intenso</string>
+    <plurals name="wrapped_finished_in_month">
+        <item quantity="one">%1$d obra terminada.</item>
+        <item quantity="other">%1$d obras terminadas.</item>
+    </plurals>
+    <string name="wrapped_cultural_era">Tu época cultural</string>
+    <string name="wrapped_era_genre">Tu etapa de %1$s</string>
+    <string name="wrapped_era_tag">Tu época «%1$s»</string>
+    <string name="wrapped_era_medium">Una etapa muy de %1$s</string>
+    <string name="wrapped_era_dates">%1$s — %2$s</string>
+    <string name="wrapped_work_of_year">Tu obra del año</string>
+    <string name="wrapped_favorites">Las favoritas que se quedaron contigo</string>
+    <string name="wrapped_comparison">Frente al año anterior</string>
+    <string name="wrapped_media_comparison">Disfrutaste un %1$d %% %2$s de %3$s que en %4$d.</string>
+    <string name="wrapped_total_comparison">Terminaste un %1$d %% %2$s de historias que en %3$d.</string>
+    <string name="wrapped_share_reflection_title">Compartir esta reflexión</string>
+    <string name="wrapped_share_reflection_body">La imagen incluirá el texto completo que escribiste. Solo se compartirá si confirmas esta acción.</string>
     <string name="appearance">Apariencia</string>
     <string name="theme">Tema</string>
     <string name="theme_mode">Modo</string>

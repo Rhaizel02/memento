@@ -18,7 +18,11 @@ object CulturalProfileThresholds {
 }
 
 object CulturalProfileEngine {
-    fun build(source: CulturalProfileSource, today: LocalDate): CulturalProfile {
+    fun build(
+        source: CulturalProfileSource,
+        today: LocalDate,
+        comparisonYear: Int = today.year,
+    ): CulturalProfile {
         val completionsByMedia = source.completions.groupBy(CulturalCompletion::mediaId)
         val works = source.works.distinctBy(CulturalProfileWork::mediaId).map { work ->
             WorkSignal(
@@ -68,7 +72,7 @@ object CulturalProfileEngine {
             }
             favoriteGenre(works)?.let(::add)
             temporalInsights(source.completions).forEach(::add)
-            annualComparisons(source, today.year).forEach(::add)
+            annualComparisons(source, comparisonYear, today).forEach(::add)
         }
 
         return CulturalProfile(
@@ -87,8 +91,8 @@ object CulturalProfileEngine {
         val workById = source.works.associateBy(CulturalProfileWork::mediaId)
         val firstMonth = source.completions.minOfOrNull { YearMonth.from(it.completedDate) } ?: return emptyList()
         val lastMonth = source.completions.maxOfOrNull { YearMonth.from(it.completedDate) } ?: return emptyList()
-        val windowStarts = generateSequence(firstMonth) { it.plusMonths(1) }
-            .takeWhile { it <= lastMonth }
+        val windowStarts = generateSequence(firstMonth.minusMonths(2)) { it.plusMonths(1) }
+            .takeWhile { it.plusMonths(2) <= lastMonth }
             .toList()
         val candidates = windowStarts.mapNotNull { from ->
             val until = from.plusMonths(2)
@@ -168,10 +172,17 @@ object CulturalProfileEngine {
         }
     }
 
-    private fun annualComparisons(source: CulturalProfileSource, currentYear: Int): List<CulturalInsight> {
+    private fun annualComparisons(
+        source: CulturalProfileSource,
+        currentYear: Int,
+        today: LocalDate,
+    ): List<CulturalInsight> {
         val previousYear = currentYear - 1
-        val current = uniqueYearCompletions(source.completions, currentYear)
-        val previous = uniqueYearCompletions(source.completions, previousYear)
+        val isCurrentYear = currentYear == today.year
+        val currentCutoff = if (isCurrentYear) today else LocalDate.of(currentYear, 12, 31)
+        val previousCutoff = if (isCurrentYear) equivalentDate(today, previousYear) else LocalDate.of(previousYear, 12, 31)
+        val current = uniqueYearCompletions(source.completions, currentYear, currentCutoff)
+        val previous = uniqueYearCompletions(source.completions, previousYear, previousCutoff)
         if (current.size < CulturalProfileThresholds.MIN_TEMPORAL_SAMPLE ||
             previous.size < CulturalProfileThresholds.MIN_TEMPORAL_SAMPLE
         ) return emptyList()
@@ -216,12 +227,21 @@ object CulturalProfileEngine {
         else listOfNotNull(totalChange, ratingChange)
     }
 
-    private fun uniqueYearCompletions(completions: List<CulturalCompletion>, year: Int): List<CulturalCompletion> =
-        completions.filter { it.completedDate.year == year }
+    private fun uniqueYearCompletions(
+        completions: List<CulturalCompletion>,
+        year: Int,
+        cutoff: LocalDate,
+    ): List<CulturalCompletion> =
+        completions.filter { it.completedDate.year == year && it.completedDate <= cutoff }
             .groupBy(CulturalCompletion::mediaId)
             .values.mapNotNull { rows ->
                 rows.maxWithOrNull(compareBy<CulturalCompletion> { it.completedDate }.thenBy { it.updatedAt })
             }
+
+    private fun equivalentDate(date: LocalDate, year: Int): LocalDate {
+        val month = java.time.YearMonth.of(year, date.month)
+        return month.atDay(date.dayOfMonth.coerceAtMost(month.lengthOfMonth()))
+    }
 
     private fun stringMetrics(
         works: List<WorkSignal>,

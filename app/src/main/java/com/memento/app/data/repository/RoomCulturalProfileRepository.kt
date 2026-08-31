@@ -35,6 +35,9 @@ class RoomCulturalProfileRepository @Inject constructor(
                     genres = genres[row.mediaItemId].orEmpty(),
                     creators = creators[row.mediaItemId].orEmpty(),
                     tags = tags[row.mediaItemId].orEmpty(),
+                    title = row.title,
+                    posterUrl = row.posterUrl,
+                    backdropUrl = row.backdropUrl,
                 )
             },
             completions = completionRows.mapNotNull { row ->

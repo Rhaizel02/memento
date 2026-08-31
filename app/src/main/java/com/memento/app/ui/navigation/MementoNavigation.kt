@@ -153,6 +153,7 @@ fun MementoApp(
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
                             onOpenRecommendation = { backStack.add(it.toDetailKey()) },
                             onOpenStats = { backStack.add(StatsKey) },
+                            onOpenWrapped = { backStack.add(WrappedKey(it)) },
                             onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
                             onOpenTimeline = { backStack.add(TimelineKey) },
                             onOpenQuickProgress = viewModel::openQuickProgress,
@@ -335,7 +336,11 @@ fun MementoApp(
                         val viewModel: WrappedViewModel = hiltViewModel()
                         LaunchedEffect(key.year) { viewModel.load(key.year) }
                         val state by viewModel.state.collectAsStateWithLifecycle()
-                        WrappedScreen(state = state, onBack = { backStack.removeLastOrNull() })
+                        WrappedScreen(
+                            state = state,
+                            onBack = { backStack.removeLastOrNull() },
+                            onSelectYear = viewModel::selectYear,
+                        )
                     }
                     else -> error("Unknown navigation key: $key")
                 }

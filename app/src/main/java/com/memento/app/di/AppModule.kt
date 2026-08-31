@@ -34,9 +34,11 @@ import com.memento.app.ai.MlKitAiProcessor
 import com.memento.app.data.repository.RoomAiInsightRepository
 import com.memento.app.data.repository.RoomCulturalTimelineRepository
 import com.memento.app.data.repository.RoomCulturalProfileRepository
+import com.memento.app.data.repository.RoomWrappedRepository
 import com.memento.app.domain.repository.AiInsightRepository
 import com.memento.app.domain.repository.CulturalProfileRepository
 import com.memento.app.domain.repository.CulturalTimelineRepository
+import com.memento.app.domain.repository.WrappedRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -114,6 +116,10 @@ object NetworkModule {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindWrappedRepository(implementation: RoomWrappedRepository): WrappedRepository
+
     @Binds
     @Singleton
     abstract fun bindCulturalProfileRepository(implementation: RoomCulturalProfileRepository): CulturalProfileRepository

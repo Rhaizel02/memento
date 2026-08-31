@@ -122,6 +122,43 @@ class CulturalProfileEngineTest {
         assertTrue(CulturalProfileEngine.detectPeriods(source(*pairs.toTypedArray())).isEmpty())
     }
 
+    @Test
+    fun `cultural period never ends after the last observed month`() {
+        val pairs = (1..4).map { index ->
+            val id = "august-$index"
+            work(id, genres = listOf("Ciencia ficción")) to completion(id, "2026-08-0$index", 9)
+        }
+
+        val period = CulturalProfileEngine.detectPeriods(source(*pairs.toTypedArray())).single()
+
+        assertEquals(java.time.YearMonth.of(2026, 8), period.until)
+    }
+
+    @Test
+    fun `current year comparison applies the same year to date cutoff`() {
+        val pairs = buildList {
+            repeat(3) { index ->
+                val id = "previous-ytd-$index"
+                add(work(id) to completion(id, "2025-0${index + 1}-01", 8))
+            }
+            repeat(3) { index ->
+                val id = "previous-late-$index"
+                add(work(id) to completion(id, "2025-1${index}-01", 8))
+            }
+            repeat(6) { index ->
+                val id = "current-ytd-$index"
+                add(work(id) to completion(id, "2026-0${index + 1}-01", 8))
+            }
+        }
+
+        val comparison = CulturalProfileEngine.build(source(*pairs.toTypedArray()), LocalDate.of(2026, 8, 30)).insights
+            .filterIsInstance<CulturalInsight.MediaTypeYearChange>().single()
+
+        assertEquals(3, comparison.previousCount)
+        assertEquals(6, comparison.currentCount)
+        assertEquals(100, comparison.percentChange)
+    }
+
     private fun source(vararg pairs: Pair<CulturalProfileWork, CulturalCompletion>) = CulturalProfileSource(
         works = pairs.map(Pair<CulturalProfileWork, CulturalCompletion>::first),
         completions = pairs.map(Pair<CulturalProfileWork, CulturalCompletion>::second),

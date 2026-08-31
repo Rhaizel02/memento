@@ -17,6 +17,9 @@ data class CulturalProfileWork(
     val genres: List<String> = emptyList(),
     val creators: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
+    val title: String = "",
+    val posterUrl: String? = null,
+    val backdropUrl: String? = null,
 )
 
 data class CulturalCompletion(

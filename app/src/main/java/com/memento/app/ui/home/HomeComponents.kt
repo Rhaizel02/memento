@@ -716,6 +716,7 @@ internal fun YearSummaryCard(
     year: Int,
     completedByType: Map<MediaType, Int>,
     onOpenStats: () -> Unit,
+    onOpenWrapped: () -> Unit,
 ) {
     val visibleTypes = MediaType.entries.filter { (completedByType[it] ?: 0) > 0 }
     Surface(
@@ -737,16 +738,20 @@ internal fun YearSummaryCard(
                     if (rowTypes.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
-            TextButton(
-                onClick = onOpenStats,
-                modifier = Modifier.align(Alignment.End).padding(top = MementoSpacing.small),
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = MementoSpacing.normal),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.open_statistics))
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = MementoSpacing.small).size(18.dp),
-                )
+                TextButton(onClick = onOpenStats) { Text(stringResource(R.string.open_statistics)) }
+                Button(onClick = onOpenWrapped) {
+                    Text(stringResource(R.string.open_year_wrapped, year))
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = MementoSpacing.small).size(18.dp),
+                    )
+                }
             }
         }
     }
