@@ -9,7 +9,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,7 +50,7 @@ fun MementoSearchField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.focusRequester(focusRequester),
-        label = { Text(label) },
+        labelText = label,
         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
         trailingIcon = value.takeIf(String::isNotEmpty)?.let {
             {

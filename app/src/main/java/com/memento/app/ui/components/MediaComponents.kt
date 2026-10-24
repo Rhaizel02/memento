@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -11,6 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoStories
@@ -63,7 +71,7 @@ fun MediaCard(
                 Text(
                     media.title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -93,7 +101,7 @@ fun PosterArtwork(
             AsyncImage(
                 model = url,
                 contentDescription = title,
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
                 contentScale = ContentScale.Crop,
             )
         }
@@ -103,23 +111,25 @@ fun PosterArtwork(
 @Composable
 fun PosterFallback(type: MediaType, title: String, modifier: Modifier = Modifier) {
     val icon = type.icon()
-    val background = MaterialTheme.mediaTypeColor(type)
-    val contentColor = MaterialTheme.onMediaTypeColor(type)
-    Box(
-        modifier = modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).background(background),
+    val background = MaterialTheme.colorScheme.surfaceContainerHighest
+    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    BoxWithConstraints(
+        modifier = modifier.clip(RoundedCornerShape(10.dp)).background(background),
         contentAlignment = Alignment.Center,
     ) {
+        val compactArtwork = maxHeight < 100.dp
+        val showArtworkTitle = maxHeight >= 120.dp && maxWidth >= 90.dp
         Column(
-            modifier = Modifier.fillMaxSize().padding(MementoSpacing.normal),
+            modifier = Modifier.fillMaxSize().padding(8.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(icon, contentDescription = null, tint = contentColor.copy(alpha = 0.85f), modifier = Modifier.size(44.dp))
-            Text(
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(if (compactArtwork) 24.dp else 36.dp))
+            if (showArtworkTitle) Text(
                 title,
                 modifier = Modifier.padding(top = MementoSpacing.medium),
                 color = contentColor,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -153,7 +163,7 @@ fun StaticTag(label: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
         color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = MaterialTheme.shapes.small,
+        shape = androidx.compose.foundation.shape.CircleShape,
     ) {
         Text(
             label,
@@ -198,6 +208,41 @@ fun MediaType.icon(): ImageVector = when (this) {
     MediaType.MOVIE -> Icons.Outlined.Movie
     MediaType.SERIES -> Icons.Outlined.Tv
     MediaType.GAME -> Icons.Outlined.SportsEsports
+}
+
+@Composable
+fun MediaHero(
+    type: MediaType, title: String, posterUrl: String?, backdropUrl: String?,
+    metadata: String, onBack: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) }
+            Text(mediaTypeLabel(type), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            actions()
+        }
+        Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+            backdropUrl?.let {
+                AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
+                    MaterialTheme.colorScheme.background.copy(alpha = 0.75f),
+                    MaterialTheme.colorScheme.background.copy(alpha = 0.45f),
+                    MaterialTheme.colorScheme.background,
+                ))))
+            }
+            PosterArtwork(type, title, posterUrl, Modifier.width(138.dp).height(207.dp))
+        }
+        Column(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, style = MaterialTheme.typography.headlineLarge,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (metadata.isNotBlank()) Text(metadata, Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
+    }
 }
 
 @Preview

@@ -297,6 +297,21 @@ class ViewModelsTest {
         assertEquals("Borrador conservado", note.content)
     }
 
+    @Test fun `quick capture draft survives dismissal and explicit discard clears it`() = runTest {
+        val viewModel = homeViewModel(FakeMediaRepository())
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.openQuickNote(quickItem())
+        viewModel.updateQuickNote("Una idea que todavía no quiero perder")
+        viewModel.dismissQuickCapture()
+        viewModel.openQuickNote(quickItem())
+        advanceUntilIdle()
+        assertEquals("Una idea que todavía no quiero perder", (viewModel.state.value.quickCapture as QuickCaptureSheet.Note).content)
+        viewModel.discardQuickCapture()
+        viewModel.openQuickNote(quickItem())
+        advanceUntilIdle()
+        assertEquals("", (viewModel.state.value.quickCapture as QuickCaptureSheet.Note).content)
+    }
+
     @Test fun `library forwards search and type filters`() = runTest {
         val repository = FakeMediaRepository().apply { library.value = listOf(media) }
         val viewModel = LibraryViewModel(repository)

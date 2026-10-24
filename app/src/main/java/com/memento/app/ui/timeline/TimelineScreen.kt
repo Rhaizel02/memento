@@ -29,12 +29,13 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import com.memento.app.ui.components.MementoFilterChip as FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,31 +85,23 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 fun TimelineScreen(
     state: TimelineUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onMediaTypeSelected: (MediaType?) -> Unit,
     onOpenMedia: (String) -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onOpenCalendar: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
+    onOpenSettings: (() -> Unit)? = null,
 ) {
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.timeline_global_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onOpenCalendar) {
-                        Icon(
-                            Icons.Outlined.CalendarMonth,
-                            contentDescription = stringResource(R.string.open_cultural_calendar),
-                        )
-                    }
-                },
+            com.memento.app.ui.components.MementoScreenHeader(
+                stringResource(R.string.archive_history_tab), onBack = onBack, onSettings = onOpenSettings,
+                actions = { IconButton(onClick = onOpenCalendar) {
+                    Icon(Icons.Outlined.CalendarMonth, stringResource(R.string.open_cultural_calendar))
+                } },
             )
         },
     ) { padding ->
@@ -229,7 +222,7 @@ private fun TimelineEventGroup(
                 event.date.format(DateTimeFormatter.ofPattern(stringResource(R.string.timeline_date_pattern), locale)),
                 modifier = Modifier.padding(start = MementoSpacing.normal, top = MementoSpacing.normal, end = MementoSpacing.normal),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
             )
         }
         TimelineEventRow(
@@ -263,12 +256,12 @@ internal fun TimelineEventRow(
         verticalAlignment = Alignment.Top,
     ) {
         Surface(
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(24.dp),
             shape = CircleShape,
             color = accent.copy(alpha = 0.14f),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(eventIcon(event.eventType), contentDescription = null, modifier = Modifier.size(19.dp), tint = accent)
+                Icon(eventIcon(event.eventType), contentDescription = null, modifier = Modifier.size(16.dp), tint = accent)
             }
         }
         if (event.showsPoster()) {
@@ -284,7 +277,7 @@ internal fun TimelineEventRow(
             Text(
                 event.title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -307,8 +300,8 @@ internal fun TimelineEventRow(
             event.reflectionContent?.let { content ->
                 Text(
                     stringResource(R.string.quoted_reflection, content),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = com.memento.app.ui.theme.EditorialQuoteStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = reflectionMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )

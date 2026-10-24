@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoBottomSheet as ModalBottomSheet
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,6 +42,7 @@ internal fun HomeQuickCaptureSheet(
     onNoteChanged: (String) -> Unit,
     onSaveProgress: () -> Unit,
     onSaveNote: () -> Unit,
+    onDiscard: () -> Unit = onDismiss,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         when (sheet) {
@@ -56,6 +57,7 @@ internal fun HomeQuickCaptureSheet(
                 onDismiss = onDismiss,
                 onChanged = onNoteChanged,
                 onSave = onSaveNote,
+                onDiscard = onDiscard,
             )
         }
     }
@@ -139,6 +141,20 @@ private fun QuickProgressContent(
             )
         }
         sheet.error?.let { SheetError(it) }
+        val increments = when (sheet.item.type) {
+            MediaType.BOOK -> listOf(1.0, 5.0, 10.0, 25.0)
+            MediaType.SERIES -> listOf(1.0)
+            MediaType.GAME -> listOf(0.5, 1.0)
+            MediaType.MOVIE -> listOf(5.0, 15.0)
+        }
+        com.memento.app.ui.components.ProgressIncrements(
+            increments, if (sheet.item.type == MediaType.SERIES) sheet.episode else sheet.currentValue,
+            onChanged = { onChanged(if (sheet.item.type == MediaType.SERIES) QuickProgressField.EPISODE else QuickProgressField.CURRENT, it) },
+            max = if (sheet.item.type == MediaType.BOOK) sheet.totalValue.toDoubleOrNull() else null,
+        )
+        if (sheet.item.type == MediaType.GAME) com.memento.app.ui.components.ProgressIncrements(
+            listOf(5.0, 10.0), sheet.totalValue, { onChanged(QuickProgressField.TOTAL, it) }, max = 100.0,
+        )
         SheetActions(
             isSaving = sheet.isSaving,
             canSave = when (sheet.item.type) {
@@ -157,6 +173,7 @@ private fun QuickNoteContent(
     onDismiss: () -> Unit,
     onChanged: (String) -> Unit,
     onSave: () -> Unit,
+    onDiscard: () -> Unit,
 ) {
     val focusRequester = remember(sheet.item.consumptionId) { FocusRequester() }
     LaunchedEffect(focusRequester) { focusRequester.requestFocus() }
@@ -172,12 +189,17 @@ private fun QuickNoteContent(
             enabled = !sheet.isSaving,
         )
         sheet.error?.let { SheetError(it) }
+        Text(stringResource(R.string.archive_draft_kept), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         SheetActions(
             isSaving = sheet.isSaving,
             canSave = sheet.content.isNotBlank(),
             onDismiss = onDismiss,
             onSave = onSave,
         )
+        TextButton(onClick = onDiscard, enabled = !sheet.isSaving) {
+            Text(stringResource(R.string.archive_discard_draft), color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

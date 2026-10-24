@@ -30,7 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -317,7 +317,7 @@ private fun OnboardingImportError(detail: String, modifier: Modifier = Modifier)
                 Text(
                     stringResource(R.string.onboarding_import_error_title),
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 )
                 Text(detail, style = MaterialTheme.typography.bodySmall)
             }

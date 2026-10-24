@@ -16,16 +16,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
+import com.memento.app.ui.components.MementoFilterChip as FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoSecondaryButton as OutlinedButton
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -79,24 +79,17 @@ fun AddMediaScreen(
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
     ) {
         item {
-            Row {
-                IconButton(
-                    onClick = if (state.mode == AddMediaMode.COMPLETE_DETAILS) onCancelCompletion else onBack,
-                    enabled = state.mode != AddMediaMode.COMPLETE_DETAILS || !state.isSaving,
-                ) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(
-                    text = when (state.mode) {
-                        AddMediaMode.SEARCH -> stringResource(R.string.add_work)
-                        AddMediaMode.MANUAL -> stringResource(R.string.manual_add_title)
-                        AddMediaMode.CONFIRM_EXTERNAL -> stringResource(R.string.confirm_work)
-                        AddMediaMode.COMPLETE_DETAILS -> stringResource(R.string.complete_add_title)
-                    },
-                    modifier = Modifier.padding(start = MementoSpacing.small, top = MementoSpacing.small),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-            }
+            com.memento.app.ui.components.MementoScreenHeader(
+                title = when (state.mode) {
+                    AddMediaMode.SEARCH -> stringResource(R.string.add_work)
+                    AddMediaMode.MANUAL -> stringResource(R.string.manual_add_title)
+                    AddMediaMode.CONFIRM_EXTERNAL -> stringResource(R.string.confirm_work)
+                    AddMediaMode.COMPLETE_DETAILS -> stringResource(R.string.complete_add_title)
+                },
+                onBack = { if (!state.isSaving) {
+                    if (state.mode == AddMediaMode.COMPLETE_DETAILS) onCancelCompletion() else onBack()
+                } },
+            )
         }
 
         if (state.mode == AddMediaMode.COMPLETE_DETAILS) {
@@ -206,7 +199,7 @@ private fun CompletedForm(
             value = completed.completedDateText,
             onValueChange = onDateChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.completion_date)) },
+            labelText = stringResource(R.string.completion_date),
             supportingText = {
                 Text(
                     stringResource(
@@ -240,7 +233,7 @@ private fun CompletedForm(
             value = completed.finalReflection,
             onValueChange = onReflectionChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.final_reflection_prompt)) },
+            labelText = stringResource(R.string.final_reflection_prompt),
             supportingText = { Text(stringResource(R.string.optional)) },
             enabled = !state.isSaving,
             minLines = 5,
@@ -300,7 +293,7 @@ private fun MediaForm(
             value = state.title,
             onValueChange = onTitleChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.title_required)) },
+            labelText = stringResource(R.string.title_required),
             singleLine = true,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium)) {
@@ -308,7 +301,7 @@ private fun MediaForm(
                 value = state.year,
                 onValueChange = onYearChanged,
                 modifier = Modifier.weight(1f),
-                label = { Text(stringResource(R.string.year)) },
+                labelText = stringResource(R.string.year),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
             )
@@ -317,7 +310,7 @@ private fun MediaForm(
                     value = state.pageCount,
                     onValueChange = onPageCountChanged,
                     modifier = Modifier.weight(1f),
-                    label = { Text(stringResource(R.string.page_count)) },
+                    labelText = stringResource(R.string.page_count),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                 )
@@ -327,21 +320,21 @@ private fun MediaForm(
             value = state.creator,
             onValueChange = onCreatorChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(creatorRoleLabel(state.type)) },
+            labelText = creatorRoleLabel(state.type),
             singleLine = true,
         )
         OutlinedTextField(
             value = state.description,
             onValueChange = onDescriptionChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.description)) },
+            labelText = stringResource(R.string.description),
             minLines = 4,
         )
         OutlinedTextField(
             value = state.imageUrl,
             onValueChange = onImageChanged,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.image_optional)) },
+            labelText = stringResource(R.string.image_optional),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             singleLine = true,
         )

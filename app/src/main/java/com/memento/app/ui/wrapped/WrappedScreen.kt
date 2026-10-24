@@ -25,7 +25,7 @@ import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -265,15 +265,15 @@ private fun WrappedPage(card: WrappedCard) {
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
                     listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (imageUrl == null) 1f else 0.82f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = if (imageUrl == null) 1f else 0.94f),
+                        MaterialTheme.colorScheme.background.copy(alpha = if (imageUrl == null) 1f else 0.90f),
+                        MaterialTheme.colorScheme.surface.copy(alpha = if (imageUrl == null) 1f else 0.97f),
                     ),
                 ),
             ),
         )
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = MementoSpacing.xLarge, vertical = 96.dp),
+                .padding(horizontal = MementoSpacing.large, vertical = 88.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -329,13 +329,13 @@ private fun WrappedPage(card: WrappedCard) {
 
 @Composable
 private fun CoverPage(card: WrappedCard.Cover) {
-    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
     Text(
         if (card.isYearToDate) stringResource(R.string.wrapped_year_to_date, card.year)
         else stringResource(R.string.wrapped_year, card.year),
         modifier = Modifier.padding(top = MementoSpacing.normal),
         style = MaterialTheme.typography.displayMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         textAlign = TextAlign.Center,
     )
     Text(
@@ -349,7 +349,7 @@ private fun CoverPage(card: WrappedCard.Cover) {
 
 @Composable
 private fun MediaSummaryPage(card: WrappedCard.MediaSummary) {
-    Text(stringResource(R.string.wrapped_media_summary), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.wrapped_media_summary), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Medium)
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = MementoSpacing.large),
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
@@ -365,7 +365,7 @@ private fun MediaSummaryPage(card: WrappedCard.MediaSummary) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(mediaTypeLabel(type), style = MaterialTheme.typography.titleLarge)
-                    Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -384,7 +384,7 @@ private fun EditorialPage(
         hero,
         modifier = Modifier.padding(top = MementoSpacing.normal),
         style = MaterialTheme.typography.displaySmall,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         textAlign = TextAlign.Center,
     )
     Text(
@@ -444,7 +444,7 @@ private fun WorkPage(work: WrappedWork) {
         work.title,
         modifier = Modifier.padding(top = MementoSpacing.large),
         style = MaterialTheme.typography.headlineMedium,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         textAlign = TextAlign.Center,
     )
     val favoriteLabel = stringResource(R.string.timeline_favorite)
@@ -484,7 +484,7 @@ private fun ReflectionPage(reflection: WrappedReflection) {
 
 @Composable
 private fun FavoritesPage(works: List<WrappedWork>) {
-    Text(stringResource(R.string.wrapped_favorites), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.wrapped_favorites), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Medium)
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = MementoSpacing.large),
         horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),

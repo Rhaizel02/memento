@@ -3,6 +3,11 @@
 package com.memento.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
 import androidx.compose.material.icons.outlined.Add
@@ -13,6 +18,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -105,7 +113,7 @@ fun MementoApp(
         TopDestination(HomeKey, R.string.home, Icons.Outlined.Home),
         TopDestination(LibraryKey, R.string.library, Icons.AutoMirrored.Outlined.LibraryBooks),
         TopDestination(DiscoverKey, R.string.discover, Icons.Outlined.Explore),
-        TopDestination(SettingsKey, R.string.settings, Icons.Outlined.Settings),
+        TopDestination(TimelineKey, R.string.archive_history_tab, Icons.Outlined.History),
     )
     val showChrome = current in destinations.map { it.key }
 
@@ -118,13 +126,20 @@ fun MementoApp(
     Scaffold(
         bottomBar = {
             if (showChrome) {
-                NavigationBar {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = androidx.compose.ui.unit.Dp(0f)) {
                     destinations.forEach { destination ->
                         NavigationBarItem(
                             selected = current == destination.key,
                             onClick = { openTopLevel(destination.key) },
                             icon = { Icon(destination.icon, contentDescription = stringResource(destination.label)) },
                             label = { Text(stringResource(destination.label)) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
@@ -139,7 +154,8 @@ fun MementoApp(
         },
     ) { padding ->
         NavDisplay(
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(padding).fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 840.dp),
             backStack = backStack,
             entryDecorators = listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),
@@ -155,6 +171,7 @@ fun MementoApp(
                             state = state,
                             onAdd = { backStack.add(newAddMediaKey()) },
                             onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
+                            onOpenSettings = { backStack.add(SettingsKey) },
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onOpenRemember = { backStack.add(RememberKey(it)) },
                             onOpenDiscover = { openTopLevel(DiscoverKey) },
@@ -162,7 +179,7 @@ fun MementoApp(
                             onOpenStats = { backStack.add(StatsKey) },
                             onOpenWrapped = { backStack.add(WrappedKey(it)) },
                             onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
-                            onOpenTimeline = { backStack.add(TimelineKey) },
+                            onOpenTimeline = { openTopLevel(TimelineKey) },
                             onOpenQuickProgress = viewModel::openQuickProgress,
                             onOpenQuickNote = viewModel::openQuickNote,
                             onQuickProgressChanged = viewModel::updateQuickProgress,
@@ -170,6 +187,7 @@ fun MementoApp(
                             onSaveQuickProgress = viewModel::saveQuickProgress,
                             onSaveQuickNote = viewModel::saveQuickNote,
                             onDismissQuickCapture = viewModel::dismissQuickCapture,
+                            onDiscardQuickCapture = viewModel::discardQuickCapture,
                         )
                     }
                     LibraryKey -> NavEntry(key) {
@@ -189,6 +207,7 @@ fun MementoApp(
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onAdd = { backStack.add(newAddMediaKey()) },
                             onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
+                            onOpenSettings = { backStack.add(SettingsKey) },
                         )
                     }
                     GlobalSearchKey -> NavEntry(key) {
@@ -211,12 +230,14 @@ fun MementoApp(
                             onRefresh = viewModel::refresh,
                             onTypeSelected = viewModel::setType,
                             onOpenRecommendation = { backStack.add(it.toDetailKey()) },
+                            onOpenSettings = { backStack.add(SettingsKey) },
                         )
                     }
                     SettingsKey -> NavEntry(key) {
                         val viewModel: SettingsViewModel = hiltViewModel()
                         val state by viewModel.state.collectAsStateWithLifecycle()
                         SettingsScreen(
+                            onBack = { backStack.removeLastOrNull() },
                             themeMode = themeMode,
                             themePalette = themePalette,
                             state = state,
@@ -345,7 +366,8 @@ fun MementoApp(
                         val state by viewModel.state.collectAsStateWithLifecycle()
                         TimelineScreen(
                             state = state,
-                            onBack = { backStack.removeLastOrNull() },
+                            onBack = null,
+                            onOpenSettings = { backStack.add(SettingsKey) },
                             onMediaTypeSelected = viewModel::selectMediaType,
                             onOpenMedia = { backStack.add(MediaDetailKey(it)) },
                             onLoadMore = viewModel::loadMore,

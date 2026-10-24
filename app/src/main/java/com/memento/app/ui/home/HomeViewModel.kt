@@ -115,6 +115,7 @@ class HomeViewModel @Inject constructor(
         candidate?.let { rememberRepository.recordExposure(it.consumptionId) }
     }
     private val quickCapture = MutableStateFlow<QuickCaptureSheet?>(null)
+    private val captureDrafts = mutableMapOf<String, QuickCaptureSheet>()
     private val content = combine(
         repository.observeHomeMedia(),
         remember,
@@ -147,6 +148,10 @@ class HomeViewModel @Inject constructor(
 
     fun openQuickProgress(item: HomeMediaItem) {
         if (quickCapture.value?.isSaving == true) return
+        (captureDrafts["progress:${item.consumptionId}"] as? QuickCaptureSheet.Progress)?.let {
+            quickCapture.value = it.copy(item = item)
+            return
+        }
         val progress = item.progress
         val bookTotal = (progress as? HomeProgress.Pages)?.total ?: item.pageCount?.toDouble()
         quickCapture.value = QuickCaptureSheet.Progress(
@@ -170,11 +175,22 @@ class HomeViewModel @Inject constructor(
 
     fun openQuickNote(item: HomeMediaItem) {
         if (quickCapture.value?.isSaving == true) return
-        quickCapture.value = QuickCaptureSheet.Note(item)
+        quickCapture.value = (captureDrafts["note:${item.consumptionId}"] as? QuickCaptureSheet.Note)
+            ?.copy(item = item) ?: QuickCaptureSheet.Note(item)
     }
 
     fun dismissQuickCapture() {
-        if (quickCapture.value?.isSaving != true) quickCapture.value = null
+        val draft = quickCapture.value ?: return
+        if (draft.isSaving) return
+        captureDrafts[(if (draft is QuickCaptureSheet.Progress) "progress:" else "note:") + draft.item.consumptionId] = draft
+        quickCapture.value = null
+    }
+
+    fun discardQuickCapture() {
+        val draft = quickCapture.value ?: return
+        if (draft.isSaving) return
+        captureDrafts.remove((if (draft is QuickCaptureSheet.Progress) "progress:" else "note:") + draft.item.consumptionId)
+        quickCapture.value = null
     }
 
     fun updateQuickProgress(field: QuickProgressField, value: String) {
@@ -212,6 +228,7 @@ class HomeViewModel @Inject constructor(
                     values.episode,
                 )
             }.onSuccess {
+                captureDrafts.remove("progress:${draft.item.consumptionId}")
                 quickCapture.value = null
             }.onFailure {
                 quickCapture.value = draft.copy(error = "No se pudo guardar el progreso.")
@@ -230,7 +247,7 @@ class HomeViewModel @Inject constructor(
         quickCapture.value = draft.copy(isSaving = true, error = null)
         viewModelScope.launch {
             runCatching { repository.saveReflection(draft.item.consumptionId, ReflectionType.NOTE, content) }
-                .onSuccess { quickCapture.value = null }
+                .onSuccess { captureDrafts.remove("note:${draft.item.consumptionId}"); quickCapture.value = null }
                 .onFailure { quickCapture.value = draft.copy(error = "No se pudo guardar la nota.") }
         }
     }

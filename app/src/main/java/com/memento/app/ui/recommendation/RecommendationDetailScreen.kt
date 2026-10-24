@@ -18,14 +18,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoSecondaryButton as OutlinedButton
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,7 +66,7 @@ fun RecommendationDetailScreen(
     onNotInterested: () -> Unit,
 ) {
     val candidate = state.candidate
-    var showCompletion by remember { mutableStateOf(false) }
+    var showCompletion by rememberSaveable { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val externalUrl = candidate?.externalUrl?.takeIf(::isSafeExternalUrl)
 
@@ -85,45 +85,17 @@ fun RecommendationDetailScreen(
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
     ) {
         item {
-            Box(Modifier.fillMaxWidth().height(220.dp)) {
-                AsyncImage(
-                    model = candidate.backdropUrl ?: candidate.posterUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                IconButton(onClick = onBack, modifier = Modifier.padding(MementoSpacing.small)) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-            }
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
-                horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
-            ) {
-                PosterArtwork(candidate.type, candidate.title, candidate.posterUrl, Modifier.width(108.dp).height(162.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                    Text(candidate.title, style = MaterialTheme.typography.headlineMedium)
-                    Text(
-                        listOfNotNull(candidate.creators.firstOrNull(), candidate.releaseYear?.toString()).joinToString(" · "),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(mediaTypeLabel(candidate.type), style = MaterialTheme.typography.labelLarge)
-                    state.recommendation?.let {
-                        Text(categoryLabel(it.category), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
-                    }
-                    if (candidate.externalRating != null && candidate.externalVoteCount != null) {
-                        Text(
-                            stringResource(
-                                R.string.external_quality_format,
-                                candidate.externalRating,
-                                candidate.externalVoteCount,
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            com.memento.app.ui.components.MediaHero(candidate.type, candidate.title, candidate.posterUrl,
+                candidate.backdropUrl, listOfNotNull(candidate.creators.firstOrNull(), candidate.releaseYear?.toString()).joinToString(" · "), onBack)
+            Column(Modifier.fillMaxWidth().padding(MementoSpacing.normal),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                state.recommendation?.let { com.memento.app.ui.components.RecommendationTierLabel(it.category) }
+                candidate.externalRating?.let { rating ->
+                    Text("★ " + rating + " · " + when (candidate.provider) {
+                        com.memento.app.domain.model.MetadataProvider.TMDB -> "TMDB"
+                        com.memento.app.domain.model.MetadataProvider.RAWG -> "RAWG"
+                        com.memento.app.domain.model.MetadataProvider.OPEN_LIBRARY -> "Open Library"
+                    }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -135,14 +107,15 @@ fun RecommendationDetailScreen(
                 ) { items(candidate.genres.take(6)) { StaticTag(it) } }
             }
         }
-        state.recommendation?.reasons?.firstOrNull()?.let { reason ->
+        if (state.recommendation?.reasons?.isNotEmpty() == true) {
             item {
-                Text(
-                    recommendationReason(reason),
-                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                Column(Modifier.padding(horizontal = MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.archive_recommendation_evidence), style = MaterialTheme.typography.titleLarge)
+                    state.recommendation.reasons.take(3).forEach {
+                        Text(com.memento.app.ui.components.recommendationReasonText(it),
+                            style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
         if (state.watchAvailability != WatchAvailabilityUiState.Hidden) {
@@ -221,7 +194,7 @@ private fun RecommendationCompletionDialog(onDismiss: () -> Unit, onConfirm: (Co
                 OutlinedTextField(
                     value = dateText,
                     onValueChange = { dateText = it.filter { character -> character.isDigit() || character == '-' }.take(10) },
-                    label = { Text(stringResource(R.string.completion_date)) },
+                    labelText = stringResource(R.string.completion_date),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = date == null,
                     singleLine = true,
@@ -235,7 +208,7 @@ private fun RecommendationCompletionDialog(onDismiss: () -> Unit, onConfirm: (Co
                 OutlinedTextField(
                     value = reflection,
                     onValueChange = { reflection = it },
-                    label = { Text(stringResource(R.string.final_reflection_prompt)) },
+                    labelText = stringResource(R.string.final_reflection_prompt),
                     minLines = 3,
                 )
             }

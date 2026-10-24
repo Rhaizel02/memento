@@ -16,6 +16,8 @@ import com.memento.app.domain.model.SaveExternalResult
 import com.memento.app.domain.model.EditMediaInput
 import com.memento.app.domain.model.Tag
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import com.memento.app.domain.model.LibraryMediaSummary
 import java.time.LocalDate
 
 interface MediaRepository {
@@ -24,6 +26,12 @@ interface MediaRepository {
         type: MediaType? = null,
         filters: LibraryFilters = LibraryFilters(),
     ): Flow<List<MediaItem>>
+    fun observeLibrarySummaries(
+        query: String = "",
+        type: MediaType? = null,
+        filters: LibraryFilters = LibraryFilters(),
+    ): Flow<List<LibraryMediaSummary>> = observeLibrary(query, type, filters)
+        .map { items -> items.map { LibraryMediaSummary(it) } }
     fun observeMediaDetail(mediaId: String): Flow<MediaDetail?>
     fun observeTimeline(mediaId: String): Flow<List<TimelineEvent>>
     fun observeInProgress(): Flow<List<MediaItem>>

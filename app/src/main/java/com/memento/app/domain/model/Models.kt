@@ -35,6 +35,14 @@ data class Tag(
     val createdAt: Instant,
 )
 
+data class LibraryMediaSummary(
+    val media: MediaItem,
+    val creator: String? = null,
+    val status: ConsumptionStatus? = null,
+    val ratingHalfStars: Int? = null,
+    val tags: List<Tag> = emptyList(),
+)
+
 data class MediaItem(
     val id: String,
     val type: MediaType,

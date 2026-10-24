@@ -12,11 +12,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FilterChip
+import com.memento.app.ui.components.MementoFilterChip as FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,7 +40,10 @@ fun DiscoverScreen(
     onRefresh: () -> Unit,
     onTypeSelected: (MediaType?) -> Unit,
     onOpenRecommendation: (Recommendation) -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
+    Column(Modifier.fillMaxSize()) {
+    com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.discover), onSettings = onOpenSettings)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(MementoSpacing.normal),
@@ -48,9 +51,8 @@ fun DiscoverScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                Text(stringResource(R.string.discover), style = MaterialTheme.typography.headlineLarge)
                 Text(
-                    stringResource(R.string.discover_intro),
+                    stringResource(R.string.archive_discover_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -95,7 +97,7 @@ fun DiscoverScreen(
                 items = state.recommendations,
                 key = { it.candidate.provider.name + it.candidate.externalId + it.candidate.type.name },
             ) { recommendation ->
-                RecommendationCard(recommendation, onOpenRecommendation)
+                com.memento.app.ui.components.RecommendationPreview(recommendation, { onOpenRecommendation(recommendation) })
             }
             val genres = state.profile.genreWeights.filterValues { it > 0 }.entries
                 .sortedByDescending { it.value }.take(5).map { it.key }
@@ -103,7 +105,7 @@ fun DiscoverScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
                         Text(stringResource(R.string.explore_by_genre), style = MaterialTheme.typography.titleLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
                             genres.take(3).forEach { StaticTag(it) }
                         }
                     }
@@ -112,68 +114,7 @@ fun DiscoverScreen(
         }
     }
 }
-
-@Composable
-private fun RecommendationCard(
-    recommendation: Recommendation,
-    onOpen: (Recommendation) -> Unit,
-) {
-    val candidate = recommendation.candidate
-    Card(onClick = { onOpen(recommendation) }, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal)) {
-                PosterArtwork(
-                    type = candidate.type,
-                    title = candidate.title,
-                    imageUrl = candidate.posterUrl,
-                    modifier = Modifier.width(88.dp).height(132.dp),
-                )
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                    Text(candidate.title, maxLines = 2, style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        recommendationCategoryLabel(recommendation.category),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    candidate.releaseYear?.let { Text(it.toString(), style = MaterialTheme.typography.bodySmall) }
-                    if (candidate.genres.isNotEmpty()) {
-                        Text(
-                            candidate.genres.take(2).joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    recommendation.reasons.firstOrNull()?.let { reason ->
-                        Text(
-                            reasonText(reason),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
-
-@Composable
-private fun reasonText(reason: RecommendationReason): String = when (reason) {
-    is RecommendationReason.AnchorWorks -> stringResource(R.string.reason_anchors, reason.titles.joinToString(" y "))
-    is RecommendationReason.Genre -> stringResource(R.string.reason_genre, reason.name)
-    is RecommendationReason.Creator -> stringResource(R.string.reason_creator, reason.name)
-    is RecommendationReason.MediaKind -> stringResource(R.string.reason_type, mediaTypeLabel(reason.type))
-    is RecommendationReason.Exploration -> reason.anchorTitle?.let { stringResource(R.string.reason_exploration_anchor, it) }
-        ?: stringResource(R.string.reason_exploration)
-}
-
-@Composable
-private fun recommendationCategoryLabel(category: RecommendationCategory): String = stringResource(
-    when (category) {
-        RecommendationCategory.VERY_AFFINE -> R.string.recommendation_very_affine
-        RecommendationCategory.GOOD_BET -> R.string.recommendation_good_bet
-        RecommendationCategory.EXPLORATION -> R.string.recommendation_exploration
-    },
-)
 
 @Composable
 private fun discoverTypeLabel(type: MediaType?): String = stringResource(

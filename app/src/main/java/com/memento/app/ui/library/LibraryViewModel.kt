@@ -3,6 +3,7 @@ package com.memento.app.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memento.app.domain.model.MediaItem
+import com.memento.app.domain.model.LibraryMediaSummary
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.LibraryFilters
 import com.memento.app.domain.model.LibrarySort
@@ -25,6 +26,7 @@ data class LibraryUiState(
     val items: List<MediaItem> = emptyList(),
     val availableTags: List<Tag> = emptyList(),
     val isLoading: Boolean = true,
+    val summaries: Map<String, LibraryMediaSummary> = emptyMap(),
 )
 
 @HiltViewModel
@@ -32,11 +34,12 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(repository: MediaRepository) : ViewModel() {
     private data class Request(val query: String = "", val type: MediaType? = null, val filters: LibraryFilters = LibraryFilters())
     private val request = MutableStateFlow(Request())
-    private val items = request.flatMapLatest { repository.observeLibrary(it.query, it.type, it.filters) }
+    private val items = request.flatMapLatest { repository.observeLibrarySummaries(it.query, it.type, it.filters) }
     private val tags = repository.observeTags()
 
     val state = combine(request, items, tags) { current, media, availableTags ->
-        LibraryUiState(current.query, current.type, current.filters, media, availableTags, isLoading = false)
+        LibraryUiState(current.query, current.type, current.filters, media.map { it.media }, availableTags,
+            isLoading = false, summaries = media.associateBy { it.media.id })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     fun setQuery(query: String) = request.update { it.copy(query = query) }

@@ -13,8 +13,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import com.memento.app.ui.components.MementoPrimaryButton as Button
+import com.memento.app.ui.components.EditorialGroup as Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -40,7 +40,12 @@ fun StatsScreen(
     onOpenWrapped: (Int) -> Unit,
     onOpenCulturalProfile: () -> Unit,
 ) {
-    val summary = state.summary ?: return
+    val summary = state.summary
+    if (summary == null) {
+        Column { com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.statistics), onBack = onBack)
+            com.memento.app.ui.components.ArchiveLoading() }
+        return
+    }
     val yearIndex = state.availableYears.indexOf(state.selectedYear)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -48,24 +53,12 @@ fun StatsScreen(
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
     ) {
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(stringResource(R.string.statistics), style = MaterialTheme.typography.headlineLarge)
-                Row {
-                    IconButton(onClick = onOpenCulturalProfile) {
-                        Icon(
-                            Icons.Outlined.PersonOutline,
-                            contentDescription = stringResource(R.string.open_cultural_profile),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    IconButton(onClick = { onOpenWrapped(state.selectedYear) }) {
-                        Text(stringResource(R.string.wrapped_short), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
+            com.memento.app.ui.components.MementoScreenHeader(
+                stringResource(R.string.statistics), onBack = onBack,
+                actions = { IconButton(onClick = onOpenCulturalProfile) {
+                    Icon(Icons.Outlined.PersonOutline, stringResource(R.string.open_cultural_profile))
+                } },
+            )
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -176,7 +169,7 @@ private fun RankingCard(title: String, rows: List<RankedStat>, showRating: Boole
             Text(title, style = MaterialTheme.typography.titleLarge)
             rows.forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(row.label)
+                    Text(row.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     Text(
                         if (showRating) stringResource(R.string.short_rating_format, row.averageRating ?: 0.0)
                         else row.count.toString(),

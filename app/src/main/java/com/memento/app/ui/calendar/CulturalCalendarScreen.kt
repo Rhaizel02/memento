@@ -23,7 +23,7 @@ import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Today
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,19 +81,11 @@ fun CulturalCalendarScreen(
     onRetry: () -> Unit,
 ) {
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.cultural_calendar_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onToday) {
-                        Icon(Icons.Outlined.Today, contentDescription = stringResource(R.string.calendar_go_today))
-                    }
-                },
+            com.memento.app.ui.components.MementoScreenHeader(
+                stringResource(R.string.cultural_calendar_title), onBack = onBack,
+                actions = { IconButton(onClick = onToday) { Icon(Icons.Outlined.Today, stringResource(R.string.calendar_go_today)) } },
             )
         },
     ) { padding ->
@@ -153,7 +145,7 @@ private fun CalendarPeriodHeader(
                 if (state.viewMode == CalendarViewMode.MONTH) monthTitle(state.selectedMonth, locale)
                 else state.selectedMonth.year.toString(),
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
             )
@@ -323,7 +315,7 @@ private fun SelectedDay(
             date.format(DateTimeFormatter.ofPattern(stringResource(R.string.calendar_selected_date_pattern), locale))
                 .replaceFirstChar { it.titlecase(locale) },
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
         )
         if (events.isEmpty()) {
             Text(

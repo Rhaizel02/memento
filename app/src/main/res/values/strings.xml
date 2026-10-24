@@ -1,4 +1,19 @@
 <resources>
+    <string name="archive_home_title">Tu archivo cultural</string>
+    <string name="archive_missing_work">Esta obra ya no está disponible.</string>
+    <string name="archive_library_subtitle">Las historias que guardas contigo.</string>
+    <string name="archive_list_view">Vista de lista</string>
+    <string name="archive_grid_view">Vista de portadas</string>
+    <string name="archive_your_story">Tu historia con ella</string>
+    <string name="archive_about_work">Sobre la obra</string>
+    <string name="archive_discover_subtitle">Una selección para tu próximo encuentro.</string>
+    <string name="archive_draft_kept">El borrador se conserva hasta que guardes o descartes.</string>
+    <string name="archive_discard_draft">Descartar borrador</string>
+    <string name="archive_current_progress">Progreso actual</string>
+    <string name="archive_add_increment">Añadir %1$s</string>
+    <string name="archive_history_tab">Historia</string>
+    <string name="archive_open_recommendation">Ver recomendación</string>
+    <string name="archive_recommendation_evidence">Por qué puede acompañarte</string>
     <string name="app_name">Memento</string>
     <string name="app_tagline">Guarda las historias que consumes y las ideas que dejan contigo.</string>
     <string name="start">Empezar</string>

@@ -22,6 +22,7 @@ import com.memento.app.domain.model.AddMediaInput
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.CompletedMediaInput
 import com.memento.app.domain.model.MediaDetail
+import com.memento.app.domain.model.LibraryMediaSummary
 import com.memento.app.domain.model.HomeMediaFeed
 import com.memento.app.domain.model.HomeMediaSummary
 import com.memento.app.domain.model.MediaItem
@@ -70,6 +71,25 @@ class RoomMediaRepository @Inject constructor(
             tagCount = filters.tagIds.size,
         ).map { rows -> rows.map { it.toDomain() } }
 
+    override fun observeLibrarySummaries(query: String, type: MediaType?, filters: LibraryFilters): Flow<List<LibraryMediaSummary>> =
+        combine(
+            observeLibrary(query, type, filters),
+            mediaDao.observeAllCreatorNames(),
+            consumptionDao.observeAll(),
+            mediaDao.observeAllTags(),
+        ) { items, creatorRows, consumptionRows, tagRows ->
+            val creators = creatorRows.groupBy({ it.mediaItemId }, { it.name })
+            val consumptions = consumptionRows.groupBy { it.mediaItemId }
+            val tags = tagRows.groupBy { it.mediaItemId }
+            items.map { media ->
+                val itemTags = tags[media.id].orEmpty().map { Tag(it.tagId, it.name, it.normalizedName, it.createdAt) }
+                val detail = MediaDetail(media, creators[media.id].orEmpty(), emptyList(),
+                    consumptions[media.id].orEmpty().map { it.toDomain() }, emptyList(), emptyList(), itemTags)
+                LibraryMediaSummary(media, detail.creators.firstOrNull(), detail.latestConsumption?.status,
+                    detail.latestConsumption?.ratingHalfStars, itemTags)
+            }
+        }
+
     override fun observeMediaDetail(mediaId: String): Flow<MediaDetail?> = combine(
         mediaDao.observeById(mediaId),
         mediaDao.observeCreatorNames(mediaId),
@@ -78,6 +98,7 @@ class RoomMediaRepository @Inject constructor(
         consumptionDao.observeProgressForMedia(mediaId),
         consumptionDao.observeReflectionsForMedia(mediaId),
         mediaDao.observeTagsForMedia(mediaId),
+        mediaDao.observeAllExternalRefs(),
     ) { values ->
         val media = (values[0] as MediaItemEntity?)?.toDomain() ?: return@combine null
         @Suppress("UNCHECKED_CAST")
@@ -89,6 +110,9 @@ class RoomMediaRepository @Inject constructor(
             progress = (values[4] as List<ProgressEntryEntity>).map { it.toDomain() },
             reflections = (values[5] as List<ReflectionEntity>).map { it.toDomain() },
             tags = (values[6] as List<TagEntity>).map { it.toDomain() },
+            externalRefs = (values[7] as List<ExternalMediaRefEntity>)
+                .filter { it.mediaItemId == mediaId }
+                .map { MediaExternalReference(it.provider, it.externalId, it.mediaType, it.externalUrl) },
         )
     }
 

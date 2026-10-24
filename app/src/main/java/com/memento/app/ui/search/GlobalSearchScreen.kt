@@ -65,15 +65,9 @@ fun GlobalSearchScreen(
     onClearFacet: () -> Unit,
 ) {
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.global_search_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-            )
+            com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.global_search_title), onBack = onBack)
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -206,15 +200,15 @@ private fun androidx.compose.foundation.lazy.LazyListScope.facetSection(
 @Composable
 private fun SectionHeader(title: String) {
     Text(
-        title.uppercase(),
+        title,
         modifier = Modifier.padding(
             start = MementoSpacing.normal,
             top = MementoSpacing.large,
             end = MementoSpacing.normal,
             bottom = MementoSpacing.small,
         ),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
     )
 }
 
@@ -241,7 +235,7 @@ private fun MediaResultRow(result: MediaSearchResult, onOpenMedia: (String) -> U
             modifier = Modifier.size(width = 40.dp, height = 58.dp),
         )
         Column(Modifier.weight(1f)) {
-            Text(result.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(result.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 mediaSupportingText(result),
                 style = MaterialTheme.typography.bodySmall,
@@ -284,7 +278,7 @@ private fun FacetResultRow(facet: FacetSearchResult, icon: ImageVector, onSelect
             Icon(icon, contentDescription = null, modifier = Modifier.padding(MementoSpacing.small))
         }
         Column(Modifier.weight(1f)) {
-            Text(facet.name, fontWeight = FontWeight.SemiBold)
+            Text(facet.name, fontWeight = FontWeight.Medium)
             val role = facet.creatorRole?.let { creatorRoleLabel(it) }
             Text(
                 listOfNotNull(
@@ -309,7 +303,7 @@ private fun TextResultRow(result: TextSearchResult, icon: ImageVector, onOpenMed
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.mediaTypeColor(result.mediaType))
         Column(Modifier.weight(1f)) {
-            Text(result.mediaTitle, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(result.mediaTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 result.excerpt,
                 style = MaterialTheme.typography.bodyMedium,

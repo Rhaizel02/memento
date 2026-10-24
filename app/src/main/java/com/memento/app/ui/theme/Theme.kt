@@ -24,27 +24,21 @@ import androidx.compose.ui.unit.sp
 import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.data.preferences.ThemePalette
 
-private val MementoTypography = Typography(
-    displaySmall = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 36.sp, lineHeight = 42.sp),
-    headlineLarge = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 30.sp, lineHeight = 36.sp),
-    headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 25.sp, lineHeight = 31.sp),
-    titleLarge = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 22.sp),
-    bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 17.sp, lineHeight = 25.sp),
-    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 15.sp, lineHeight = 22.sp),
-    labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
-)
-
 private val MementoShapes = Shapes(
-    small = RoundedCornerShape(8.dp),
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(10.dp),
     medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 object MementoSpacing {
     val xSmall = 4.dp
     val small = 8.dp
     val medium = 12.dp
-    val normal = 16.dp
+    val normal = 20.dp
+    val gutterCompact = 16.dp
+    val editorial = 40.dp
     val large = 24.dp
     val xLarge = 32.dp
     val huge = 48.dp

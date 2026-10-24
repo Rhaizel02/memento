@@ -16,14 +16,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
+import com.memento.app.ui.components.MementoPrimaryButton as Button
+import com.memento.app.ui.components.MementoFilterChip as FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoBottomSheet as ModalBottomSheet
+import com.memento.app.ui.components.MementoSecondaryButton as OutlinedButton
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
@@ -37,6 +36,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.HorizontalDivider
 import com.memento.app.R
 import com.memento.app.domain.model.ConsumptionStatus
 import com.memento.app.domain.model.LibrarySort
@@ -62,92 +70,84 @@ fun LibraryScreen(
     onOpenMedia: (String) -> Unit,
     onAdd: () -> Unit,
     onOpenGlobalSearch: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
-    var showFilters by remember { mutableStateOf(false) }
+    var showFilters by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var grid by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = MementoSpacing.normal, top = MementoSpacing.normal),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(stringResource(R.string.library), style = MaterialTheme.typography.headlineLarge)
-            IconButton(onClick = onOpenGlobalSearch) {
-                Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.global_search_title))
-            }
-        }
+        com.memento.app.ui.components.MementoScreenHeader(
+            stringResource(R.string.library), onSettings = onOpenSettings,
+            subtitle = stringResource(R.string.archive_library_subtitle),
+            actions = { IconButton(onClick = onOpenGlobalSearch) {
+                Icon(Icons.Outlined.Search, stringResource(R.string.global_search_title))
+            } },
+        )
         MementoSearchField(
-            value = state.query,
-            onValueChange = onQueryChanged,
+            value = state.query, onValueChange = onQueryChanged,
             modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
             label = stringResource(R.string.search_library),
         )
-        val types = listOf<MediaType?>(null, MediaType.BOOK, MediaType.MOVIE, MediaType.SERIES, MediaType.GAME)
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = MementoSpacing.normal),
-            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small),
-        ) {
-            items(types) { type ->
-                FilterChip(
-                    selected = state.type == type,
-                    onClick = { onTypeSelected(type) },
-                    label = { Text(typeFilterLabel(type)) },
-                )
+        LazyRow(contentPadding = PaddingValues(horizontal = MementoSpacing.normal),
+            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
+            items(listOf<MediaType?>(null) + MediaType.entries) { type ->
+                FilterChip(selected = state.type == type, onClick = { onTypeSelected(type) },
+                    label = { Text(typeFilterLabel(type)) })
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.small),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            OutlinedButton(onClick = { showFilters = true }) {
-                Icon(Icons.Outlined.FilterList, contentDescription = null)
-                Text(
-                    if (activeFilterCount(state) == 0) stringResource(R.string.filters)
+        LazyRow(contentPadding = PaddingValues(horizontal = MementoSpacing.normal),
+            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
+            items(listOf<ConsumptionStatus?>(null) + ConsumptionStatus.entries) { status ->
+                FilterChip(selected = state.filters.status == status, onClick = { onStatusSelected(status) },
+                    label = { Text(statusFilterLabel(status)) })
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            TextButton(onClick = { showFilters = true }) {
+                Icon(Icons.Outlined.FilterList, null, Modifier.size(18.dp))
+                Text(if (activeFilterCount(state) == 0) stringResource(R.string.filters)
                     else stringResource(R.string.filters_count, activeFilterCount(state)),
-                    modifier = Modifier.padding(start = MementoSpacing.small),
-                )
+                    Modifier.padding(start = 6.dp))
             }
-            Text(
-                librarySortLabel(state.filters.sort),
-                modifier = Modifier.padding(top = MementoSpacing.medium),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge,
-            )
+            Text(librarySortLabel(state.filters.sort), Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            IconButton(onClick = { grid = !grid }) {
+                Icon(if (grid) Icons.AutoMirrored.Outlined.ViewList else Icons.Outlined.GridView,
+                    stringResource(if (grid) R.string.archive_list_view else R.string.archive_grid_view))
+            }
         }
-
-        val hasConstraints = state.query.isNotBlank() || state.type != null || activeFilterCount(state) > 0
-        if (!state.isLoading && state.items.isEmpty()) {
-            EmptyState(
-                title = if (!hasConstraints) stringResource(R.string.library_empty_title)
-                    else stringResource(R.string.no_search_results),
-                body = if (!hasConstraints) stringResource(R.string.library_empty_body)
-                    else stringResource(R.string.no_library_filter_results_body),
+        val constrained = state.query.isNotBlank() || state.type != null || activeFilterCount(state) > 0
+        when {
+            state.isLoading -> com.memento.app.ui.components.ArchiveLoading()
+            state.items.isEmpty() -> EmptyState(
+                title = stringResource(if (constrained) R.string.no_search_results else R.string.library_empty_title),
+                body = stringResource(if (constrained) R.string.no_library_filter_results_body else R.string.library_empty_body),
                 modifier = Modifier.padding(MementoSpacing.normal),
             ) {
-                if (!hasConstraints) {
-                    Button(onClick = onAdd) { Text(stringResource(R.string.add_first_work)) }
-                } else {
-                    OutlinedButton(
-                        onClick = {
-                            onQueryChanged("")
-                            onTypeSelected(null)
-                            onClearFilters()
-                        },
-                    ) { Text(stringResource(R.string.clear_filters)) }
+                if (!constrained) Button(onClick = onAdd) { Text(stringResource(R.string.add_first_work)) }
+                else OutlinedButton(onClick = { onQueryChanged(""); onTypeSelected(null); onClearFilters() }) {
+                    Text(stringResource(R.string.clear_filters))
                 }
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(150.dp),
-                modifier = Modifier.fillMaxSize().padding(top = MementoSpacing.medium),
-                contentPadding = PaddingValues(MementoSpacing.normal),
+            grid -> LazyVerticalGrid(
+                columns = GridCells.Adaptive(150.dp), modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(start = MementoSpacing.normal, end = MementoSpacing.normal, bottom = 96.dp),
                 horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
                 verticalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
             ) {
                 items(state.items, key = { it.id }) { media ->
-                    MediaCard(
-                        media = media,
-                        onClick = { onOpenMedia(media.id) },
-                        supportingText = media.releaseYear?.toString(),
-                    )
+                    MediaCard(media, onClick = { onOpenMedia(media.id) },
+                        supportingText = state.summaries[media.id]?.creator ?: media.releaseYear?.toString())
+                }
+            }
+            else -> androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.weight(1f), contentPadding = PaddingValues(
+                    start = MementoSpacing.normal, end = MementoSpacing.normal, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(state.items, key = { it.id }) { media ->
+                    LibraryRow(state.summaries[media.id] ?: com.memento.app.domain.model.LibraryMediaSummary(media)) { onOpenMedia(media.id) }
                 }
             }
         }
@@ -184,7 +184,7 @@ private fun LibraryFilterSheet(
     var yearText by remember(state.filters.year) { mutableStateOf(state.filters.year?.toString().orEmpty()) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().imePadding().padding(bottom = MementoSpacing.huge),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(bottom = MementoSpacing.huge),
             verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
         ) {
             Text(
@@ -219,7 +219,7 @@ private fun LibraryFilterSheet(
                     onYearSelected(yearText.toIntOrNull())
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
-                label = { Text(stringResource(R.string.year)) },
+                labelText = stringResource(R.string.year),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
             )
@@ -324,3 +324,34 @@ private fun typeFilterLabel(type: MediaType?): String = stringResource(
         MediaType.GAME -> R.string.games
     },
 )
+
+@Composable
+private fun LibraryRow(summary: com.memento.app.domain.model.LibraryMediaSummary, onClick: () -> Unit) {
+    val media = summary.media
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            com.memento.app.ui.components.PosterArtwork(media.type, media.title, media.posterUrl, Modifier.size(70.dp, 105.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(listOfNotNull(summary.status?.let { statusFilterLabel(it) }, media.releaseYear?.toString()).joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(media.title, style = MaterialTheme.typography.titleMedium, maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                summary.creator?.let { Text(it, style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(com.memento.app.ui.components.mediaTypeLabel(media.type), style = MaterialTheme.typography.bodyMedium)
+                    summary.ratingHalfStars?.let { com.memento.app.ui.components.RatingText(it) }
+                }
+                if (summary.tags.isNotEmpty()) Text(summary.tags.take(2).joinToString(" · ") { it.name },
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+        }
+    }
+}

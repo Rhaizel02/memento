@@ -2,7 +2,7 @@ package com.memento.app.ui.components
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -27,7 +27,7 @@ fun NumericTextField(
             )
         },
         modifier = modifier,
-        label = { Text(stringResource(label)) },
+        labelText = stringResource(label),
         keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
         singleLine = true,
     )

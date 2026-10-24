@@ -16,15 +16,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import com.memento.app.ui.components.MementoPrimaryButton as Button
+import com.memento.app.ui.components.EditorialGroup as Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoSecondaryButton as OutlinedButton
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -70,7 +70,9 @@ fun RememberScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
         ) {
-            CircularProgressIndicator(Modifier.padding(MementoSpacing.large))
+            com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.remember), onBack = onBack)
+            if (state.isLoading) com.memento.app.ui.components.ArchiveLoading()
+            else Text(stringResource(R.string.remember_empty_body), Modifier.padding(MementoSpacing.normal))
         }
         return
     }
@@ -96,28 +98,13 @@ fun RememberScreen(
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
     ) {
         item {
-            Row(Modifier.fillMaxWidth().padding(MementoSpacing.normal)) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(
-                    stringResource(R.string.remember),
-                    modifier = Modifier.padding(start = MementoSpacing.small, top = MementoSpacing.small),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-            }
-        }
-        item {
-            PosterArtwork(
+            com.memento.app.ui.components.MediaHero(
                 state.detail?.media?.type ?: com.memento.app.domain.model.MediaType.BOOK,
-                memory.title,
-                state.detail?.media?.posterUrl,
-                Modifier.fillMaxWidth().height(320.dp).padding(horizontal = MementoSpacing.normal),
-            )
+                memory.title, memory.posterUrl, memory.backdropUrl,
+                memory.completedDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es"))), onBack)
         }
         item {
             Column(Modifier.padding(horizontal = MementoSpacing.large)) {
-                Text(memory.title, style = MaterialTheme.typography.displaySmall)
                 Text(
                     stringResource(
                         R.string.remember_completed_date,
@@ -153,7 +140,7 @@ fun RememberScreen(
                     Text(
                         stringResource(R.string.quoted_reflection, memory.reflectionContent),
                         modifier = Modifier.padding(top = MementoSpacing.normal),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = com.memento.app.ui.theme.EditorialQuoteStyle,
                         fontStyle = FontStyle.Italic,
                     )
                 }
@@ -164,7 +151,7 @@ fun RememberScreen(
                 Card(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal)) {
                     Column(Modifier.padding(MementoSpacing.large)) {
                         Text(stringResource(R.string.remember_now), style = MaterialTheme.typography.titleLarge)
-                        Text(reflection.content, modifier = Modifier.padding(top = MementoSpacing.normal), style = MaterialTheme.typography.bodyLarge)
+                        Text(reflection.content, modifier = Modifier.padding(top = MementoSpacing.normal), style = com.memento.app.ui.theme.EditorialQuoteStyle)
                     }
                 }
             }

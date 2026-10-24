@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -31,20 +34,20 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.FilterChip
+import com.memento.app.ui.components.MementoFilterChip as FilterChip
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.memento.app.ui.components.MementoSecondaryButton as OutlinedButton
+import com.memento.app.ui.components.MementoTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ModalBottomSheet
+import com.memento.app.ui.components.MementoBottomSheet as ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -109,6 +112,8 @@ fun MediaDetailScreen(
     val detail = state.detail
     if (detail == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (state.isLoading) com.memento.app.ui.components.ArchiveLoading()
+            else Text(stringResource(R.string.archive_missing_work), style = MaterialTheme.typography.bodyLarge)
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(MementoSpacing.normal)) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
             }
@@ -116,238 +121,176 @@ fun MediaDetailScreen(
         return
     }
 
-    var showComplete by remember { mutableStateOf(false) }
-    var showNote by remember { mutableStateOf(false) }
-    var showProgress by remember { mutableStateOf(false) }
-    var showQuote by remember { mutableStateOf(false) }
+    var showComplete by rememberSaveable(detail.media.id) { mutableStateOf(false) }
+    var showNote by rememberSaveable(detail.media.id) { mutableStateOf(false) }
+    var showProgress by rememberSaveable(detail.media.id) { mutableStateOf(false) }
+    var showQuote by rememberSaveable(detail.media.id) { mutableStateOf(false) }
     var showTags by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
     var pendingDeleteConsumption by remember { mutableStateOf<String?>(null) }
     var pendingEditReflection by remember { mutableStateOf<Reflection?>(null) }
+    val drafts = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    var pendingCapture by rememberSaveable(detail.media.id) { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(state.actionRevision) {
+        pendingCapture?.let { key ->
+            if (state.actionRevision > 0) {
+                showComplete = false; showNote = false; showQuote = false; showProgress = false
+                drafts.removeState(key)
+                pendingCapture = null
+            }
+        }
+    }
     val active = detail.activeConsumption
     val latest = detail.latestConsumption
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(bottom = MementoSpacing.huge),
+        verticalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
     ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
-                verticalAlignment = Alignment.Top,
+        item("hero") {
+            com.memento.app.ui.components.MediaHero(
+                detail.media.type, detail.media.title, detail.media.posterUrl, detail.media.backdropUrl,
+                listOfNotNull(detail.creators.firstOrNull(), detail.media.releaseYear?.toString()).joinToString(" · "), onBack,
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Column(modifier = Modifier.weight(1f).padding(horizontal = MementoSpacing.small)) {
-                    Text(detail.media.title, style = MaterialTheme.typography.headlineLarge)
-                    Text(
-                        listOfNotNull(detail.creators.firstOrNull(), detail.media.releaseYear?.toString()).joinToString(" · "),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = { showEdit = true }) {
-                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_work))
-                }
+                IconButton(onClick = { showEdit = true }) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit_work)) }
                 IconButton(onClick = onToggleFavorite, enabled = !state.isWorking) {
-                    Icon(
-                        if (detail.media.isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = stringResource(
-                            if (detail.media.isFavorite) R.string.remove_favorite else R.string.mark_favorite,
-                        ),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+                    Icon(if (detail.media.isFavorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                        stringResource(if (detail.media.isFavorite) R.string.remove_favorite else R.string.mark_favorite),
+                        tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Column(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (detail.genres.isNotEmpty()) Text(detail.genres.take(3).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                latest?.let {
+                    StaticTag(statusLabel(it.status))
+                    RatingText(it.ratingHalfStars)
                 }
             }
         }
-        item {
-            Row(Modifier.padding(horizontal = MementoSpacing.normal)) {
-                PosterArtwork(
-                    detail.media.type,
-                    detail.media.title,
-                    detail.media.posterUrl,
-                    Modifier.width(128.dp).height(192.dp),
-                )
-                Column(
-                    modifier = Modifier.padding(start = MementoSpacing.normal),
-                    verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
-                ) {
-                    StaticTag(mediaTypeLabel(detail.media.type))
-                    latest?.let {
-                        Text(statusLabel(it.status), style = MaterialTheme.typography.titleMedium)
-                        RatingText(it.ratingHalfStars)
-                    }
-                    detail.genres.take(3).forEach { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
-            }
-        }
-        detail.media.description?.let { description ->
-            item {
-                ExpandableText(
-                    text = description,
-                    modifier = Modifier.padding(MementoSpacing.normal),
-                    style = MaterialTheme.typography.bodyLarge,
-                    collapsedMaxLines = 7,
-                )
-            }
-        }
-        if (state.watchAvailability != WatchAvailabilityUiState.Hidden) {
-            item {
-                WatchAvailabilitySection(
-                    state = state.watchAvailability,
-                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
-                )
-            }
-        }
-        if (state.isWorking) {
-            item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal)) }
-        }
+        if (state.isWorking) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         state.message?.let { message ->
-            item {
-                Text(
-                    message,
-                    modifier = Modifier.padding(horizontal = MementoSpacing.normal),
-                    color = MaterialTheme.colorScheme.error,
-                )
+            item { Text(message, Modifier.padding(horizontal = MementoSpacing.normal), color = MaterialTheme.colorScheme.error) }
+        }
+        item("personal") {
+            com.memento.app.ui.components.EditorialSectionHeader(stringResource(R.string.archive_your_story),
+                Modifier.padding(horizontal = MementoSpacing.normal))
+            detail.progress.firstOrNull { it.consumptionId == active?.id }?.let { progress ->
+                SurfaceProgress(progress, Modifier.padding(horizontal = MementoSpacing.normal, vertical = 12.dp))
+            }
+            ActionSection(detail, !state.isWorking, onStart, { showProgress = true }, { showNote = true },
+                { showComplete = true }, onDrop)
+        }
+        item("tags") {
+            PersonalTagsSection(detail.tags, !state.isWorking, { showTags = true }, onRemoveTag)
+        }
+        item("journal-header") {
+            Row(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.quotes), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                if (detail.consumptions.isNotEmpty()) TextButton(onClick = { showQuote = true }, enabled = !state.isWorking) {
+                    Icon(Icons.Outlined.Add, null)
+                    Text(stringResource(R.string.add_quote))
+                }
             }
         }
-        item {
-            PersonalTagsSection(
-                tags = detail.tags,
-                enabled = !state.isWorking,
-                onManage = { showTags = true },
-                onRemove = onRemoveTag,
-            )
-        }
-        item {
-            ActionSection(
-                detail = detail,
-                enabled = !state.isWorking,
-                onStart = onStart,
-                onProgress = { showProgress = true },
-                onNote = { showNote = true },
-                onComplete = { showComplete = true },
-                onDrop = onDrop,
-            )
-        }
-        val finalReflection = detail.reflections.firstOrNull { it.type == ReflectionType.FINAL_REFLECTION }
-        finalReflection?.let { reflection ->
-            item {
-                Card(Modifier.fillMaxWidth().padding(MementoSpacing.normal)) {
-                    Column(Modifier.padding(MementoSpacing.large)) {
+        val journal = detail.reflections.sortedByDescending { it.createdAt }
+        items(journal, key = { "journal:${it.id}" }) { reflection ->
+            if (reflection.type == ReflectionType.QUOTE) {
+                QuoteCard(reflection) { pendingEditReflection = reflection }
+            } else {
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
+                    color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.medium,
+                ) {
+                    Column(Modifier.padding(MementoSpacing.normal)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                stringResource(R.string.timeline_final_reflection),
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleLarge,
-                            )
+                            Text(stringResource(when (reflection.type) {
+                                ReflectionType.FINAL_REFLECTION -> R.string.timeline_final_reflection
+                                ReflectionType.LATER_REFLECTION -> R.string.timeline_later_reflection
+                                else -> R.string.timeline_note
+                            }), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                             IconButton(onClick = { pendingEditReflection = reflection }) {
-                                Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_reflection))
+                                Icon(Icons.Outlined.Edit, stringResource(R.string.edit_reflection))
                             }
                         }
-                        Text(
-                            reflection.content,
-                            modifier = Modifier.padding(top = MementoSpacing.medium),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontStyle = FontStyle.Italic,
-                        )
+                        ExpandableText(reflection.content, style = com.memento.app.ui.theme.EditorialQuoteStyle, collapsedMaxLines = 6)
                     }
                 }
             }
         }
-        val quotes = detail.reflections.filter { it.type == ReflectionType.QUOTE }.sortedByDescending { it.createdAt }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.quotes), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                if (detail.consumptions.isNotEmpty()) {
-                    TextButton(onClick = { showQuote = true }, enabled = !state.isWorking) {
-                        Icon(Icons.Outlined.Add, contentDescription = null)
-                        Text(stringResource(R.string.add_quote))
-                    }
-                }
+        if (!detail.media.description.isNullOrBlank()) item("about") {
+            Column(Modifier.padding(horizontal = MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HorizontalDivider()
+                Text(stringResource(R.string.archive_about_work), style = MaterialTheme.typography.titleLarge)
+                ExpandableText(detail.media.description, style = MaterialTheme.typography.bodyLarge, collapsedMaxLines = 5)
             }
         }
-        items(quotes, key = { it.id }) { quote ->
-            QuoteCard(quote = quote, onEdit = { pendingEditReflection = quote })
+        if (state.watchAvailability != WatchAvailabilityUiState.Hidden) item("watch") {
+            WatchAvailabilitySection(state.watchAvailability, Modifier.padding(horizontal = MementoSpacing.normal))
         }
         if (detail.consumptions.isNotEmpty()) {
-            item {
-                Text(
-                    stringResource(R.string.previous_consumptions),
-                    modifier = Modifier.padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            }
+            item { Text(stringResource(R.string.previous_consumptions),
+                Modifier.padding(horizontal = MementoSpacing.normal), style = MaterialTheme.typography.titleLarge) }
             val consumptions = detail.consumptions.sortedByDescending { it.createdAt }
-            itemsIndexed(consumptions, key = { _, consumption -> consumption.id }) { index, consumption ->
-                ConsumptionCard(
-                    consumption = consumption,
-                    number = consumptions.size - index,
-                    progressCount = detail.progress.count { it.consumptionId == consumption.id },
-                    reflectionCount = detail.reflections.count { it.consumptionId == consumption.id },
-                    onDelete = { pendingDeleteConsumption = consumption.id },
-                )
+            itemsIndexed(consumptions, key = { _, consumption -> "consumption:${consumption.id}" }) { index, consumption ->
+                ConsumptionCard(consumption, consumptions.size - index,
+                    detail.progress.count { it.consumptionId == consumption.id },
+                    detail.reflections.count { it.consumptionId == consumption.id },
+                    onDelete = { pendingDeleteConsumption = consumption.id })
             }
         }
-        item {
-            Text(
-                stringResource(R.string.personal_history),
-                modifier = Modifier.padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
-                style = MaterialTheme.typography.titleLarge,
-            )
-        }
-        val historyEvents = state.timeline.filterNot {
-            it is TimelineEvent.ReflectionWritten && it.reflection.type == ReflectionType.QUOTE
-        }
-        if (historyEvents.isEmpty()) {
-            item { Text(stringResource(R.string.unknown_date), modifier = Modifier.padding(horizontal = MementoSpacing.normal)) }
-        } else {
-            items(historyEvents, key = { it.sortInstant.toEpochMilli().toString() + it.hashCode() }) { event ->
-                TimelineRow(event, onEditReflection = { pendingEditReflection = it })
-            }
+        item { Text(stringResource(R.string.personal_history), Modifier.padding(horizontal = MementoSpacing.normal),
+            style = MaterialTheme.typography.titleLarge) }
+        items(state.timeline.filterNot { it is TimelineEvent.ReflectionWritten },
+            key = { "event:${it.sortInstant.toEpochMilli()}:${it.hashCode()}" }) { event ->
+            TimelineRow(event, onEditReflection = { pendingEditReflection = it })
         }
         item {
-            HorizontalDivider(Modifier.padding(vertical = MementoSpacing.large))
-            TextButton(
-                onClick = { showDelete = true },
-                modifier = Modifier.padding(horizontal = MementoSpacing.normal),
-            ) {
-                Icon(Icons.Outlined.Delete, contentDescription = null)
-                Text(stringResource(R.string.delete), modifier = Modifier.padding(start = MementoSpacing.small))
+            HorizontalDivider()
+            TextButton(onClick = { showDelete = true }, modifier = Modifier.padding(horizontal = MementoSpacing.normal)) {
+                Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.delete), Modifier.padding(start = 8.dp), color = MaterialTheme.colorScheme.error)
             }
         }
     }
 
-    if (showComplete) {
+    if (showComplete) { drafts.SaveableStateProvider("complete") {
         CompleteDialog(
+            enabled = !state.isWorking,
+            error = state.message,
             onDismiss = { showComplete = false },
             onConfirm = { date, rating, reflection ->
-                showComplete = false
+                pendingCapture = "complete"
                 onComplete(date, rating, reflection)
             },
         )
     }
-    if (showNote) {
-        TextEditorDialog(
+    }
+    if (showNote) { drafts.SaveableStateProvider("note") {
+        TextEditorSheet(
             title = stringResource(R.string.add_note),
             hint = stringResource(R.string.note_hint),
             onDismiss = { showNote = false },
-            onSave = { text -> showNote = false; onAddNote(text) },
+            enabled = !state.isWorking,
+            error = state.message,
+            onSave = { text -> pendingCapture = "note"; onAddNote(text) },
         )
     }
-    if (showQuote) {
+    }
+    if (showQuote) { drafts.SaveableStateProvider("quote") {
         TextEditorSheet(
             title = stringResource(R.string.add_quote),
             hint = stringResource(R.string.quote_hint),
             enabled = !state.isWorking,
+            error = state.message,
             onDismiss = { showQuote = false },
-            onSave = { text -> showQuote = false; onAddQuote(text) },
+            onSave = { text -> pendingCapture = "quote"; onAddQuote(text) },
         )
+    }
     }
     if (showTags) {
         TagEditorSheet(
@@ -360,17 +303,20 @@ fun MediaDetailScreen(
             onRemove = onRemoveTag,
         )
     }
-    if (showProgress && active != null) {
+    if (showProgress && active != null) { drafts.SaveableStateProvider("progress") {
         ProgressDialog(
+            enabled = !state.isWorking,
+            error = state.message,
             type = detail.media.type,
             latest = detail.progress.firstOrNull { it.consumptionId == active.id },
             pageCount = detail.media.pageCount,
             onDismiss = { showProgress = false },
             onSave = { type, current, total, season, episode ->
-                showProgress = false
+                pendingCapture = "progress"
                 onAddProgress(type, current, total, season, episode)
             },
         )
+    }
     }
     if (showEdit) {
         EditMediaDialog(
@@ -477,7 +423,7 @@ private fun QuoteCard(quote: Reflection, onEdit: () -> Unit) {
             Text(
                 quote.content,
                 modifier = Modifier.weight(1f).padding(horizontal = MementoSpacing.medium),
-                style = MaterialTheme.typography.bodyLarge,
+                style = com.memento.app.ui.theme.EditorialQuoteStyle,
                 fontStyle = FontStyle.Italic,
             )
             IconButton(onClick = onEdit) {
@@ -493,13 +439,14 @@ private fun TextEditorSheet(
     title: String,
     hint: String,
     enabled: Boolean,
+    error: String? = null,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit,
 ) {
     var text by rememberSaveable { mutableStateOf("") }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().imePadding().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
             verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
         ) {
             Text(title, style = MaterialTheme.typography.headlineSmall)
@@ -509,12 +456,17 @@ private fun TextEditorSheet(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(hint) },
                 minLines = 5,
+                enabled = enabled,
             )
             Button(
                 onClick = { onSave(text) },
                 enabled = enabled && text.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.save)) }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            TextButton(onClick = { text = ""; onDismiss() }, enabled = enabled) {
+                Text(stringResource(R.string.archive_discard_draft), color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }
@@ -567,7 +519,7 @@ private fun TagEditorSheet(
                 value = name,
                 onValueChange = { name = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal),
-                label = { Text(stringResource(R.string.new_tag)) },
+                labelText = stringResource(R.string.new_tag),
                 singleLine = true,
             )
             Button(
@@ -632,7 +584,7 @@ private fun EditMediaDialog(detail: MediaDetail, onDismiss: () -> Unit, onSave: 
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text(stringResource(R.string.title_required)) },
+                        labelText = stringResource(R.string.title_required),
                         singleLine = true,
                     )
                 }
@@ -640,7 +592,7 @@ private fun EditMediaDialog(detail: MediaDetail, onDismiss: () -> Unit, onSave: 
                     OutlinedTextField(
                         value = year,
                         onValueChange = { year = it.filter(Char::isDigit).take(4) },
-                        label = { Text(stringResource(R.string.year)) },
+                        labelText = stringResource(R.string.year),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                     )
@@ -649,7 +601,7 @@ private fun EditMediaDialog(detail: MediaDetail, onDismiss: () -> Unit, onSave: 
                     OutlinedTextField(
                         value = creators,
                         onValueChange = { creators = it },
-                        label = { Text(creatorRoleLabel(detail.media.type)) },
+                        labelText = creatorRoleLabel(detail.media.type),
                         singleLine = true,
                     )
                 }
@@ -657,7 +609,7 @@ private fun EditMediaDialog(detail: MediaDetail, onDismiss: () -> Unit, onSave: 
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
-                        label = { Text(stringResource(R.string.description)) },
+                        labelText = stringResource(R.string.description),
                         minLines = 3,
                     )
                 }
@@ -665,7 +617,7 @@ private fun EditMediaDialog(detail: MediaDetail, onDismiss: () -> Unit, onSave: 
                     OutlinedTextField(
                         value = imageUrl,
                         onValueChange = { imageUrl = it },
-                        label = { Text(stringResource(R.string.image_optional)) },
+                        labelText = stringResource(R.string.image_optional),
                         singleLine = true,
                     )
                 }
@@ -761,119 +713,88 @@ private fun ActionSection(
 }
 
 @Composable
-private fun CompleteDialog(onDismiss: () -> Unit, onConfirm: (LocalDate, Int?, String?) -> Unit) {
+private fun CaptureForm(
+    title: String, onDismiss: () -> Unit, onSave: () -> Unit, canSave: Boolean = true,
+    enabled: Boolean = true, error: String? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding()
+                .padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.headlineSmall)
+            content()
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (!enabled) LinearProgressIndicator(Modifier.fillMaxWidth())
+            Button(onClick = onSave, enabled = canSave && enabled, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.save)) }
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.cancel)) }
+        }
+    }
+}
+
+@Composable
+private fun CompleteDialog(onDismiss: () -> Unit, enabled: Boolean, error: String?, onConfirm: (LocalDate, Int?, String?) -> Unit) {
     var dateText by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
     var rating by rememberSaveable { mutableStateOf<Int?>(null) }
     var reflection by rememberSaveable { mutableStateOf("") }
     val parsedDate = runCatching { LocalDate.parse(dateText) }.getOrNull()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.finish_work)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium)) {
-                OutlinedTextField(
-                    value = dateText,
-                    onValueChange = { dateText = it.filter { character -> character.isDigit() || character == '-' }.take(10) },
-                    label = { Text(stringResource(R.string.completion_date)) },
-                    supportingText = {
-                        Text(
-                            stringResource(if (parsedDate == null) R.string.date_format_error else R.string.date_format_hint),
-                            color = if (parsedDate == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
-                    singleLine = true,
-                    isError = parsedDate == null,
-                )
-                Text(stringResource(R.string.rating), style = MaterialTheme.typography.labelLarge)
-                RatingSelector(ratingHalfStars = rating, onRatingChanged = { rating = it })
-                OutlinedTextField(
-                    value = reflection,
-                    onValueChange = { reflection = it },
-                    label = { Text(stringResource(R.string.final_reflection_prompt)) },
-                    minLines = 4,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    parsedDate?.let { date ->
-                        onConfirm(date, rating, reflection.takeIf(String::isNotBlank))
-                    }
-                },
-                enabled = parsedDate != null,
-            ) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.now_not)) } },
-    )
-}
-
-@Composable
-private fun TextEditorDialog(title: String, hint: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(value = text, onValueChange = { text = it }, placeholder = { Text(hint) }, minLines = 7)
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+    CaptureForm(stringResource(R.string.finish_work), onDismiss,
+        onSave = { parsedDate?.let { onConfirm(it, rating, reflection.takeIf(String::isNotBlank)) } },
+        canSave = parsedDate != null, enabled = enabled, error = error) {
+        OutlinedTextField(dateText, { dateText = it.filter { c -> c.isDigit() || c == '-' }.take(10) },
+            labelText = stringResource(R.string.completion_date), singleLine = true,
+            isError = parsedDate == null, supportingText = { Text(stringResource(
+                if (parsedDate == null) R.string.date_format_error else R.string.date_format_hint)) })
+        Text(stringResource(R.string.rating_optional), style = MaterialTheme.typography.labelLarge)
+        RatingSelector(rating, { rating = it })
+        OutlinedTextField(reflection, { reflection = it }, labelText = stringResource(R.string.final_reflection_prompt), minLines = 4)
+    }
 }
 
 @Composable
 private fun ProgressDialog(
-    type: MediaType,
-    latest: ProgressEntry?,
-    pageCount: Int?,
-    onDismiss: () -> Unit,
+    type: MediaType, latest: ProgressEntry?, pageCount: Int?, onDismiss: () -> Unit,
+    enabled: Boolean, error: String?,
     onSave: (ProgressType, Double?, Double?, Int?, Int?) -> Unit,
 ) {
-    var first by remember { mutableStateOf(latest?.currentValue?.toString().orEmpty()) }
-    var second by remember { mutableStateOf(latest?.totalValue?.toString().orEmpty()) }
-    var season by remember { mutableStateOf(latest?.season?.toString().orEmpty()) }
-    var episode by remember { mutableStateOf(latest?.episode?.toString().orEmpty()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.update_progress)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                when (type) {
-                    MediaType.BOOK -> {
-                        NumericTextField(first, { first = it }, R.string.current_value, decimal = false)
-                        NumericTextField(second.ifEmpty { pageCount?.toString().orEmpty() }, { second = it }, R.string.total_value, decimal = false)
-                    }
-                    MediaType.SERIES -> {
-                        NumericTextField(season, { season = it }, R.string.season_number, decimal = false)
-                        NumericTextField(episode, { episode = it }, R.string.episode_number, decimal = false)
-                    }
-                    MediaType.GAME -> {
-                        NumericTextField(first, { first = it }, R.string.progress_hours, decimal = true)
-                        NumericTextField(second, { second = it }, R.string.approx_percent, decimal = true)
-                    }
-                    MediaType.MOVIE -> NumericTextField(first, { first = it }, R.string.progress_minutes, decimal = false)
-                }
+    var first by rememberSaveable { mutableStateOf(latest?.currentValue?.toString().orEmpty()) }
+    var second by rememberSaveable { mutableStateOf(latest?.totalValue?.toString() ?: pageCount?.toString().orEmpty()) }
+    var season by rememberSaveable { mutableStateOf(latest?.season?.toString().orEmpty()) }
+    var episode by rememberSaveable { mutableStateOf(latest?.episode?.toString().orEmpty()) }
+    CaptureForm(stringResource(R.string.update_progress), onDismiss, onSave = {
+        onSave(ProgressCapturePolicy.typeFor(type),
+            if (type != MediaType.SERIES) first.toDoubleOrNull() else null,
+            if (type == MediaType.BOOK || type == MediaType.GAME) second.toDoubleOrNull() else null,
+            if (type == MediaType.SERIES) season.toIntOrNull() else null,
+            if (type == MediaType.SERIES) episode.toIntOrNull() else null)
+    }, canSave = if (type == MediaType.SERIES) season.isNotBlank() && episode.isNotBlank() else first.isNotBlank(),
+        enabled = enabled, error = error) {
+        latest?.let { Text(progressLabel(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        when (type) {
+            MediaType.BOOK -> {
+                NumericTextField(first, { first = it }, R.string.quick_current_page, false)
+                NumericTextField(second, { second = it }, R.string.quick_total_pages, false)
+                com.memento.app.ui.components.ProgressIncrements(listOf(1.0, 5.0, 10.0, 25.0), first, { first = it }, second.toDoubleOrNull())
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    when (type) {
-                        MediaType.BOOK -> onSave(ProgressCapturePolicy.typeFor(type), first.toDoubleOrNull(), second.ifEmpty { pageCount?.toString().orEmpty() }.toDoubleOrNull(), null, null)
-                        MediaType.SERIES -> onSave(ProgressCapturePolicy.typeFor(type), null, null, season.toIntOrNull(), episode.toIntOrNull())
-                        MediaType.GAME -> onSave(ProgressCapturePolicy.typeFor(type), first.toDoubleOrNull(), second.toDoubleOrNull(), null, null)
-                        MediaType.MOVIE -> onSave(ProgressCapturePolicy.typeFor(type), first.toDoubleOrNull(), null, null, null)
-                    }
-                },
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+            MediaType.SERIES -> {
+                NumericTextField(season, { season = it }, R.string.season_number, false)
+                NumericTextField(episode, { episode = it }, R.string.episode_number, false)
+                com.memento.app.ui.components.ProgressIncrements(listOf(1.0), episode, { episode = it })
+            }
+            MediaType.GAME -> {
+                NumericTextField(first, { first = it }, R.string.progress_hours, true)
+                com.memento.app.ui.components.ProgressIncrements(listOf(0.5, 1.0), first, { first = it })
+                NumericTextField(second, { second = it }, R.string.approx_percent, true)
+                com.memento.app.ui.components.ProgressIncrements(listOf(5.0, 10.0), second, { second = it }, 100.0)
+            }
+            MediaType.MOVIE -> {
+                NumericTextField(first, { first = it }, R.string.progress_minutes, false)
+                com.memento.app.ui.components.ProgressIncrements(listOf(5.0, 15.0), first, { first = it })
+            }
+        }
+    }
 }
 
 @Composable
@@ -937,3 +858,18 @@ private fun statusLabel(status: ConsumptionStatus): String = stringResource(
         ConsumptionStatus.DROPPED -> R.string.dropped
     },
 )
+
+@Composable
+private fun SurfaceProgress(entry: ProgressEntry, modifier: Modifier) {
+    androidx.compose.material3.Surface(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant) {
+        Column(Modifier.padding(MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.archive_current_progress), style = MaterialTheme.typography.labelLarge)
+            Text(progressLabel(entry), style = MaterialTheme.typography.bodyLarge)
+            if (entry.progressType == ProgressType.PAGES && entry.totalValue != null && entry.totalValue > 0) {
+                LinearProgressIndicator(progress = { ((entry.currentValue ?: 0.0) / entry.totalValue).toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}

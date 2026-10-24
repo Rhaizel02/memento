@@ -10,6 +10,8 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Rect
+import androidx.core.content.res.ResourcesCompat
+import com.memento.app.R
 import android.graphics.Shader
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -43,7 +45,7 @@ class ShareCardRenderer(private val context: Context) {
     }
 
     private fun drawBackground(canvas: Canvas, image: Bitmap?) {
-        canvas.drawColor(Color.rgb(43, 35, 38))
+        canvas.drawColor(Color.rgb(24, 20, 18))
         image?.let { source ->
             val scale = maxOf(WIDTH.toFloat() / source.width, HEIGHT.toFloat() / source.height)
             val cropWidth = (WIDTH / scale).toInt()
@@ -59,7 +61,7 @@ class ShareCardRenderer(private val context: Context) {
                 0f,
                 0f,
                 HEIGHT.toFloat(),
-                intArrayOf(Color.argb(45, 0, 0, 0), Color.argb(115, 12, 8, 10), Color.argb(245, 20, 14, 17)),
+                intArrayOf(Color.argb(45, 0, 0, 0), Color.argb(115, 24, 20, 18), Color.argb(250, 24, 20, 18)),
                 floatArrayOf(0f, 0.46f, 1f),
                 Shader.TileMode.CLAMP,
             )
@@ -68,14 +70,14 @@ class ShareCardRenderer(private val context: Context) {
     }
 
     private fun drawText(canvas: Canvas, content: ShareCardContent) {
-        val white = Color.WHITE
-        val muted = Color.argb(220, 255, 255, 255)
+        val white = Color.rgb(237, 228, 220)
+        val muted = Color.rgb(181, 166, 155)
         val margin = 92f
         val maxWidth = WIDTH - margin * 2
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = white; textSize = 76f; isFakeBoldText = true }
-        val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 38f }
-        val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = white; textSize = 52f }
-        val brandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 28f; letterSpacing = 0.08f }
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = white; textSize = 76f; typeface = ResourcesCompat.getFont(context, R.font.newsreader) }
+        val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 38f; typeface = ResourcesCompat.getFont(context, R.font.work_sans) }
+        val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = white; textSize = 52f; typeface = ResourcesCompat.getFont(context, R.font.newsreader) }
+        val brandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 28f; typeface = ResourcesCompat.getFont(context, R.font.work_sans); letterSpacing = 0.08f }
 
         var y = 980f
         y = canvas.drawWrapped(content.title, margin, y, maxWidth, titlePaint, 1.1f, maxLines = 3)

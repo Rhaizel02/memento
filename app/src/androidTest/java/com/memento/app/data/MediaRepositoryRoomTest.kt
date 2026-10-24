@@ -33,6 +33,31 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 class MediaRepositoryRoomTest {
     @Test
+    fun archiveLibrarySummariesAndDetailsRetainPersonalMetadataAndExternalRefs() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()
+        try {
+            val repository = RoomMediaRepository(database, database.mediaDao(), database.consumptionDao())
+            val id = repository.addExternal(
+                MetadataSearchResult(MetadataProvider.TMDB, "438631", null, MediaType.MOVIE, "Dune",
+                    creators = listOf("Denis Villeneuve")),
+                ConsumptionStatus.COMPLETED, CompletedMediaInput(LocalDate.of(2024, 3, 1), 9),
+            ).mediaId
+            repository.createAndAttachTag(id, "Para volver")
+            val summary = repository.observeLibrarySummaries().first { it.firstOrNull()?.tags?.isNotEmpty() == true }.single()
+            assertEquals("Denis Villeneuve", summary.creator)
+            assertEquals(ConsumptionStatus.COMPLETED, summary.status)
+            assertEquals(9, summary.ratingHalfStars)
+            assertEquals("Para volver", summary.tags.single().name)
+            val detail = repository.observeMediaDetail(id).first { it?.externalRefs?.isNotEmpty() == true }!!
+            assertEquals("438631", detail.externalRefs.single().externalId)
+            assertEquals(MediaType.MOVIE, detail.externalRefs.single().mediaType)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun personalTagsDeduplicateAttachAcrossWorksFilterAndRemoveOnlyRelation() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val database = Room.inMemoryDatabaseBuilder(context, MementoDatabase::class.java).build()

@@ -18,7 +18,7 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.StarOutline
-import androidx.compose.material3.Card
+import com.memento.app.ui.components.EditorialGroup as Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -61,18 +61,13 @@ fun CulturalProfileScreen(state: CulturalProfileUiState, onBack: () -> Unit) {
         ),
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
     ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Text(stringResource(R.string.cultural_profile), style = MaterialTheme.typography.headlineLarge)
-            }
-        }
+        item { com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.cultural_profile), onBack = onBack) }
         if (state.isLoading) {
-            item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            item { com.memento.app.ui.components.ArchiveLoading() }
             return@LazyColumn
         }
+        val leadingInsight = state.profile.insights.firstOrNull()
+        leadingInsight?.let { item { CulturalInsightCard(it) } }
         item { ProfileSummary(state.profile) }
         if (state.profile.isTakingShape) {
             item {
@@ -83,7 +78,7 @@ fun CulturalProfileScreen(state: CulturalProfileUiState, onBack: () -> Unit) {
                 )
             }
         }
-        items(state.profile.insights) { insight -> CulturalInsightCard(insight) }
+        items(state.profile.insights.drop(if (leadingInsight != null) 1 else 0)) { insight -> CulturalInsightCard(insight) }
         if (state.profile.periods.isNotEmpty()) {
             item { SectionTitle(stringResource(R.string.cultural_periods_title)) }
             items(state.profile.periods) { period -> CulturalPeriodCard(period) }
@@ -96,7 +91,7 @@ private fun ProfileSummary(profile: CulturalProfile) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.large,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
@@ -223,7 +218,7 @@ private fun EditorialCard(icon: ImageVector, eyebrow: String, headline: String, 
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
                 Text(eyebrow, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text(headline, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text(headline, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
                 Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -239,7 +234,7 @@ private fun RankingCard(title: String, rows: List<CulturalMetric>) {
             rows.forEach { row ->
                 Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(row.label)
+                        Text(row.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                         Text(
                             pluralStringResource(R.plurals.cultural_works_count, row.count, row.count),
                             color = MaterialTheme.colorScheme.primary,
@@ -372,7 +367,7 @@ private fun changeDirection(change: Int): String = stringResource(
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+    Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
 }
 
 private fun formatMonth(month: YearMonth): String {

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import com.memento.app.R
@@ -29,6 +30,7 @@ fun HomeScreen(
     state: HomeUiState,
     onAdd: () -> Unit,
     onOpenGlobalSearch: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenMedia: (String) -> Unit,
     onOpenRemember: (String) -> Unit,
     onOpenDiscover: () -> Unit,
@@ -44,41 +46,28 @@ fun HomeScreen(
     onSaveQuickProgress: () -> Unit = {},
     onSaveQuickNote: () -> Unit = {},
     onDismissQuickCapture: () -> Unit = {},
+    onDiscardQuickCapture: () -> Unit = onDismissQuickCapture,
 ) {
+    Column(Modifier.fillMaxSize()) {
+    com.memento.app.ui.components.MementoScreenHeader(
+        title = stringResource(R.string.app_name), onSettings = onOpenSettings,
+        actions = { IconButton(onClick = onOpenGlobalSearch) {
+            Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.global_search_title))
+        } },
+    )
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = MementoSpacing.normal,
-            top = MementoSpacing.large,
-            end = MementoSpacing.normal,
-            bottom = MementoSpacing.xLarge,
-        ),
-        verticalArrangement = Arrangement.spacedBy(MementoSpacing.xLarge),
+        contentPadding = PaddingValues(start = MementoSpacing.normal, top = MementoSpacing.medium,
+            end = MementoSpacing.normal, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
-                ) {
-                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
-                    Text(
-                        stringResource(R.string.app_tagline),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onOpenGlobalSearch) {
-                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.global_search_title))
-                }
-            }
+            Text(stringResource(R.string.archive_home_title), style = MaterialTheme.typography.headlineLarge)
+            Text(stringResource(R.string.app_tagline), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        if (state.isLoading) return@LazyColumn
+        if (state.isLoading) { item { com.memento.app.ui.components.ArchiveLoading() }; return@LazyColumn }
 
         if (state.mediaCount == 0) {
             item { HomeEmptyState(onAdd = onAdd) }
@@ -91,34 +80,19 @@ fun HomeScreen(
             } ?: RememberEmptyState()
         }
 
-        state.onThisDay?.let { memory ->
-            item {
-                OnThisDayCard(memory = memory, onClick = { onOpenMedia(memory.event.mediaItemId) })
-            }
-        }
-
         if (state.inProgress.isNotEmpty()) {
             item { HomeSectionHeader(stringResource(R.string.status_in_progress)) }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
-                    contentPadding = PaddingValues(end = MementoSpacing.normal),
-                ) {
-                    items(state.inProgress, key = { it.mediaId }) { item ->
-                        InProgressMediaCard(
-                            item = item,
-                            onClick = { onOpenMedia(item.mediaId) },
-                            onUpdateProgress = { onOpenQuickProgress(item) },
-                            onAddNote = { onOpenQuickNote(item) },
-                        )
-                    }
-                }
+            items(state.inProgress, key = { it.mediaId }) { item ->
+                InProgressMediaCard(item, onClick = { onOpenMedia(item.mediaId) },
+                    onUpdateProgress = { onOpenQuickProgress(item) }, onAddNote = { onOpenQuickNote(item) })
             }
         }
 
-        item { CulturalProfileCard(onClick = onOpenCulturalProfile) }
+        state.onThisDay?.let { memory ->
+            item { OnThisDayCard(memory, onClick = { onOpenMedia(memory.event.mediaItemId) }) }
+        }
 
-        item { CulturalHistoryCard(onClick = onOpenTimeline) }
+
 
         item {
             HomeSectionHeader(stringResource(R.string.recommendation_for_you))
@@ -159,6 +133,15 @@ fun HomeScreen(
                 )
             }
         }
+        item {
+            androidx.compose.material3.HorizontalDivider()
+            androidx.compose.foundation.layout.FlowRow {
+                androidx.compose.material3.TextButton(onClick = onOpenCulturalProfile) { Text(stringResource(R.string.cultural_profile)) }
+                androidx.compose.material3.TextButton(onClick = onOpenStats) { Text(stringResource(R.string.statistics)) }
+                androidx.compose.material3.TextButton(onClick = onOpenTimeline) { Text(stringResource(R.string.timeline_header)) }
+            }
+        }
+    }
     }
 
     state.quickCapture?.let { sheet ->
@@ -169,6 +152,7 @@ fun HomeScreen(
             onNoteChanged = onQuickNoteChanged,
             onSaveProgress = onSaveQuickProgress,
             onSaveNote = onSaveQuickNote,
+            onDiscard = onDiscardQuickCapture,
         )
     }
 }

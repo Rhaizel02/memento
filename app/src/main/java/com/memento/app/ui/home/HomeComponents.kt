@@ -26,7 +26,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Update
-import androidx.compose.material3.Button
+import com.memento.app.ui.components.MementoPrimaryButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -109,84 +109,6 @@ internal fun HomeEmptyState(onAdd: () -> Unit) {
 }
 
 @Composable
-internal fun CulturalHistoryCard(onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
-            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                Icon(
-                    Icons.Outlined.History,
-                    contentDescription = null,
-                    modifier = Modifier.padding(MementoSpacing.medium).size(24.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
-                Text(stringResource(R.string.timeline_header), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(R.string.timeline_home_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    stringResource(R.string.timeline_home_action),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        }
-    }
-}
-
-@Composable
-internal fun CulturalProfileCard(onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
-            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-                Icon(
-                    Icons.Outlined.PersonOutline,
-                    contentDescription = null,
-                    modifier = Modifier.padding(MementoSpacing.medium).size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall)) {
-                Text(stringResource(R.string.cultural_profile), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(R.string.cultural_profile_home_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    stringResource(R.string.open_cultural_profile),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        }
-    }
-}
-
-@Composable
 internal fun OnThisDayCard(memory: OnThisDayMemory, onClick: () -> Unit) {
     val event = memory.event
     val accent = MaterialTheme.mediaTypeColor(event.mediaType)
@@ -222,7 +144,7 @@ internal fun OnThisDayCard(memory: OnThisDayMemory, onClick: () -> Unit) {
                     Text(
                         event.title,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -237,7 +159,7 @@ internal fun OnThisDayCard(memory: OnThisDayMemory, onClick: () -> Unit) {
                     event.reflectionContent?.takeIf(String::isNotBlank)?.let { reflection ->
                         Text(
                             stringResource(R.string.quoted_reflection, reflection),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = com.memento.app.ui.theme.EditorialQuoteStyle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -303,121 +225,37 @@ internal fun RememberEmptyState() {
 
 @Composable
 internal fun RememberHero(memory: RememberCandidate, onClick: () -> Unit) {
-    val imageUrl = memory.backdropUrl?.takeIf(String::isNotBlank)
-        ?: memory.posterUrl?.takeIf(String::isNotBlank)
-    val accent = MaterialTheme.mediaTypeColor(memory.mediaType)
-    val accessibilityLabel = stringResource(R.string.remember_card_accessibility, memory.title)
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(360.dp)
-            .semantics { contentDescription = accessibilityLabel },
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        color = MaterialTheme.colorScheme.primaryContainer,
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Box(Modifier.fillMaxSize()) {
-            if (imageUrl != null) {
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.86f)),
-                                startY = 60f,
-                            ),
-                        ),
-                )
-                RememberHeroContent(
-                    memory = memory,
-                    foreground = Color.White,
-                    secondary = Color.White.copy(alpha = 0.82f),
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(
-                                listOf(accent.copy(alpha = 0.34f), MaterialTheme.colorScheme.surfaceVariant),
-                            ),
-                        ),
-                )
-                Icon(
-                    memory.mediaType.icon(),
-                    contentDescription = null,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(MementoSpacing.large).size(88.dp),
-                    tint = accent.copy(alpha = 0.42f),
-                )
-                RememberHeroContent(
-                    memory = memory,
-                    foreground = MaterialTheme.colorScheme.onSurface,
-                    secondary = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxSize(),
-                )
+        Column(Modifier.padding(MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.AutoStories, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.remember), Modifier.weight(1f).padding(start = 8.dp),
+                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(rememberAge(memory.completedDate), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-        }
-    }
-}
-
-@Composable
-private fun RememberHeroContent(
-    memory: RememberCandidate,
-    foreground: Color,
-    secondary: Color,
-    modifier: Modifier,
-) {
-    Column(
-        modifier = modifier.padding(MementoSpacing.large),
-        verticalArrangement = Arrangement.Bottom,
-    ) {
-        Text(
-            stringResource(R.string.remember).uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = secondary,
-        )
-        Text(
-            memory.title,
-            modifier = Modifier.padding(top = MementoSpacing.small),
-            style = MaterialTheme.typography.headlineMedium,
-            color = foreground,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            rememberAge(memory.completedDate),
-            modifier = Modifier.padding(top = MementoSpacing.xSmall),
-            style = MaterialTheme.typography.bodySmall,
-            color = secondary,
-        )
-        Text(
-            stringResource(R.string.quoted_reflection, memory.reflectionContent),
-            modifier = Modifier.padding(top = MementoSpacing.normal),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = foreground,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = MementoSpacing.normal),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.remember_open), style = MaterialTheme.typography.labelLarge, color = foreground)
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.padding(start = MementoSpacing.small).size(20.dp),
-                tint = foreground,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                PosterArtwork(memory.mediaType, memory.title, memory.posterUrl, Modifier.width(48.dp).height(70.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(memory.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(memory.completedDate.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.forLanguageTag("es"))),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Surface(color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small) {
+                Text("“" + memory.reflectionContent + "”", Modifier.fillMaxWidth().padding(16.dp),
+                    style = com.memento.app.ui.theme.EditorialQuoteStyle, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.remember_open), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.padding(start = 8.dp).size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
@@ -429,91 +267,46 @@ internal fun InProgressMediaCard(
     onUpdateProgress: () -> Unit = {},
     onAddNote: () -> Unit = {},
 ) {
-    val accent = MaterialTheme.mediaTypeColor(item.type)
-    val updateProgressLabel = stringResource(R.string.quick_update_progress_accessibility, item.title)
-    val addNoteLabel = stringResource(R.string.quick_add_note_accessibility, item.title)
-    Card(
-        onClick = onClick,
-        modifier = Modifier.width(308.dp).heightIn(min = 222.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    val updateLabel = stringResource(R.string.quick_update_progress_accessibility, item.title)
+    val noteLabel = stringResource(R.string.quick_add_note_accessibility, item.title)
+    Surface(
+        modifier = Modifier.widthIn(max = 800.dp).fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 222.dp).padding(MementoSpacing.medium),
-            verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
-            ) {
-                HomePoster(item, Modifier.width(112.dp).aspectRatio(2f / 3f))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
-                ) {
+        Column(Modifier.padding(MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                HomePoster(item, Modifier.width(68.dp).height(102.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     MediaTypeBadge(item.type)
-                    Text(
-                        item.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    metadataLine(item)?.let { metadata ->
-                        Text(
-                            metadata,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    if (item.genres.isNotEmpty()) GenreRow(item.genres, item.additionalGenreCount)
-                    item.progress?.let { progress ->
-                        Text(progressLabel(progress), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                        progress.fraction?.let { fraction ->
-                            LinearProgressIndicator(
-                                progress = { fraction },
-                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
-                                color = accent,
-                                trackColor = accent.copy(alpha = 0.16f),
-                            )
-                        }
-                    } ?: Text(
-                        stringResource(R.string.status_in_progress),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    metadataLine(item)?.let { Text(it, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    if (item.genres.isNotEmpty()) Text(item.genres.take(2).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                     item.ratingHalfStars?.let { CompactRating(it) }
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = onUpdateProgress,
-                    modifier = Modifier.semantics { contentDescription = updateProgressLabel },
-                ) {
-                    Icon(
-                        Icons.Outlined.Update,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = MementoSpacing.xSmall).size(18.dp),
-                    )
-                    Text(stringResource(R.string.quick_update_progress))
+            item.progress?.let { progress ->
+                Text(progressLabel(progress), style = MaterialTheme.typography.labelLarge)
+                progress.fraction?.let { fraction ->
+                    LinearProgressIndicator(progress = { fraction.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                        color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                 }
-                TextButton(
-                    onClick = onAddNote,
-                    modifier = Modifier.semantics { contentDescription = addNoteLabel },
-                ) {
-                    Icon(
-                        Icons.Outlined.EditNote,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = MementoSpacing.xSmall).size(18.dp),
-                    )
-                    Text(stringResource(R.string.quick_add_note))
+            }
+            androidx.compose.foundation.layout.FlowRow(
+                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TextButton(onClick = onUpdateProgress, modifier = Modifier.semantics { contentDescription = updateLabel }) {
+                    Icon(Icons.Outlined.Update, null, Modifier.size(18.dp))
+                    Text(stringResource(R.string.quick_update_progress), Modifier.padding(start = 6.dp))
+                }
+                TextButton(onClick = onAddNote, modifier = Modifier.semantics { contentDescription = noteLabel }) {
+                    Icon(Icons.Outlined.EditNote, null, Modifier.size(18.dp))
+                    Text(stringResource(R.string.quick_add_note), Modifier.padding(start = 6.dp))
                 }
             }
         }
@@ -532,7 +325,7 @@ internal fun RecentMediaCard(item: HomeMediaItem, onClick: () -> Unit) {
         Text(
             item.title,
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -587,36 +380,6 @@ private fun MediaTypeBadge(type: MediaType) {
 }
 
 @Composable
-private fun GenreRow(genres: List<String>, additionalCount: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
-    ) {
-        genres.take(2).forEach { genre -> MediaGenreChip(genre, Modifier.weight(1f, fill = false)) }
-        if (additionalCount > 0) MediaGenreChip(stringResource(R.string.additional_genres, additionalCount))
-    }
-}
-
-@Composable
-private fun MediaGenreChip(label: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.widthIn(max = 78.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = CircleShape,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
 private fun CompactRating(ratingHalfStars: Int) {
     val rating = formatRating(ratingHalfStars)
     val description = stringResource(R.string.rating_accessibility, rating)
@@ -629,65 +392,8 @@ private fun CompactRating(ratingHalfStars: Int) {
 }
 
 @Composable
-internal fun HomeRecommendationCard(
-    recommendation: Recommendation,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val candidate = recommendation.candidate
-    val accessibilityLabel = stringResource(R.string.recommendation_card_accessibility, candidate.title)
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth().semantics { contentDescription = accessibilityLabel },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
-            horizontalArrangement = Arrangement.spacedBy(MementoSpacing.normal),
-        ) {
-            Box(Modifier.width(92.dp).aspectRatio(2f / 3f).clearAndSetSemantics { }) {
-                PosterArtwork(candidate.type, candidate.title, candidate.posterUrl, Modifier.fillMaxSize())
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                MediaTypeBadge(candidate.type)
-                Text(
-                    candidate.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val context = buildList {
-                    addAll(candidate.genres.take(2))
-                    candidate.releaseYear?.let { add(it.toString()) }
-                }.joinToString(" · ")
-                if (context.isNotEmpty()) {
-                    Text(
-                        context,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Text(
-                    compatibilityLabel(recommendation.category),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                recommendation.reasons.firstOrNull()?.let { reason ->
-                    Text(
-                        recommendationReason(reason),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
+internal fun HomeRecommendationCard(recommendation: Recommendation, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    com.memento.app.ui.components.RecommendationPreview(recommendation, onClick, modifier)
 }
 
 @Composable
@@ -767,7 +473,7 @@ private fun YearMetric(type: MediaType, count: Int, modifier: Modifier = Modifie
     ) {
         Icon(type.icon(), contentDescription = null, modifier = Modifier.size(22.dp), tint = accent)
         Column {
-            Text(count.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(count.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
             Text(mediaTypePluralLabel(type), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -789,25 +495,6 @@ private fun progressLabel(progress: HomeProgress): String = when (progress) {
     } ?: stringResource(R.string.hours_format, number(progress.hours))
     is HomeProgress.Minutes -> stringResource(R.string.home_minutes_progress, number(progress.minutes))
     is HomeProgress.Percent -> stringResource(R.string.percent_format, number(progress.percent))
-}
-
-@Composable
-private fun compatibilityLabel(category: RecommendationCategory): String = stringResource(
-    when (category) {
-        RecommendationCategory.VERY_AFFINE -> R.string.recommendation_very_affine
-        RecommendationCategory.GOOD_BET -> R.string.recommendation_good_bet
-        RecommendationCategory.EXPLORATION -> R.string.recommendation_exploration
-    },
-)
-
-@Composable
-private fun recommendationReason(reason: RecommendationReason): String = when (reason) {
-    is RecommendationReason.AnchorWorks -> stringResource(R.string.reason_anchors, reason.titles.joinToString(" y "))
-    is RecommendationReason.Genre -> stringResource(R.string.reason_genre, reason.name)
-    is RecommendationReason.Creator -> stringResource(R.string.reason_creator, reason.name)
-    is RecommendationReason.MediaKind -> stringResource(R.string.reason_type, mediaTypeLabel(reason.type))
-    is RecommendationReason.Exploration -> reason.anchorTitle?.let { stringResource(R.string.reason_exploration_anchor, it) }
-        ?: stringResource(R.string.reason_exploration)
 }
 
 @Composable

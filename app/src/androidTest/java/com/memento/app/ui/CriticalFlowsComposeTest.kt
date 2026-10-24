@@ -86,7 +86,7 @@ class CriticalFlowsComposeTest {
             }
         }
 
-        composeRule.onNodeWithText("Título *").performTextInput("Dune")
+        composeRule.onNodeWithContentDescription("Título *").performTextInput("Dune")
         composeRule.onNodeWithText("Añadir a pendientes").performScrollTo().performClick()
 
         composeRule.runOnIdle { assertEquals(ConsumptionStatus.PLANNED, savedStatus) }
@@ -198,16 +198,18 @@ class CriticalFlowsComposeTest {
     }
 
     @Test
-    fun settingsPaletteSelectionInvokesForestAndExposesSelectedSemantics() {
+    fun settingsAppearanceSelectsDarkAndExposesSelectedSemantics() {
         lateinit var selectedPalette: MutableState<ThemePalette>
+        lateinit var selectedMode: MutableState<ThemeMode>
         composeRule.setContent {
             selectedPalette = remember { mutableStateOf(ThemePalette.MEMENTO) }
+            selectedMode = remember { mutableStateOf(ThemeMode.SYSTEM) }
             MementoTheme(ThemeMode.LIGHT, selectedPalette.value) {
                 SettingsScreen(
-                    themeMode = ThemeMode.SYSTEM,
+                    themeMode = selectedMode.value,
                     themePalette = selectedPalette.value,
                     state = SettingsUiState(),
-                    onThemeModeChanged = {},
+                    onThemeModeChanged = { selectedMode.value = it },
                     onThemePaletteChanged = { selectedPalette.value = it },
                     onExport = {},
                     onImport = {},
@@ -218,10 +220,10 @@ class CriticalFlowsComposeTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription("Paleta Bosque").performScrollTo().performClick()
+        composeRule.onNodeWithText("Oscuro").performScrollTo().performClick()
 
-        composeRule.runOnIdle { assertEquals(ThemePalette.FOREST, selectedPalette.value) }
-        composeRule.onNodeWithContentDescription("Paleta Bosque").assertIsSelected()
+        composeRule.runOnIdle { assertEquals(ThemeMode.DARK, selectedMode.value) }
+        composeRule.onNodeWithText("Oscuro").assertIsSelected()
     }
 
     @Test

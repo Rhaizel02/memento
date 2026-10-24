@@ -18,6 +18,7 @@ data class MementoSemanticColors(
     val onSeries: Color,
     val game: Color,
     val onGame: Color,
+    val success: Color,
 ) {
     fun color(type: MediaType): Color = when (type) {
         MediaType.BOOK -> book
@@ -40,25 +41,19 @@ data class MementoThemeInfo(
 )
 
 private val LightSemanticColors = MementoSemanticColors(
-    book = Color(0xFF775A15),
-    onBook = Color(0xFFFFFFFF),
-    movie = Color(0xFF842F4A),
-    onMovie = Color(0xFFFFFFFF),
-    series = Color(0xFF4F4B8B),
-    onSeries = Color(0xFFFFFFFF),
-    game = Color(0xFF006B61),
-    onGame = Color(0xFFFFFFFF),
+    success = Color(0xFF48623F),
+    book = Color(0xFF6E6259), onBook = Color(0xFFFFF8F3),
+    movie = Color(0xFF6E6259), onMovie = Color(0xFFFFF8F3),
+    series = Color(0xFF6E6259), onSeries = Color(0xFFFFF8F3),
+    game = Color(0xFF6E6259), onGame = Color(0xFFFFF8F3),
 )
 
 private val DarkSemanticColors = MementoSemanticColors(
-    book = Color(0xFFE8C36A),
-    onBook = Color(0xFF3E2E00),
-    movie = Color(0xFFF1B4C3),
-    onMovie = Color(0xFF54152A),
-    series = Color(0xFFC9C4FF),
-    onSeries = Color(0xFF302B68),
-    game = Color(0xFF70D7C9),
-    onGame = Color(0xFF003731),
+    success = Color(0xFFA3B48E),
+    book = Color(0xFFB5A69B), onBook = Color(0xFF181412),
+    movie = Color(0xFFB5A69B), onMovie = Color(0xFF181412),
+    series = Color(0xFFB5A69B), onSeries = Color(0xFF181412),
+    game = Color(0xFFB5A69B), onGame = Color(0xFF181412),
 )
 
 internal val LocalMementoSemanticColors = staticCompositionLocalOf { LightSemanticColors }
@@ -73,6 +68,11 @@ val MaterialTheme.mementoThemeInfo: MementoThemeInfo
     @Composable
     @ReadOnlyComposable
     get() = LocalMementoThemeInfo.current
+
+val MaterialTheme.archiveSuccess: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = mementoSemanticColors.success
 
 @Composable
 @ReadOnlyComposable

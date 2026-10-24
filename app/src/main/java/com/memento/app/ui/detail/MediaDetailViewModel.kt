@@ -36,12 +36,14 @@ data class MediaDetailUiState(
     val wasDeleted: Boolean = false,
     val availableTags: List<Tag> = emptyList(),
     val watchAvailability: WatchAvailabilityUiState = WatchAvailabilityUiState.Hidden,
+    val actionRevision: Long = 0,
 )
 
 private data class DetailOperationState(
     val isWorking: Boolean = false,
     val message: String? = null,
     val wasDeleted: Boolean = false,
+    val actionRevision: Long = 0,
 )
 
 @HiltViewModel
@@ -87,6 +89,7 @@ class MediaDetailViewModel @Inject constructor(
             wasDeleted = currentOperation.wasDeleted,
             availableTags = availableTags,
             watchAvailability = availability,
+            actionRevision = currentOperation.actionRevision,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MediaDetailUiState())
 
@@ -150,7 +153,7 @@ class MediaDetailViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { block() }
                 .onSuccess {
-                    operation.update { it.copy(isWorking = false) }
+                    operation.update { it.copy(isWorking = false, actionRevision = it.actionRevision + 1) }
                     onSuccess()
                 }
                 .onFailure { error ->

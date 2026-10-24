@@ -23,18 +23,19 @@ class ColorPalettesTest {
                     )
                 }
                 assertTrue(
-                    "$palette dark=$dark outline contrast=${contrast(scheme.outline, scheme.surface)}",
-                    contrast(scheme.outline, scheme.surface) >= MIN_NON_TEXT_CONTRAST,
+                    "$palette dark=$dark focus contrast=${contrast(scheme.primary, scheme.surface)}",
+                    contrast(scheme.primary, scheme.surface) >= MIN_NON_TEXT_CONTRAST,
                 )
             }
         }
     }
 
     @Test
-    fun paletteIdentitiesHaveDistinctPrimaryColors() {
+    fun legacyPaletteIdentitiesResolveToOneWarmArchive() {
         listOf(false, true).forEach { dark ->
             val colors = ThemePalette.entries.map { colorSchemeFor(it, dark).primary }
-            assertEquals(ThemePalette.entries.size, colors.distinct().size)
+            assertEquals(1, colors.distinct().size)
+            assertEquals(if (dark) Color(0xFFE07752) else Color(0xFF9F3C16), colors.first())
         }
     }
 
