@@ -1,7 +1,6 @@
 package com.memento.app.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,22 +9,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
 import com.memento.app.ui.components.MementoFilterChip as FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,13 +28,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import com.memento.app.R
@@ -47,8 +37,6 @@ import com.memento.app.BuildConfig
 import com.memento.app.data.preferences.ThemeMode
 import com.memento.app.data.preferences.ThemePalette
 import com.memento.app.ui.theme.MementoSpacing
-import com.memento.app.ui.theme.mementoThemeInfo
-import com.memento.app.ui.theme.previewColors
 import coil3.compose.AsyncImage
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
@@ -82,10 +70,10 @@ fun SettingsScreen(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(MementoSpacing.normal),
-        verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
+        contentPadding = PaddingValues(bottom = MementoSpacing.large),
+        verticalArrangement = Arrangement.spacedBy(MementoSpacing.medium),
     ) {
-        item { com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.settings), onBack = onBack) }
+        item { com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.settings), onBack = onBack, compact = true) }
         item {
             SettingsSection(title = stringResource(R.string.appearance)) {
                 Text(stringResource(R.string.theme_mode), style = MaterialTheme.typography.labelLarge)
@@ -186,6 +174,10 @@ fun SettingsScreen(
         }
         item {
             SettingsSection(title = stringResource(R.string.about)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    com.memento.app.ui.components.MementoBrandMark(Modifier.width(36.dp))
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
+                }
                 Text(stringResource(R.string.version_text), style = MaterialTheme.typography.bodyLarge)
             }
         }
@@ -231,7 +223,7 @@ private fun aiAvailabilityText(availability: AiAvailability?): String = stringRe
 private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     androidx.compose.material3.Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(MementoSpacing.normal),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
             verticalArrangement = Arrangement.spacedBy(MementoSpacing.small),
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge)

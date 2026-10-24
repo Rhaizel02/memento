@@ -1,7 +1,6 @@
 package com.memento.app.ui.components
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -25,6 +24,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,6 +38,7 @@ fun MementoSearchField(
     label: String,
     modifier: Modifier = Modifier,
     autoFocus: Boolean = false,
+    compact: Boolean = false,
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -46,24 +48,36 @@ fun MementoSearchField(
             keyboardController?.show()
         }
     }
-    OutlinedTextField(
+    val leading: @Composable () -> Unit = { Icon(Icons.Outlined.Search, contentDescription = null) }
+    val trailing: (@Composable () -> Unit)? = value.takeIf(String::isNotEmpty)?.let {
+        {
+            IconButton(onClick = { onValueChange(""); focusRequester.requestFocus() }) {
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.clear_search))
+            }
+        }
+    }
+    if (compact) {
+        androidx.compose.material3.OutlinedTextField(
+            value = value, onValueChange = onValueChange,
+            modifier = modifier.focusRequester(focusRequester).then(Modifier.semantics { contentDescription = label }),
+            placeholder = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            leadingIcon = leading, trailingIcon = trailing,
+            shape = androidx.compose.material3.MaterialTheme.shapes.medium,
+            textStyle = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), singleLine = true,
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+                unfocusedBorderColor = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant,
+            ),
+        )
+    } else OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.focusRequester(focusRequester),
         labelText = label,
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-        trailingIcon = value.takeIf(String::isNotEmpty)?.let {
-            {
-                IconButton(
-                    onClick = {
-                        onValueChange("")
-                        focusRequester.requestFocus()
-                    },
-                ) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.clear_search))
-                }
-            }
-        },
+        leadingIcon = leading,
+        trailingIcon = trailing,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         singleLine = true,
     )

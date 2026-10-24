@@ -1,7 +1,7 @@
 <resources>
-    <style name="Theme.Memento" parent="android:style/Theme.Material.NoActionBar">
+    <style name="Theme.Memento.Base" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <item name="android:windowBackground">@color/memento_brand_canvas</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>

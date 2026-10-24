@@ -1,0 +1,7 @@
+<resources>
+  <color name="memento_launcher_background">#9F3C16</color>
+  <color name="memento_launcher_foreground">#FFF8F3</color>
+  <color name="memento_brand_accent">#9F3C16</color>
+  <color name="memento_brand_text">#241E1A</color>
+  <color name="memento_brand_canvas">#FFF8F3</color>
+</resources>

@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.Memento" parent="Theme.Memento.Base">
+        <item name="android:windowSplashScreenBackground">@color/memento_brand_canvas</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_memento_splash</item>
+    </style>
+</resources>

@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.PlayArrow
 import com.memento.app.ui.components.MementoPrimaryButton as Button
@@ -42,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -99,6 +96,7 @@ fun TimelineScreen(
         topBar = {
             com.memento.app.ui.components.MementoScreenHeader(
                 stringResource(R.string.archive_history_tab), onBack = onBack, onSettings = onOpenSettings,
+                subtitle = stringResource(R.string.timeline_subtitle), compact = true,
                 actions = { IconButton(onClick = onOpenCalendar) {
                     Icon(Icons.Outlined.CalendarMonth, stringResource(R.string.open_cultural_calendar))
                 } },
@@ -111,19 +109,6 @@ fun TimelineScreen(
                 modifier = Modifier.fillMaxHeight().widthIn(max = 700.dp).fillMaxWidth(),
                 contentPadding = PaddingValues(bottom = MementoSpacing.huge),
             ) {
-                item("header") {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.medium),
-                        verticalArrangement = Arrangement.spacedBy(MementoSpacing.xSmall),
-                    ) {
-                        Text(stringResource(R.string.timeline_header), style = MaterialTheme.typography.headlineLarge)
-                        Text(
-                            stringResource(R.string.timeline_subtitle),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
                 item("filters") {
                     TimelineTypeFilters(state.selectedMediaType, onMediaTypeSelected)
                 }

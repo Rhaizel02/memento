@@ -29,23 +29,32 @@ fun MementoScreenHeader(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
+    compact: Boolean = false,
+    leading: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Column(modifier.fillMaxWidth()) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = MementoSpacing.small),
+            Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.normal, vertical = if (compact) 4.dp else MementoSpacing.small),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             onBack?.let {
                 IconButton(onClick = it) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) }
             }
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineLarge)
+            leading?.let { it(); Spacer(Modifier.width(10.dp)) }
+            Column(Modifier.weight(1f)) {
+                Text(title, style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
+                    maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                if (compact && subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
             actions()
             onSettings?.let {
                 IconButton(onClick = it) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings)) }
             }
         }
-        subtitle?.let {
+        subtitle?.takeUnless { compact }?.let {
             Text(it, Modifier.padding(horizontal = MementoSpacing.normal), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -146,7 +145,7 @@ fun MementoApp(
             }
         },
         floatingActionButton = {
-            if (current == HomeKey || current == LibraryKey) {
+            if (current == HomeKey) {
                 FloatingActionButton(onClick = { backStack.add(newAddMediaKey()) }) {
                     Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.add_work))
                 }

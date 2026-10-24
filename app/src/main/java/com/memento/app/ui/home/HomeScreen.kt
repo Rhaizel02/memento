@@ -3,10 +3,9 @@ package com.memento.app.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -19,7 +18,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import com.memento.app.R
 import com.memento.app.ui.theme.MementoSpacing
@@ -51,6 +49,7 @@ fun HomeScreen(
     Column(Modifier.fillMaxSize()) {
     com.memento.app.ui.components.MementoScreenHeader(
         title = stringResource(R.string.app_name), onSettings = onOpenSettings,
+        leading = { com.memento.app.ui.components.MementoBrandMark(Modifier.width(30.dp)) },
         actions = { IconButton(onClick = onOpenGlobalSearch) {
             Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.global_search_title))
         } },

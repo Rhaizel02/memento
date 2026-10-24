@@ -6,14 +6,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import com.memento.app.ui.components.MementoPrimaryButton as Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import com.memento.app.ui.components.MementoFilterChip as FilterChip
@@ -26,11 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.memento.app.R
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.recommendation.Recommendation
-import com.memento.app.domain.recommendation.RecommendationCategory
-import com.memento.app.domain.recommendation.RecommendationReason
 import com.memento.app.ui.components.EmptyState
-import com.memento.app.ui.components.PosterArtwork
-import com.memento.app.ui.components.mediaTypeLabel
 import com.memento.app.ui.theme.MementoSpacing
 import com.memento.app.ui.components.StaticTag
 
@@ -43,21 +35,13 @@ fun DiscoverScreen(
     onOpenSettings: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
-    com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.discover), onSettings = onOpenSettings)
+    com.memento.app.ui.components.MementoScreenHeader(stringResource(R.string.discover), onSettings = onOpenSettings,
+        subtitle = stringResource(R.string.archive_discover_subtitle), compact = true)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(MementoSpacing.normal),
+        contentPadding = PaddingValues(start = MementoSpacing.normal, end = MementoSpacing.normal, top = 8.dp, bottom = MementoSpacing.large),
         verticalArrangement = Arrangement.spacedBy(MementoSpacing.large),
     ) {
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {
-                Text(
-                    stringResource(R.string.archive_discover_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
         if (state.isRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(MementoSpacing.small)) {

@@ -1,4 +1,8 @@
 <resources>
+    <string name="library_subtitle_compact">Tu colección personal.</string>
+    <string name="library_advanced_filters_count">Filtros avanzados: %1$d activos</string>
+    <string name="library_sort_description">Ordenar: %1$s</string>
+    <string name="library_favorite_label">Favorita</string>
     <string name="archive_home_title">Tu archivo cultural</string>
     <string name="archive_missing_work">Esta obra ya no está disponible.</string>
     <string name="archive_library_subtitle">Las historias que guardas contigo.</string>
