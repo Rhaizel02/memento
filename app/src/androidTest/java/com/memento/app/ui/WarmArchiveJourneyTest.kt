@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import com.memento.app.MainActivity
+import com.memento.app.R
 import com.memento.app.data.local.database.MementoDatabase
 import com.memento.app.data.preferences.SettingsRepository
 import com.memento.app.data.preferences.ThemeMode
@@ -22,6 +23,36 @@ import org.junit.Test
 /** Real navigation and capture smoke test. Fixtures are confined to the review emulator. */
 class WarmArchiveJourneyTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun changingTabsReplacesTheVisibleScreenImmediately() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        runBlocking { SettingsRepository(context).completeOnboarding() }
+        val tabs = listOf(
+            R.string.home to R.string.archive_home_title,
+            R.string.library to R.string.library_subtitle_compact,
+            R.string.archive_history_tab to R.string.timeline_subtitle,
+            R.string.discover to R.string.archive_discover_subtitle,
+            R.string.home to R.string.archive_home_title,
+        )
+        val initialHeading = context.getString(tabs.first().second)
+        compose.waitUntil(30_000) { compose.onAllNodesWithText(initialHeading).fetchSemanticsNodes().isNotEmpty() }
+        compose.mainClock.autoAdvance = false
+        try {
+            tabs.zipWithNext().forEach { (previous, next) ->
+                val nextTab = compose.onNode(tabLabel(context.getString(next.first)))
+                nextTab.performClick()
+                // Allow recomposition and layout while the former screen fade would still be running.
+                compose.mainClock.advanceTimeByFrame()
+                compose.mainClock.advanceTimeByFrame()
+                nextTab.assertIsSelected()
+                compose.onNodeWithText(context.getString(next.second)).assertIsDisplayed()
+                compose.onNodeWithText(context.getString(previous.second)).assertDoesNotExist()
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
 
     @Test
     fun archiveNavigationAndCaptureJourney() {
@@ -68,18 +99,18 @@ class WarmArchiveJourneyTest {
             dune
         }
         try {
-            compose.waitUntil(30_000) { compose.onAllNodesWithContentDescription("Biblioteca").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(30_000) { compose.onAllNodes(tabLabel("Biblioteca")).fetchSemanticsNodes().isNotEmpty() }
             compose.waitUntil(30_000) { compose.onAllNodesWithText("Dune").fetchSemanticsNodes().isNotEmpty() }
             capture("home-light")
             runBlocking { settings.setThemeMode(ThemeMode.DARK) }
             capture("home-dark")
-            compose.onNodeWithContentDescription("Biblioteca").performClick()
+            compose.onNode(tabLabel("Biblioteca")).performClick()
             capture("library-dark")
             runBlocking { settings.setThemeMode(ThemeMode.LIGHT) }
             capture("library-light")
             compose.onNodeWithText("Libros").performClick()
-            compose.onNodeWithContentDescription("Historia").performClick()
-            compose.onNodeWithContentDescription("Biblioteca").performClick()
+            compose.onNode(tabLabel("Historia")).performClick()
+            compose.onNode(tabLabel("Biblioteca")).performClick()
             compose.onNodeWithText("Libros").assertIsSelected()
             compose.onNodeWithText("Dune").performScrollTo().performClick()
             capture("detail-light")
@@ -105,12 +136,12 @@ class WarmArchiveJourneyTest {
             }
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Guardar").fetchSemanticsNodes().isEmpty() }
             compose.onNodeWithContentDescription("Volver").performClick()
-            compose.onNodeWithContentDescription("Historia").performClick()
+            compose.onNode(tabLabel("Historia")).performClick()
             capture("history")
             compose.onNodeWithContentDescription("Abrir calendario cultural").performClick()
             capture("calendar")
             compose.onNodeWithContentDescription("Volver").performClick()
-            compose.onNodeWithContentDescription("Descubrir").performClick()
+            compose.onNode(tabLabel("Descubrir")).performClick()
             capture("discover")
             if (compose.onAllNodesWithContentDescription("Ver recomendación").fetchSemanticsNodes().isNotEmpty()) {
                 compose.onAllNodesWithContentDescription("Ver recomendación")[0].performClick()
@@ -124,6 +155,8 @@ class WarmArchiveJourneyTest {
             database.close()
         }
     }
+
+    private fun tabLabel(label: String) = hasText(label) and isSelectable()
 
     private fun capture(name: String) {
         compose.waitForIdle()

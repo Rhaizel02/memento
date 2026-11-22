@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -167,12 +168,15 @@ fun MementoApp(
             }
         },
     ) { padding ->
-        NavDisplay(
-            modifier = Modifier.padding(padding).fillMaxSize()
-                .wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 840.dp),
-            entries = entries[selectedTab],
-            onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
-        )
+        // Each tab owns its scene transitions. The decorators above keep its state across switches.
+        key(destinations[selectedTab].key) {
+            NavDisplay(
+                modifier = Modifier.padding(padding).fillMaxSize()
+                    .wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 840.dp),
+                entries = entries[selectedTab],
+                onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
+            )
+        }
     }
 }
 
