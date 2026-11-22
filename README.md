@@ -84,6 +84,19 @@ En Windows:
 
 El APK queda en `app/build/outputs/apk/debug/app-debug.apk`. `assembleRelease` también compila; el firmado debe configurarse externamente y no se incluye ningún keystore.
 
+### Distribución privada
+
+El workflow **Memento Android** ejecuta las pruebas unitarias y compila la APK con cada push a `main`. También se puede lanzar desde Actions. Con Firebase configurado, publica la APK en App Distribution para el grupo de testers invitado. La descarga está disponible desde [Firebase App Tester](https://appdistribution.firebase.google.com/testerapps) después de aceptar la invitación.
+
+La activación inicial usa estas opciones de GitHub Actions:
+
+- Variables `FIREBASE_WORKLOAD_IDENTITY_PROVIDER` y `FIREBASE_SERVICE_ACCOUNT` para la identidad federada del workflow. El proveedor debe admitir únicamente este repositorio, este workflow y la rama `main`. La cuenta de servicio necesita el rol Firebase App Distribution Admin.
+- Variable `FIREBASE_TESTER_GROUP` con el alias de un grupo privado de App Distribution.
+- Secrets `MEMENTO_DEBUG_KEYSTORE_BASE64`, `TMDB_API_KEY`, `RAWG_API_KEY` y `OPEN_LIBRARY_CONTACT` (opcional). El almacén de firma debe corresponder a la APK que ya se usa en el teléfono.
+- Variable `FIREBASE_APP_ID` con el ID de la app Android `com.memento.app`. Se añade al final para activar el envío.
+
+El workflow comprueba el certificado antes de publicar y asigna un código de versión creciente a cada ejecución para que Android pueda instalar las actualizaciones sobre la versión anterior.
+
 ## Tests
 
 ```bash

@@ -14,7 +14,8 @@ val localProperties = Properties().apply {
     if (propertiesFile.exists()) propertiesFile.inputStream().use(::load)
 }
 
-fun localSecret(name: String): String = localProperties.getProperty(name, "")
+fun buildSecret(name: String): String = (providers.environmentVariable(name).orNull
+    ?: localProperties.getProperty(name, ""))
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
 
@@ -26,15 +27,19 @@ android {
         applicationId = "com.memento.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = providers.environmentVariable("MEMENTO_VERSION_CODE").map(String::toInt).getOrElse(1)
         versionName = "0.1.0"
 
-        buildConfigField("String", "TMDB_API_KEY", "\"${localSecret("TMDB_API_KEY")}\"")
-        buildConfigField("String", "RAWG_API_KEY", "\"${localSecret("RAWG_API_KEY")}\"")
-        buildConfigField("String", "OPEN_LIBRARY_CONTACT", "\"${localSecret("OPEN_LIBRARY_CONTACT")}\"")
+        buildConfigField("String", "TMDB_API_KEY", "\"${buildSecret("TMDB_API_KEY")}\"")
+        buildConfigField("String", "RAWG_API_KEY", "\"${buildSecret("RAWG_API_KEY")}\"")
+        buildConfigField("String", "OPEN_LIBRARY_CONTACT", "\"${buildSecret("OPEN_LIBRARY_CONTACT")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    providers.environmentVariable("MEMENTO_DEBUG_KEYSTORE").orNull?.let { path ->
+        signingConfigs.getByName("debug").storeFile = file(path)
     }
 
     buildTypes {
