@@ -16,6 +16,8 @@ import com.memento.app.domain.timeline.CulturalTimelineMapper
 import com.memento.app.domain.timeline.OnThisDaySelector
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
@@ -37,7 +39,7 @@ class RoomCulturalTimelineRepository @Inject constructor(
         ) { startedRows, completedRows, progressRows, reflectionRows ->
             val merged = timelineEvents(startedRows, completedRows, progressRows, reflectionRows)
             CulturalTimelineWindow(events = merged.take(limit), hasMore = merged.size > limit)
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeRange(from: LocalDate, until: LocalDate): Flow<List<CulturalTimelineEvent>> {
@@ -52,7 +54,7 @@ class RoomCulturalTimelineRepository @Inject constructor(
             timelineDao.observeReflectionsBetween(fromInstant, untilInstant),
         ) { startedRows, completedRows, progressRows, reflectionRows ->
             timelineEvents(startedRows, completedRows, progressRows, reflectionRows)
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeOnThisDay(date: LocalDate, limit: Int): Flow<List<CulturalTimelineEvent>> {
@@ -67,7 +69,7 @@ class RoomCulturalTimelineRepository @Inject constructor(
         ) { startedRows, completedRows, progressRows, reflectionRows ->
             val candidates = timelineEvents(startedRows, completedRows, progressRows, reflectionRows)
             OnThisDaySelector.select(candidates, date, limit)
-        }
+        }.flowOn(Dispatchers.Default)
     }
 }
 

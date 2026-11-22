@@ -39,6 +39,7 @@ interface MediaRepository {
     fun observeHomeMedia(inProgressLimit: Int = 10, recentLimit: Int = 12): Flow<HomeMediaFeed>
     fun observeCompletedCounts(year: Int): Flow<Map<MediaType, Int>>
     fun observeAllDetails(): Flow<List<MediaDetail>>
+    fun observeRecommendationHistory(): Flow<List<MediaDetail>> = observeAllDetails()
     fun observeTags(): Flow<List<Tag>>
 
     suspend fun addManual(

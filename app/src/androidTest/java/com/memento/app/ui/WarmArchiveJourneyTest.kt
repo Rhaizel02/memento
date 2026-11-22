@@ -77,6 +77,10 @@ class WarmArchiveJourneyTest {
             capture("library-dark")
             runBlocking { settings.setThemeMode(ThemeMode.LIGHT) }
             capture("library-light")
+            compose.onNodeWithText("Libros").performClick()
+            compose.onNodeWithContentDescription("Historia").performClick()
+            compose.onNodeWithContentDescription("Biblioteca").performClick()
+            compose.onNodeWithText("Libros").assertIsSelected()
             compose.onNodeWithText("Dune").performScrollTo().performClick()
             capture("detail-light")
             runBlocking { settings.setThemeMode(ThemeMode.DARK) }

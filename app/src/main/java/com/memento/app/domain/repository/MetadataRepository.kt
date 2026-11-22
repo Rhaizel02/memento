@@ -11,10 +11,19 @@ interface MetadataRepository {
     suspend fun recommendationCandidates(
         type: MediaType,
         preferredGenres: List<String>,
-        preferredCreators: List<String>,
         anchors: List<RecommendationAnchor>,
-    ): List<MetadataSearchResult>
+    ): CandidateBatch
+
+    suspend fun popularCandidates(type: MediaType): CandidateBatch
 }
+
+enum class CandidateIssue { NOT_CONFIGURED, AUTHENTICATION, RATE_LIMITED, CONNECTION, UNAVAILABLE }
+
+data class CandidateBatch(
+    val items: List<MetadataSearchResult> = emptyList(),
+    val issue: CandidateIssue? = null,
+    val loadMore: (suspend () -> CandidateBatch)? = null,
+)
 
 sealed interface MetadataDetailsOutcome {
     val result: MetadataSearchResult

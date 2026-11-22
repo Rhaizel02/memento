@@ -4,6 +4,7 @@ import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchOutcome
 import com.memento.app.domain.repository.MetadataRepository
+import com.memento.app.domain.repository.CandidateBatch
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.repository.MetadataDetailsOutcome
 import com.memento.app.domain.recommendation.RecommendationAnchor
@@ -14,6 +15,9 @@ class FakeMetadataRepository : MetadataRepository {
     var detailRequests = 0
     var recommendationResult: List<MetadataSearchResult> = emptyList()
     var recommendationRequests = 0
+    val requestedRecommendationTypes = mutableListOf<MediaType>()
+    var recommendationHandler: (suspend (MediaType) -> CandidateBatch)? = null
+    var popularHandler: (suspend (MediaType) -> CandidateBatch)? = null
     var searchHandler: (suspend (MediaType, String) -> MetadataSearchOutcome)? = null
     var detailsHandler: (suspend (MetadataSearchResult) -> MetadataDetailsOutcome)? = null
     val searchQueries = mutableListOf<String>()
@@ -28,10 +32,13 @@ class FakeMetadataRepository : MetadataRepository {
     override suspend fun recommendationCandidates(
         type: MediaType,
         preferredGenres: List<String>,
-        preferredCreators: List<String>,
         anchors: List<RecommendationAnchor>,
-    ): List<MetadataSearchResult> {
+    ): CandidateBatch {
         recommendationRequests++
-        return recommendationResult
+        requestedRecommendationTypes += type
+        return recommendationHandler?.invoke(type) ?: CandidateBatch(recommendationResult)
     }
+
+    override suspend fun popularCandidates(type: MediaType): CandidateBatch =
+        popularHandler?.invoke(type) ?: CandidateBatch()
 }

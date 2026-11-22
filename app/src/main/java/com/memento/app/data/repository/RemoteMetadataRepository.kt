@@ -14,7 +14,13 @@ import com.memento.app.domain.repository.MetadataDetailsOutcome
 import com.memento.app.domain.recommendation.RecommendationAnchor
 import javax.inject.Inject
 import javax.inject.Singleton
-import java.text.Normalizer
+import com.memento.app.data.remote.mapper.rawgGenreSlug
+import com.memento.app.domain.recommendation.recommendationKey
+import com.memento.app.domain.repository.CandidateBatch
+import com.memento.app.domain.repository.CandidateIssue
+import kotlinx.coroutines.CancellationException
+import retrofit2.HttpException
+import java.io.IOException
 
 @Singleton
 class RemoteMetadataRepository @Inject constructor(
@@ -70,96 +76,148 @@ class RemoteMetadataRepository @Inject constructor(
     override suspend fun recommendationCandidates(
         type: MediaType,
         preferredGenres: List<String>,
-        preferredCreators: List<String>,
         anchors: List<RecommendationAnchor>,
-    ): List<com.memento.app.domain.model.MetadataSearchResult> {
-        val collected = linkedMapOf<String, com.memento.app.domain.model.MetadataSearchResult>()
-        fun add(
-            candidates: List<com.memento.app.domain.model.MetadataSearchResult>,
-            anchor: RecommendationAnchor? = null,
-        ) {
-            candidates.forEach { candidate ->
-                val key = "${candidate.provider}:${candidate.externalId}:${candidate.type}"
-                val previous = collected[key]
-                collected[key] = (previous ?: candidate).copy(
-                    sourceAnchorMediaIds = (previous?.sourceAnchorMediaIds.orEmpty() + candidate.sourceAnchorMediaIds + listOfNotNull(anchor?.mediaId)).distinct(),
-                    sourceAnchorTitles = (previous?.sourceAnchorTitles.orEmpty() + candidate.sourceAnchorTitles + listOfNotNull(anchor?.title)).distinct(),
-                )
-            }
-        }
-
+    ): CandidateBatch {
+        val strongAnchors = anchors.filter { it.type == type && it.strength >= 0.65 }.take(4)
+        val batches = mutableListOf<CandidateBatch>()
         when (type) {
             MediaType.BOOK -> {
-                anchors.filter { it.type == MediaType.BOOK && it.strength >= 0.65 }.take(4).forEach { anchor ->
-                    anchor.creators.take(1).forEach { author ->
-                        val rows = runCatching { openLibraryApi.searchBooks("author:\"$author\"").docs }.getOrDefault(emptyList())
-                        add(rows.map { it.toMetadataResult() }, anchor)
-                    }
+                for (anchor in strongAnchors) {
+                    val author = anchor.creators.firstOrNull() ?: continue
+                    batches += requestCandidates {
+                        CandidateBatch(openLibraryApi.searchBooks("author:\"$author\"").docs.map { it.toMetadataResult() })
+                    }.withAnchor(anchor)
                 }
-                val subjectQuery = preferredGenres.take(2).joinToString(" AND ") { "subject:\"$it\"" }
-                if (subjectQuery.isNotBlank()) {
-                    val rows = runCatching { openLibraryApi.searchBooks(subjectQuery).docs }.getOrDefault(emptyList())
-                    add(rows.map { it.toMetadataResult() })
+                val subjects = preferredGenres.take(2).joinToString(" AND ") { "subject:\"$it\"" }
+                if (subjects.isNotEmpty()) {
+                    batches += requestCandidates {
+                        CandidateBatch(openLibraryApi.searchBooks(subjects).docs.map { it.toMetadataResult() })
+                    }
                 }
             }
             MediaType.MOVIE, MediaType.SERIES -> {
-                if (BuildConfig.TMDB_API_KEY.isBlank()) return emptyList()
-                anchors.filter { it.type == type && it.strength >= 0.65 }.take(4).forEach { anchor ->
-                    anchor.externalKeys.filter { it.provider == MetadataProvider.TMDB && it.mediaType == type }.take(1).forEach { key ->
-                        val candidates = if (type == MediaType.MOVIE) {
-                            runCatching { tmdbApi.movieRecommendations(key.externalId, BuildConfig.TMDB_API_KEY).results.map { it.toMetadataResult() } }
-                                .getOrDefault(emptyList())
-                        } else {
-                            runCatching { tmdbApi.seriesRecommendations(key.externalId, BuildConfig.TMDB_API_KEY).results.map { it.toMetadataResult() } }
-                                .getOrDefault(emptyList())
-                        }
-                        add(candidates, anchor)
-                    }
-                }
+                val apiKey = BuildConfig.TMDB_API_KEY
+                if (apiKey.isBlank()) return CandidateBatch(issue = CandidateIssue.NOT_CONFIGURED)
                 val genreIds = preferredGenres.mapNotNull { tmdbGenreId(it, type) }.distinct().take(3)
-                if (genreIds.isNotEmpty()) {
-                    val candidates = if (type == MediaType.MOVIE) {
-                        runCatching { tmdbApi.discoverMovies(BuildConfig.TMDB_API_KEY, genreIds.joinToString(",")).results.map { it.toMetadataResult() } }
-                            .getOrDefault(emptyList())
-                    } else {
-                        runCatching { tmdbApi.discoverSeries(BuildConfig.TMDB_API_KEY, genreIds.joinToString(",")).results.map { it.toMetadataResult() } }
-                            .getOrDefault(emptyList())
-                    }
-                    add(candidates)
+                if (genreIds.isNotEmpty()) batches += tmdbPage(type, apiKey, genres = genreIds.joinToString("|"))
+                for (anchor in strongAnchors) {
+                    val id = anchor.externalKeys.firstOrNull { it.provider == MetadataProvider.TMDB && it.mediaType == type }
+                        ?.externalId ?: continue
+                    batches += tmdbPage(type, apiKey, anchorId = id).withAnchor(anchor)
                 }
             }
             MediaType.GAME -> {
-                if (BuildConfig.RAWG_API_KEY.isBlank()) return emptyList()
-                anchors.filter { it.type == MediaType.GAME && it.strength >= 0.65 }.take(4).forEach { anchor ->
-                    val externalId = anchor.externalKeys.firstOrNull {
-                        it.provider == MetadataProvider.RAWG && it.mediaType == MediaType.GAME
-                    }?.externalId
-                    val details = externalId?.let { id ->
-                        runCatching { rawgApi.gameDetails(id, BuildConfig.RAWG_API_KEY) }.getOrNull()
+                val apiKey = BuildConfig.RAWG_API_KEY
+                if (apiKey.isBlank()) return CandidateBatch(issue = CandidateIssue.NOT_CONFIGURED)
+                val genres = preferredGenres.mapNotNull(::rawgGenreSlug).distinct().take(2)
+                if (genres.isNotEmpty()) batches += rawgPage(apiKey, genres = genres.joinToString(","))
+                for (anchor in strongAnchors) {
+                    val id = anchor.externalKeys.firstOrNull { it.provider == MetadataProvider.RAWG && it.mediaType == type }?.externalId
+                    val details = try {
+                        id?.let { rawgApi.gameDetails(it, apiKey) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        null
                     }
-                    val rows = runCatching {
-                        rawgApi.discoverGames(
-                            apiKey = BuildConfig.RAWG_API_KEY,
-                            genreSlugs = details?.genres?.take(2)?.joinToString(",") { it.name.toSlug() }?.takeIf(String::isNotBlank)
-                                ?: anchor.genres.take(2).joinToString(",") { it.toSlug() }.takeIf(String::isNotBlank),
-                            developerSlugs = details?.developers?.firstOrNull()?.name?.toSlug()
-                                ?: anchor.creators.firstOrNull()?.toSlug(),
-                            tagSlugs = details?.tags?.take(2)?.joinToString(",") { it.name.toSlug() }?.takeIf(String::isNotBlank),
-                        ).results
-                    }.getOrDefault(emptyList())
-                    add(rows.map { it.toMetadataResult() }, anchor)
+                    val genreSlugs = details?.genres.orEmpty().mapNotNull { it.slug ?: rawgGenreSlug(it.name) }
+                        .ifEmpty { anchor.genres.mapNotNull(::rawgGenreSlug) }.distinct().take(2)
+                        .joinToString(",").takeIf(String::isNotEmpty)
+                    val developer = details?.developers?.firstOrNull()?.let { it.slug ?: it.id?.toString() }
+                    if (genreSlugs == null && developer == null) continue
+                    val batch = rawgPage(apiKey, genres = genreSlugs, developer = developer)
+                    batches += if (batch.items.isEmpty() && batch.issue == null && developer != null && genreSlugs != null) {
+                        rawgPage(apiKey, genres = genreSlugs).withAnchor(anchor)
+                    } else batch.withAnchor(anchor)
                 }
-                val rows = runCatching {
-                    rawgApi.discoverGames(
-                        apiKey = BuildConfig.RAWG_API_KEY,
-                        genreSlugs = preferredGenres.take(2).joinToString(",") { it.toSlug() }.takeIf(String::isNotBlank),
-                        developerSlugs = preferredCreators.firstOrNull()?.toSlug(),
-                    ).results
-                }.getOrDefault(emptyList())
-                add(rows.map { it.toMetadataResult() })
             }
         }
-        return collected.values.toList()
+        val candidates = batches.flatMap { it.items }.groupBy { it.recommendationKey() }.values.map { matches ->
+            matches.first().copy(
+                sourceAnchorMediaIds = matches.flatMap { it.sourceAnchorMediaIds }.distinct(),
+                sourceAnchorTitles = matches.flatMap { it.sourceAnchorTitles }.distinct(),
+            )
+        }
+        return CandidateBatch(
+            candidates,
+            issue = batches.firstNotNullOfOrNull { it.issue },
+            loadMore = batches.firstNotNullOfOrNull { it.loadMore },
+        )
+    }
+
+    override suspend fun popularCandidates(type: MediaType): CandidateBatch = when (type) {
+        MediaType.BOOK -> CandidateBatch()
+        MediaType.MOVIE, MediaType.SERIES -> if (BuildConfig.TMDB_API_KEY.isBlank()) {
+            CandidateBatch(issue = CandidateIssue.NOT_CONFIGURED)
+        } else tmdbPage(type, BuildConfig.TMDB_API_KEY, popular = true)
+        MediaType.GAME -> if (BuildConfig.RAWG_API_KEY.isBlank()) {
+            CandidateBatch(issue = CandidateIssue.NOT_CONFIGURED)
+        } else rawgPage(BuildConfig.RAWG_API_KEY, popular = true)
+    }
+
+    private suspend fun tmdbPage(
+        type: MediaType,
+        apiKey: String,
+        genres: String? = null,
+        anchorId: String? = null,
+        popular: Boolean = false,
+        page: Int = 1,
+    ): CandidateBatch = requestCandidates {
+        val sorting = if (popular) "popularity.desc" else "vote_count.desc"
+        val (items, pageCount) = if (type == MediaType.MOVIE) {
+            val response = if (anchorId == null) tmdbApi.discoverMovies(apiKey, genres, sortBy = sorting, page = page)
+            else tmdbApi.movieRecommendations(anchorId, apiKey, page = page)
+            response.results.map { it.toMetadataResult() } to response.totalPages
+        } else {
+            val response = if (anchorId == null) tmdbApi.discoverSeries(apiKey, genres, sortBy = sorting, page = page)
+            else tmdbApi.seriesRecommendations(anchorId, apiKey, page = page)
+            response.results.map { it.toMetadataResult() } to response.totalPages
+        }
+        CandidateBatch(items, loadMore = if (page < pageCount) {
+            { tmdbPage(type, apiKey, genres, anchorId, popular, page + 1) }
+        } else null)
+    }
+
+    private suspend fun rawgPage(
+        apiKey: String,
+        genres: String? = null,
+        developer: String? = null,
+        popular: Boolean = false,
+        page: Int = 1,
+    ): CandidateBatch = requestCandidates {
+        val response = rawgApi.discoverGames(
+            apiKey = apiKey, genreSlugs = genres, developerSlugs = developer,
+            ordering = if (popular) "-added" else "-metacritic", page = page,
+        )
+        CandidateBatch(response.results.map { it.toMetadataResult() }, loadMore = if (response.next != null) {
+            { rawgPage(apiKey, genres, developer, popular, page + 1) }
+        } else null)
+    }
+
+    private fun CandidateBatch.withAnchor(anchor: RecommendationAnchor): CandidateBatch = copy(
+        items = items.map {
+            it.copy(
+                sourceAnchorMediaIds = (it.sourceAnchorMediaIds + anchor.mediaId).distinct(),
+                sourceAnchorTitles = (it.sourceAnchorTitles + anchor.title).distinct(),
+            )
+        },
+        loadMore = loadMore?.let { load -> { load().withAnchor(anchor) } },
+    )
+
+    private suspend fun requestCandidates(request: suspend () -> CandidateBatch): CandidateBatch = try {
+        request()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: HttpException) {
+        CandidateBatch(issue = when (e.code()) {
+            401, 403 -> CandidateIssue.AUTHENTICATION
+            429 -> CandidateIssue.RATE_LIMITED
+            else -> CandidateIssue.UNAVAILABLE
+        })
+    } catch (_: IOException) {
+        CandidateBatch(issue = CandidateIssue.CONNECTION)
+    } catch (_: Exception) {
+        CandidateBatch(issue = CandidateIssue.UNAVAILABLE)
     }
 
     private suspend fun runProvider(
@@ -171,8 +229,3 @@ class RemoteMetadataRepository @Inject constructor(
             onFailure = { MetadataSearchOutcome.Unavailable(provider) },
         )
 }
-
-private fun String.toSlug(): String = Normalizer.normalize(lowercase(), Normalizer.Form.NFD)
-    .replace("\\p{Mn}+".toRegex(), "")
-    .replace("[^a-z0-9]+".toRegex(), "-")
-    .trim('-')

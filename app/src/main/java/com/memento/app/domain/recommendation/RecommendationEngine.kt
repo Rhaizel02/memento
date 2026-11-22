@@ -6,6 +6,7 @@ import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.model.RecommendationFeedbackType
+import java.text.Normalizer
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
@@ -39,6 +40,8 @@ data class RecommendationKey(
     val externalId: String,
     val mediaType: MediaType,
 )
+
+fun MetadataSearchResult.recommendationKey() = RecommendationKey(provider, externalId, type)
 
 enum class RecommendationCategory { VERY_AFFINE, GOOD_BET, EXPLORATION }
 
@@ -118,29 +121,43 @@ object RecommendationEngine {
         candidates: List<MetadataSearchResult>,
         feedback: Map<RecommendationKey, RecommendationFeedbackType> = emptyMap(),
         limit: Int = 12,
+    ): List<Recommendation> = diversify(rankCandidates(profile, candidates, feedback), limit)
+
+    fun rankCandidates(
+        profile: TasteProfile,
+        candidates: List<MetadataSearchResult>,
+        feedback: Map<RecommendationKey, RecommendationFeedbackType> = emptyMap(),
     ): List<Recommendation> {
         if (!profile.isReady) return emptyList()
-        val ranked = candidates.mapNotNull { candidate -> rank(profile, candidate, feedback) }
+        val genreIndex = profile.genreWeights.entries
+            .groupBy { it.key.canonicalGenre() }
+            .mapValues { (_, aliases) -> aliases.maxBy { it.value } }
+        return candidates.mapNotNull { candidate -> rank(profile, candidate, feedback, genreIndex) }
             .sortedWith(compareByDescending<Recommendation> { it.normalizedScore }.thenBy { it.candidate.title })
-        return diversify(ranked, limit)
+            .distinctBy { titleKey(it.candidate.type, it.candidate.title) }
     }
+
+    fun isDiscoverable(
+        profile: TasteProfile,
+        candidate: MetadataSearchResult,
+        feedback: Map<RecommendationKey, RecommendationFeedbackType>,
+    ): Boolean = candidate.recommendationKey() !in profile.existingExternalKeys &&
+        titleKey(candidate.type, candidate.title) !in profile.existingTitleKeys &&
+        when (feedback[candidate.recommendationKey()]) {
+            RecommendationFeedbackType.NOT_INTERESTED, RecommendationFeedbackType.ALREADY_KNOWN -> false
+            else -> true
+        }
 
     private fun rank(
         profile: TasteProfile,
         candidate: MetadataSearchResult,
         feedback: Map<RecommendationKey, RecommendationFeedbackType>,
+        genreIndex: Map<String, Map.Entry<String, Double>>,
     ): Recommendation? {
-        val key = RecommendationKey(candidate.provider, candidate.externalId, candidate.type)
-        if (key in profile.existingExternalKeys || titleKey(candidate.type, candidate.title) in profile.existingTitleKeys) return null
-        when (feedback[key]) {
-            RecommendationFeedbackType.NOT_INTERESTED,
-            RecommendationFeedbackType.ALREADY_KNOWN,
-            -> return null
-            else -> Unit
-        }
+        if (!isDiscoverable(profile, candidate, feedback)) return null
 
-        val genreMatches = candidate.genres.mapNotNull { genre -> profile.genreWeights.entryFor(genre) }
-            .distinctBy { it.key.normalized() }
+        val genreMatches = candidate.genres.mapNotNull { genre -> genreIndex[genre.canonicalGenre()] }
+            .distinctBy { it.key }
             .sortedByDescending { it.value }
         val creatorMatches = candidate.creators.mapNotNull { creator -> profile.creatorWeights.entryFor(creator) }
             .distinctBy { it.key.normalized() }
@@ -202,6 +219,7 @@ object RecommendationEngine {
     }
 
     fun diversify(ranked: List<Recommendation>, limit: Int): List<Recommendation> {
+        if (limit <= 0) return emptyList()
         if (ranked.size <= 1 || limit <= 1) return ranked.take(limit)
         val remaining = ranked.toMutableList()
         val selected = mutableListOf<Recommendation>()
@@ -284,6 +302,26 @@ private fun MutableMap<String, Double>.addNormalized(key: String, value: Double)
 
 private fun Map<String, Double>.entryFor(name: String): Map.Entry<String, Double>? =
     entries.firstOrNull { it.key.equals(name.trim(), ignoreCase = true) }
+
+private val genreAccents = "\\p{Mn}+".toRegex()
+private val genrePunctuation = "[^a-z0-9]+".toRegex()
+
+private fun String.canonicalGenre(): String {
+    val name = Normalizer.normalize(lowercase(), Normalizer.Form.NFD)
+        .replace(genreAccents, "").replace(genrePunctuation, " ").trim()
+    return when (name) {
+        "sci fi fantasy", "sci fi and fantasy", "science fiction and fantasy" -> "ciencia ficcion y fantasia"
+        "action adventure", "action and adventure" -> "accion y aventura"
+        "sci fi", "science fiction" -> "ciencia ficcion"
+        "action" -> "accion"
+        "adventure" -> "aventura"
+        "fantasy" -> "fantasia"
+        "rpg", "role playing", "role playing games rpg" -> "rol"
+        "strategy" -> "estrategia"
+        "simulation" -> "simulacion"
+        else -> name
+    }
+}
 
 private fun List<String>.distinctNormalized(): List<String> =
     map(String::trim).filter(String::isNotEmpty).distinctBy { it.normalized() }

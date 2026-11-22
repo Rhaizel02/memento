@@ -106,6 +106,29 @@ class RecommendationDetailViewModelTest {
         assertTrue(viewModel.state.value.wasDismissed)
     }
 
+    @Test
+    fun `detail opens a popular game by exact provider id and type`() = runTest {
+        val movieFeed = readyFeed()
+        val game = MetadataSearchResult(MetadataProvider.RAWG, "42", null, MediaType.GAME, "Juego popular")
+        val recommendations = FakeRecommendationRepository().apply {
+            feed.value = movieFeed.copy(popularByType = mapOf(MediaType.GAME to listOf(game)))
+        }
+        val media = FakeMediaRepository()
+        val metadata = FakeMetadataRepository()
+        val viewModel = RecommendationDetailViewModel(recommendations, metadata, media, FakeWatchAvailabilityRepository())
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+        viewModel.load("RAWG", "42", "GAME")
+        advanceUntilIdle()
+
+        assertEquals(game, viewModel.state.value.candidate)
+        assertEquals(null, viewModel.state.value.recommendation)
+        assertTrue(viewModel.state.value.isPopular)
+        assertEquals(1, metadata.detailRequests)
+        viewModel.addToPlanned()
+        advanceUntilIdle()
+        assertEquals(ConsumptionStatus.PLANNED, media.addedStatus)
+    }
+
     private fun viewModel(media: FakeMediaRepository): RecommendationDetailViewModel {
         val recommendations = FakeRecommendationRepository().apply { feed.value = readyFeed() }
         return RecommendationDetailViewModel(

@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.memento.app.R
+import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.domain.recommendation.*
 import com.memento.app.ui.theme.MementoSpacing
 
@@ -41,7 +42,16 @@ fun recommendationReasonText(reason: RecommendationReason): String = when (reaso
 
 @Composable
 fun RecommendationPreview(recommendation: Recommendation, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val work = recommendation.candidate
+    DiscoveryWorkPreview(recommendation.candidate, onClick, modifier, recommendation)
+}
+
+@Composable
+fun DiscoveryWorkPreview(
+    work: MetadataSearchResult,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    recommendation: Recommendation? = null,
+) {
     Surface(
         modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
         shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface,
@@ -49,7 +59,9 @@ fun RecommendationPreview(recommendation: Recommendation, onClick: () -> Unit, m
     ) {
         Column(Modifier.padding(MementoSpacing.normal), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { RecommendationTierLabel(recommendation.category) }
+                Box(Modifier.weight(1f)) {
+                    recommendation?.let { RecommendationTierLabel(it.category) }
+                }
                 Text(listOfNotNull(mediaTypeLabel(work.type), work.releaseYear?.toString()).joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -66,7 +78,7 @@ fun RecommendationPreview(recommendation: Recommendation, onClick: () -> Unit, m
                         maxLines = 3, overflow = TextOverflow.Ellipsis) }
                 }
             }
-            recommendation.reasons.firstOrNull()?.let { reason ->
+            recommendation?.reasons?.firstOrNull()?.let { reason ->
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Text(recommendationReasonText(reason), style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)

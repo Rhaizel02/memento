@@ -72,7 +72,7 @@ interface TmdbApi {
     @GET("3/discover/movie")
     suspend fun discoverMovies(
         @Query("api_key") apiKey: String,
-        @Query("with_genres") genreId: String,
+        @Query("with_genres") genreId: String? = null,
         @Query("language") language: String = "es-ES",
         @Query("sort_by") sortBy: String = "vote_count.desc",
         @Query("include_adult") includeAdult: Boolean = false,
@@ -83,7 +83,7 @@ interface TmdbApi {
     @GET("3/discover/tv")
     suspend fun discoverSeries(
         @Query("api_key") apiKey: String,
-        @Query("with_genres") genreId: String,
+        @Query("with_genres") genreId: String? = null,
         @Query("language") language: String = "es-ES",
         @Query("sort_by") sortBy: String = "vote_count.desc",
         @Query("include_adult") includeAdult: Boolean = false,
@@ -134,11 +134,15 @@ interface RawgApi {
         @Query("tags") tagSlugs: String? = null,
         @Query("ordering") ordering: String = "-metacritic",
         @Query("page_size") pageSize: Int = 30,
+        @Query("page") page: Int = 1,
     ): RawgSearchResponse
 }
 
 @Serializable
-data class TmdbMovieSearchResponse(val results: List<TmdbMovieDto> = emptyList())
+data class TmdbMovieSearchResponse(
+    val results: List<TmdbMovieDto> = emptyList(),
+    @SerialName("total_pages") val totalPages: Int = 1,
+)
 
 @Serializable
 data class TmdbMovieDto(
@@ -173,7 +177,10 @@ data class TmdbMovieDetailsDto(
 )
 
 @Serializable
-data class TmdbSeriesSearchResponse(val results: List<TmdbSeriesDto> = emptyList())
+data class TmdbSeriesSearchResponse(
+    val results: List<TmdbSeriesDto> = emptyList(),
+    @SerialName("total_pages") val totalPages: Int = 1,
+)
 
 @Serializable
 data class TmdbSeriesDto(
@@ -278,7 +285,7 @@ data class OpenLibraryEditionDto(
 )
 
 @Serializable
-data class RawgSearchResponse(val results: List<RawgGameDto> = emptyList())
+data class RawgSearchResponse(val results: List<RawgGameDto> = emptyList(), val next: String? = null)
 
 @Serializable
 data class RawgGameDto(
@@ -313,6 +320,6 @@ data class RawgGameDetailsDto(
 )
 
 @Serializable
-data class RawgGenreDto(val name: String)
+data class RawgGenreDto(val name: String, val slug: String? = null)
 
-@Serializable data class RawgNamedDto(val name: String)
+@Serializable data class RawgNamedDto(val name: String, val slug: String? = null, val id: Int? = null)

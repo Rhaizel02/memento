@@ -25,12 +25,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -56,7 +61,7 @@ import com.memento.app.ui.recommendation.RecommendationDetailScreen
 import com.memento.app.ui.recommendation.RecommendationDetailViewModel
 import com.memento.app.ui.search.GlobalSearchScreen
 import com.memento.app.ui.search.GlobalSearchViewModel
-import com.memento.app.domain.recommendation.Recommendation
+import com.memento.app.domain.model.MetadataSearchResult
 import com.memento.app.ui.remember.RememberScreen
 import com.memento.app.ui.remember.RememberViewModel
 import com.memento.app.ui.settings.SettingsScreen
@@ -87,11 +92,7 @@ import java.util.UUID
 @Serializable data object GlobalSearchKey : MementoKey
 
 private fun newAddMediaKey(): AddMediaKey = AddMediaKey(UUID.randomUUID().toString())
-private fun Recommendation.toDetailKey() = RecommendationDetailKey(
-    candidate.provider.name,
-    candidate.externalId,
-    candidate.type.name,
-)
+private fun MetadataSearchResult.toDetailKey() = RecommendationDetailKey(provider.name, externalId, type.name)
 
 private data class TopDestination(
     val key: MementoKey,
@@ -106,20 +107,34 @@ fun MementoApp(
     onThemeModeChanged: (ThemeMode) -> Unit,
     onThemePaletteChanged: (ThemePalette) -> Unit,
 ) {
-    val backStack = rememberNavBackStack(HomeKey)
-    val current = backStack.lastOrNull()
     val destinations = listOf(
         TopDestination(HomeKey, R.string.home, Icons.Outlined.Home),
         TopDestination(LibraryKey, R.string.library, Icons.AutoMirrored.Outlined.LibraryBooks),
         TopDestination(DiscoverKey, R.string.discover, Icons.Outlined.Explore),
         TopDestination(TimelineKey, R.string.archive_history_tab, Icons.Outlined.History),
     )
-    val showChrome = current in destinations.map { it.key }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val stacks = destinations.map { rememberNavBackStack(it.key) }
+    val backStack = stacks[selectedTab]
+    val current = backStack.last()
+    val showChrome = backStack.size == 1
 
     fun openTopLevel(key: MementoKey) {
-        if (backStack.firstOrNull() == key && backStack.size == 1) return
-        while (backStack.size > 1) backStack.removeLastOrNull()
-        if (backStack.isEmpty()) backStack.add(key) else backStack[0] = key
+        val index = destinations.indexOfFirst { it.key == key }
+        if (index >= 0) selectedTab = index
+    }
+
+    val entries = stacks.map { stack ->
+        rememberDecoratedNavEntries(
+            backStack = stack,
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
+            entryProvider = mementoEntryProvider(
+                stack, ::openTopLevel, themeMode, themePalette, onThemeModeChanged, onThemePaletteChanged,
+            ),
+        )
     }
 
     Scaffold(
@@ -155,254 +170,259 @@ fun MementoApp(
         NavDisplay(
             modifier = Modifier.padding(padding).fillMaxSize()
                 .wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 840.dp),
-            backStack = backStack,
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            onBack = { backStack.removeLastOrNull() },
-            entryProvider = { key ->
-                when (key) {
-                    HomeKey -> NavEntry(key) {
-                        val viewModel: HomeViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        HomeScreen(
-                            state = state,
-                            onAdd = { backStack.add(newAddMediaKey()) },
-                            onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
-                            onOpenSettings = { backStack.add(SettingsKey) },
-                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
-                            onOpenRemember = { backStack.add(RememberKey(it)) },
-                            onOpenDiscover = { openTopLevel(DiscoverKey) },
-                            onOpenRecommendation = { backStack.add(it.toDetailKey()) },
-                            onOpenStats = { backStack.add(StatsKey) },
-                            onOpenWrapped = { backStack.add(WrappedKey(it)) },
-                            onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
-                            onOpenTimeline = { openTopLevel(TimelineKey) },
-                            onOpenQuickProgress = viewModel::openQuickProgress,
-                            onOpenQuickNote = viewModel::openQuickNote,
-                            onQuickProgressChanged = viewModel::updateQuickProgress,
-                            onQuickNoteChanged = viewModel::updateQuickNote,
-                            onSaveQuickProgress = viewModel::saveQuickProgress,
-                            onSaveQuickNote = viewModel::saveQuickNote,
-                            onDismissQuickCapture = viewModel::dismissQuickCapture,
-                            onDiscardQuickCapture = viewModel::discardQuickCapture,
-                        )
-                    }
-                    LibraryKey -> NavEntry(key) {
-                        val viewModel: LibraryViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        LibraryScreen(
-                            state = state,
-                            onQueryChanged = viewModel::setQuery,
-                            onTypeSelected = viewModel::setType,
-                            onStatusSelected = viewModel::setStatus,
-                            onMinRatingSelected = viewModel::setMinRating,
-                            onFavoritesOnlyChanged = viewModel::setFavoritesOnly,
-                            onYearSelected = viewModel::setYear,
-                            onSortSelected = viewModel::setSort,
-                            onTagToggled = viewModel::toggleTag,
-                            onClearFilters = viewModel::clearAdditionalFilters,
-                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
-                            onAdd = { backStack.add(newAddMediaKey()) },
-                            onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
-                            onOpenSettings = { backStack.add(SettingsKey) },
-                        )
-                    }
-                    GlobalSearchKey -> NavEntry(key) {
-                        val viewModel: GlobalSearchViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        GlobalSearchScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onQueryChanged = viewModel::setQuery,
-                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
-                            onSelectFacet = viewModel::selectFacet,
-                            onClearFacet = viewModel::clearFacet,
-                        )
-                    }
-                    DiscoverKey -> NavEntry(key) {
-                        val viewModel: DiscoverViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        DiscoverScreen(
-                            state = state,
-                            onRefresh = viewModel::refresh,
-                            onTypeSelected = viewModel::setType,
-                            onOpenRecommendation = { backStack.add(it.toDetailKey()) },
-                            onOpenSettings = { backStack.add(SettingsKey) },
-                        )
-                    }
-                    SettingsKey -> NavEntry(key) {
-                        val viewModel: SettingsViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        SettingsScreen(
-                            onBack = { backStack.removeLastOrNull() },
-                            themeMode = themeMode,
-                            themePalette = themePalette,
-                            state = state,
-                            onThemeModeChanged = onThemeModeChanged,
-                            onThemePaletteChanged = onThemePaletteChanged,
-                            onExport = viewModel::exportTo,
-                            onImport = viewModel::prepareImport,
-                            onConfirmRestore = viewModel::confirmRestore,
-                            onCancelRestore = viewModel::cancelRestore,
-                            onDownloadAi = viewModel::downloadAiModel,
-                        )
-                    }
-                    is AddMediaKey -> NavEntry(key) {
-                        val viewModel: AddMediaViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        state.savedMediaId?.let { mediaId ->
-                            LaunchedEffect(mediaId) {
-                                viewModel.consumeNavigation()
-                                backStack.removeLastOrNull()
-                                backStack.add(MediaDetailKey(mediaId))
-                            }
-                        }
-                        AddMediaScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onTypeChanged = viewModel::setType,
-                            onQueryChanged = viewModel::setQuery,
-                            onResultSelected = viewModel::selectResult,
-                            onShowManual = viewModel::showManual,
-                            onReturnToSearch = viewModel::returnToSearch,
-                            onTitleChanged = viewModel::setTitle,
-                            onYearChanged = viewModel::setYear,
-                            onCreatorChanged = viewModel::setCreator,
-                            onDescriptionChanged = viewModel::setDescription,
-                            onImageChanged = viewModel::setImageUrl,
-                            onPageCountChanged = viewModel::setPageCount,
-                            onSave = viewModel::save,
-                            onCompletedDateChanged = viewModel::setCompletedDate,
-                            onCompletedRatingChanged = viewModel::setCompletedRating,
-                            onCompletedFavoriteChanged = viewModel::setCompletedFavorite,
-                            onCompletedReflectionChanged = viewModel::setCompletedReflection,
-                            onCancelCompletion = viewModel::cancelCompletion,
-                            onSaveCompleted = viewModel::saveCompleted,
-                        )
-                    }
-                    is MediaDetailKey -> NavEntry(key) {
-                        val viewModel: MediaDetailViewModel = hiltViewModel()
-                        LaunchedEffect(key.mediaId) { viewModel.load(key.mediaId) }
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        LaunchedEffect(state.wasDeleted) {
-                            if (state.wasDeleted) backStack.removeLastOrNull()
-                        }
-                        MediaDetailScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onToggleFavorite = viewModel::toggleFavorite,
-                            onStart = viewModel::start,
-                            onComplete = viewModel::complete,
-                            onDrop = viewModel::drop,
-                            onAddNote = viewModel::addNote,
-                            onAddQuote = viewModel::addQuote,
-                            onCreateTag = viewModel::createTag,
-                            onAttachTag = viewModel::attachTag,
-                            onRemoveTag = viewModel::removeTag,
-                            onAddProgress = viewModel::addProgress,
-                            onUpdateMetadata = viewModel::updateMetadata,
-                            onDeleteConsumption = viewModel::deleteConsumption,
-                            onUpdateReflection = viewModel::updateReflection,
-                            onDelete = viewModel::delete,
-                        )
-                    }
-                    is RecommendationDetailKey -> NavEntry(key) {
-                        val viewModel: RecommendationDetailViewModel = hiltViewModel()
-                        LaunchedEffect(key) { viewModel.load(key.provider, key.externalId, key.mediaType) }
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        LaunchedEffect(state.savedMediaId, state.wasDismissed) {
-                            state.savedMediaId?.let { mediaId ->
-                                backStack.removeLastOrNull()
-                                backStack.add(MediaDetailKey(mediaId))
-                            }
-                            if (state.wasDismissed) backStack.removeLastOrNull()
-                        }
-                        RecommendationDetailScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onAddToPlanned = viewModel::addToPlanned,
-                            onStartNow = viewModel::startNow,
-                            onComplete = viewModel::complete,
-                            onNotInterested = viewModel::notInterested,
-                        )
-                    }
-                    is RememberKey -> NavEntry(key) {
-                        val viewModel: RememberViewModel = hiltViewModel()
-                        LaunchedEffect(key.consumptionId) { viewModel.load(key.consumptionId) }
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        RememberScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onSaveThought = viewModel::saveCurrentThought,
-                            onAiAction = viewModel::runAi,
-                            onSaveAiInsight = viewModel::saveAiInsight,
-                            onDiscardAi = viewModel::discardAiResult,
-                        )
-                    }
-                    StatsKey -> NavEntry(key) {
-                        val viewModel: StatsViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        StatsScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onSelectYear = viewModel::selectYear,
-                            onOpenWrapped = { backStack.add(WrappedKey(it)) },
-                            onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
-                        )
-                    }
-                    CulturalProfileKey -> NavEntry(key) {
-                        val viewModel: CulturalProfileViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        CulturalProfileScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                        )
-                    }
-                    TimelineKey -> NavEntry(key) {
-                        val viewModel: TimelineViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        TimelineScreen(
-                            state = state,
-                            onBack = null,
-                            onOpenSettings = { backStack.add(SettingsKey) },
-                            onMediaTypeSelected = viewModel::selectMediaType,
-                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
-                            onLoadMore = viewModel::loadMore,
-                            onRetry = viewModel::retry,
-                            onOpenCalendar = { backStack.add(CulturalCalendarKey) },
-                        )
-                    }
-                    CulturalCalendarKey -> NavEntry(key) {
-                        val viewModel: CulturalCalendarViewModel = hiltViewModel()
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        CulturalCalendarScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onPrevious = viewModel::previousPeriod,
-                            onNext = viewModel::nextPeriod,
-                            onShowYear = viewModel::showYear,
-                            onShowMonth = viewModel::showMonth,
-                            onSelectDay = viewModel::selectDay,
-                            onToday = viewModel::goToToday,
-                            onOpenMedia = { backStack.add(MediaDetailKey(it)) },
-                            onRetry = viewModel::retry,
-                        )
-                    }
-                    is WrappedKey -> NavEntry(key) {
-                        val viewModel: WrappedViewModel = hiltViewModel()
-                        LaunchedEffect(key.year) { viewModel.load(key.year) }
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        WrappedScreen(
-                            state = state,
-                            onBack = { backStack.removeLastOrNull() },
-                            onSelectYear = viewModel::selectYear,
-                        )
-                    }
-                    else -> error("Unknown navigation key: $key")
-                }
-            },
+            entries = entries[selectedTab],
+            onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
         )
     }
+}
+
+private fun mementoEntryProvider(
+    backStack: NavBackStack<NavKey>,
+    openTopLevel: (MementoKey) -> Unit,
+    themeMode: ThemeMode,
+    themePalette: ThemePalette,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    onThemePaletteChanged: (ThemePalette) -> Unit,
+): (NavKey) -> NavEntry<NavKey> = { key ->
+        when (key) {
+            HomeKey -> NavEntry(key) {
+                val viewModel: HomeViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                HomeScreen(
+                    state = state,
+                    onAdd = { backStack.add(newAddMediaKey()) },
+                    onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
+                    onOpenSettings = { backStack.add(SettingsKey) },
+                    onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                    onOpenRemember = { backStack.add(RememberKey(it)) },
+                    onOpenDiscover = { openTopLevel(DiscoverKey) },
+                    onOpenRecommendation = { backStack.add(it.candidate.toDetailKey()) },
+                    onOpenStats = { backStack.add(StatsKey) },
+                    onOpenWrapped = { backStack.add(WrappedKey(it)) },
+                    onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
+                    onOpenTimeline = { openTopLevel(TimelineKey) },
+                    onOpenQuickProgress = viewModel::openQuickProgress,
+                    onOpenQuickNote = viewModel::openQuickNote,
+                    onQuickProgressChanged = viewModel::updateQuickProgress,
+                    onQuickNoteChanged = viewModel::updateQuickNote,
+                    onSaveQuickProgress = viewModel::saveQuickProgress,
+                    onSaveQuickNote = viewModel::saveQuickNote,
+                    onDismissQuickCapture = viewModel::dismissQuickCapture,
+                    onDiscardQuickCapture = viewModel::discardQuickCapture,
+                )
+            }
+            LibraryKey -> NavEntry(key) {
+                val viewModel: LibraryViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                LibraryScreen(
+                    state = state,
+                    onQueryChanged = viewModel::setQuery,
+                    onTypeSelected = viewModel::setType,
+                    onStatusSelected = viewModel::setStatus,
+                    onMinRatingSelected = viewModel::setMinRating,
+                    onFavoritesOnlyChanged = viewModel::setFavoritesOnly,
+                    onYearSelected = viewModel::setYear,
+                    onSortSelected = viewModel::setSort,
+                    onTagToggled = viewModel::toggleTag,
+                    onClearFilters = viewModel::clearAdditionalFilters,
+                    onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                    onAdd = { backStack.add(newAddMediaKey()) },
+                    onOpenGlobalSearch = { backStack.add(GlobalSearchKey) },
+                    onOpenSettings = { backStack.add(SettingsKey) },
+                )
+            }
+            GlobalSearchKey -> NavEntry(key) {
+                val viewModel: GlobalSearchViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                GlobalSearchScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onQueryChanged = viewModel::setQuery,
+                    onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                    onSelectFacet = viewModel::selectFacet,
+                    onClearFacet = viewModel::clearFacet,
+                )
+            }
+            DiscoverKey -> NavEntry(key) {
+                val viewModel: DiscoverViewModel = hiltViewModel()
+                LaunchedEffect(viewModel) { viewModel.onShown() }
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                DiscoverScreen(
+                    state = state,
+                    onRefresh = viewModel::refresh,
+                    onTypeSelected = viewModel::setType,
+                    onOpenRecommendation = { backStack.add(it.toDetailKey()) },
+                    onOpenSettings = { backStack.add(SettingsKey) },
+                )
+            }
+            SettingsKey -> NavEntry(key) {
+                val viewModel: SettingsViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                SettingsScreen(
+                    onBack = { backStack.removeLastOrNull() },
+                    themeMode = themeMode,
+                    themePalette = themePalette,
+                    state = state,
+                    onThemeModeChanged = onThemeModeChanged,
+                    onThemePaletteChanged = onThemePaletteChanged,
+                    onExport = viewModel::exportTo,
+                    onImport = viewModel::prepareImport,
+                    onConfirmRestore = viewModel::confirmRestore,
+                    onCancelRestore = viewModel::cancelRestore,
+                    onDownloadAi = viewModel::downloadAiModel,
+                )
+            }
+            is AddMediaKey -> NavEntry(key) {
+                val viewModel: AddMediaViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                state.savedMediaId?.let { mediaId ->
+                    LaunchedEffect(mediaId) {
+                        viewModel.consumeNavigation()
+                        backStack.removeLastOrNull()
+                        backStack.add(MediaDetailKey(mediaId))
+                    }
+                }
+                AddMediaScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onTypeChanged = viewModel::setType,
+                    onQueryChanged = viewModel::setQuery,
+                    onResultSelected = viewModel::selectResult,
+                    onShowManual = viewModel::showManual,
+                    onReturnToSearch = viewModel::returnToSearch,
+                    onTitleChanged = viewModel::setTitle,
+                    onYearChanged = viewModel::setYear,
+                    onCreatorChanged = viewModel::setCreator,
+                    onDescriptionChanged = viewModel::setDescription,
+                    onImageChanged = viewModel::setImageUrl,
+                    onPageCountChanged = viewModel::setPageCount,
+                    onSave = viewModel::save,
+                    onCompletedDateChanged = viewModel::setCompletedDate,
+                    onCompletedRatingChanged = viewModel::setCompletedRating,
+                    onCompletedFavoriteChanged = viewModel::setCompletedFavorite,
+                    onCompletedReflectionChanged = viewModel::setCompletedReflection,
+                    onCancelCompletion = viewModel::cancelCompletion,
+                    onSaveCompleted = viewModel::saveCompleted,
+                )
+            }
+            is MediaDetailKey -> NavEntry(key) {
+                val viewModel: MediaDetailViewModel = hiltViewModel()
+                LaunchedEffect(key.mediaId) { viewModel.load(key.mediaId) }
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                LaunchedEffect(state.wasDeleted) {
+                    if (state.wasDeleted) backStack.removeLastOrNull()
+                }
+                MediaDetailScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onStart = viewModel::start,
+                    onComplete = viewModel::complete,
+                    onDrop = viewModel::drop,
+                    onAddNote = viewModel::addNote,
+                    onAddQuote = viewModel::addQuote,
+                    onCreateTag = viewModel::createTag,
+                    onAttachTag = viewModel::attachTag,
+                    onRemoveTag = viewModel::removeTag,
+                    onAddProgress = viewModel::addProgress,
+                    onUpdateMetadata = viewModel::updateMetadata,
+                    onDeleteConsumption = viewModel::deleteConsumption,
+                    onUpdateReflection = viewModel::updateReflection,
+                    onDelete = viewModel::delete,
+                )
+            }
+            is RecommendationDetailKey -> NavEntry(key) {
+                val viewModel: RecommendationDetailViewModel = hiltViewModel()
+                LaunchedEffect(key) { viewModel.load(key.provider, key.externalId, key.mediaType) }
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                LaunchedEffect(state.savedMediaId, state.wasDismissed) {
+                    state.savedMediaId?.let { mediaId ->
+                        backStack.removeLastOrNull()
+                        backStack.add(MediaDetailKey(mediaId))
+                    }
+                    if (state.wasDismissed) backStack.removeLastOrNull()
+                }
+                RecommendationDetailScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onAddToPlanned = viewModel::addToPlanned,
+                    onStartNow = viewModel::startNow,
+                    onComplete = viewModel::complete,
+                    onNotInterested = viewModel::notInterested,
+                )
+            }
+            is RememberKey -> NavEntry(key) {
+                val viewModel: RememberViewModel = hiltViewModel()
+                LaunchedEffect(key.consumptionId) { viewModel.load(key.consumptionId) }
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                RememberScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onSaveThought = viewModel::saveCurrentThought,
+                    onAiAction = viewModel::runAi,
+                    onSaveAiInsight = viewModel::saveAiInsight,
+                    onDiscardAi = viewModel::discardAiResult,
+                )
+            }
+            StatsKey -> NavEntry(key) {
+                val viewModel: StatsViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                StatsScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onSelectYear = viewModel::selectYear,
+                    onOpenWrapped = { backStack.add(WrappedKey(it)) },
+                    onOpenCulturalProfile = { backStack.add(CulturalProfileKey) },
+                )
+            }
+            CulturalProfileKey -> NavEntry(key) {
+                val viewModel: CulturalProfileViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                CulturalProfileScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+            TimelineKey -> NavEntry(key) {
+                val viewModel: TimelineViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                TimelineScreen(
+                    state = state,
+                    onBack = null,
+                    onOpenSettings = { backStack.add(SettingsKey) },
+                    onMediaTypeSelected = viewModel::selectMediaType,
+                    onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                    onLoadMore = viewModel::loadMore,
+                    onRetry = viewModel::retry,
+                    onOpenCalendar = { backStack.add(CulturalCalendarKey) },
+                )
+            }
+            CulturalCalendarKey -> NavEntry(key) {
+                val viewModel: CulturalCalendarViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                CulturalCalendarScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onPrevious = viewModel::previousPeriod,
+                    onNext = viewModel::nextPeriod,
+                    onShowYear = viewModel::showYear,
+                    onShowMonth = viewModel::showMonth,
+                    onSelectDay = viewModel::selectDay,
+                    onToday = viewModel::goToToday,
+                    onOpenMedia = { backStack.add(MediaDetailKey(it)) },
+                    onRetry = viewModel::retry,
+                )
+            }
+            is WrappedKey -> NavEntry(key) {
+                val viewModel: WrappedViewModel = hiltViewModel()
+                LaunchedEffect(key.year) { viewModel.load(key.year) }
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                WrappedScreen(
+                    state = state,
+                    onBack = { backStack.removeLastOrNull() },
+                    onSelectYear = viewModel::selectYear,
+                )
+            }
+            else -> error("Unknown navigation key: $key")
+        }
 }

@@ -15,6 +15,8 @@ import com.memento.app.data.remote.api.OpenLibraryEditionDto
 import com.memento.app.data.remote.api.RawgGameDetailsDto
 import com.memento.app.data.remote.api.RawgNamedDto
 import com.memento.app.data.remote.mapper.toMetadataResult
+import com.memento.app.data.remote.mapper.tmdbGenreId
+import com.memento.app.data.remote.mapper.rawgGenreSlug
 import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import org.junit.Assert.assertEquals
@@ -23,6 +25,17 @@ import org.junit.Test
 import kotlinx.serialization.json.JsonPrimitive
 
 class MetadataMappersTest {
+    @Test fun `discovery maps translated genres to the correct provider catalogue`() {
+        assertEquals(878, tmdbGenreId("Ciencia ficción", MediaType.MOVIE))
+        assertEquals(10765, tmdbGenreId("Ciencia ficción", MediaType.SERIES))
+        assertEquals(10765, tmdbGenreId("Sci-Fi & Fantasy", MediaType.SERIES))
+        assertEquals(10759, tmdbGenreId("Acción", MediaType.SERIES))
+        assertNull(tmdbGenreId("Terror", MediaType.SERIES))
+        assertEquals("action", rawgGenreSlug("Acción"))
+        assertEquals("adventure", rawgGenreSlug("Aventura"))
+        assertEquals("role-playing-games-rpg", rawgGenreSlug("Rol"))
+        assertNull(rawgGenreSlug("Ciencia ficción"))
+    }
     @Test
     fun `TMDB movie detail only maps directors as creators`() {
         val result = TmdbMovieDetailsDto(

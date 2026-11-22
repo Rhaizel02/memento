@@ -13,6 +13,7 @@ import com.memento.app.domain.model.MediaType
 import com.memento.app.domain.model.MetadataProvider
 import com.memento.app.domain.model.MetadataSearchResult
 import java.time.LocalDate
+import java.text.Normalizer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -185,7 +186,7 @@ private val movieGenres = mapOf(
     10402 to "Música", 10749 to "Romance", 10751 to "Familia", 10752 to "Bélica",
 )
 
-private val tvGenres = movieGenres + mapOf(
+private val tvGenres = movieGenres.filterKeys { it in setOf(16, 18, 35, 37, 80, 99, 9648, 10751) } + mapOf(
     10759 to "Acción y aventura", 10762 to "Infantil", 10763 to "Noticias",
     10764 to "Reality", 10765 to "Ciencia ficción y fantasía", 10766 to "Telenovela",
     10767 to "Talk show", 10768 to "Guerra y política",
@@ -193,5 +194,46 @@ private val tvGenres = movieGenres + mapOf(
 
 fun tmdbGenreId(name: String, type: MediaType): Int? {
     val source = if (type == MediaType.SERIES) tvGenres else movieGenres
-    return source.entries.firstOrNull { it.value.equals(name.trim(), ignoreCase = true) }?.key
+    val key = normalizedGenre(name)
+    val exact = source.entries.firstOrNull { normalizedGenre(it.value) == key }?.key
+    return exact ?: if (type == MediaType.SERIES) when (key) {
+        "ciencia ficcion", "fantasia", "science fiction", "sci fi", "sci fi fantasy", "sci fi and fantasy",
+        "science fiction and fantasy", "fantasy" -> 10765
+        "accion", "aventura", "action", "adventure", "action adventure", "action and adventure" -> 10759
+        "war politics", "war and politics" -> 10768
+        "kids" -> 10762
+        "news" -> 10763
+        "soap" -> 10766
+        "talk" -> 10767
+        else -> null
+    } else movieGenreAliases[key]
 }
+
+private val movieGenreAliases = mapOf(
+    "science fiction" to 878, "sci fi" to 878, "thriller" to 53, "action" to 28, "adventure" to 12,
+    "fantasy" to 14, "animation" to 16, "horror" to 27, "comedy" to 35, "history" to 36,
+    "crime" to 80, "documentary" to 99, "mystery" to 9648, "music" to 10402, "family" to 10751, "war" to 10752,
+)
+
+private val rawgGenreSlugs = listOf(
+    "action", "indie", "adventure", "role-playing-games-rpg", "strategy", "shooter", "casual",
+    "simulation", "puzzle", "arcade", "platformer", "massively-multiplayer", "racing", "sports",
+    "fighting", "family", "board-games", "card", "educational",
+).associateBy(::normalizedGenre)
+
+private val rawgGenreAliases = mapOf(
+    "accion" to "action", "aventura" to "adventure", "rol" to "role-playing-games-rpg",
+    "role playing" to "role-playing-games-rpg", "rpg" to "role-playing-games-rpg",
+    "estrategia" to "strategy", "simulacion" to "simulation", "plataformas" to "platformer",
+    "carreras" to "racing", "deportes" to "sports", "lucha" to "fighting",
+    "familia" to "family", "juegos de mesa" to "board-games", "cartas" to "card",
+    "educativo" to "educational", "puzle" to "puzzle",
+)
+
+fun rawgGenreSlug(name: String): String? {
+    val key = normalizedGenre(name)
+    return rawgGenreSlugs[key] ?: rawgGenreAliases[key]
+}
+
+private fun normalizedGenre(value: String): String = Normalizer.normalize(value.lowercase(), Normalizer.Form.NFD)
+    .replace("\\p{Mn}+".toRegex(), "").replace("[^a-z0-9]+".toRegex(), " ").trim()

@@ -45,6 +45,9 @@ import com.memento.app.domain.usecase.TagNameNormalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.Dispatchers
 import java.text.Normalizer
 import java.time.Instant
 import java.time.LocalDate
@@ -88,7 +91,7 @@ class RoomMediaRepository @Inject constructor(
                 LibraryMediaSummary(media, detail.creators.firstOrNull(), detail.latestConsumption?.status,
                     detail.latestConsumption?.ratingHalfStars, itemTags)
             }
-        }
+        }.flowOn(Dispatchers.Default)
 
     override fun observeMediaDetail(mediaId: String): Flow<MediaDetail?> = combine(
         mediaDao.observeById(mediaId),
@@ -147,14 +150,18 @@ class RoomMediaRepository @Inject constructor(
         mediaDao.observeCompletedCounts(LocalDate.of(year, 1, 1), LocalDate.of(year + 1, 1, 1))
             .map { rows -> MediaType.entries.associateWith { type -> rows.firstOrNull { it.type == type }?.count ?: 0 } }
 
+    override fun observeAllDetails(): Flow<List<MediaDetail>> = observeDetails(includeActivity = true)
+
+    override fun observeRecommendationHistory(): Flow<List<MediaDetail>> = observeDetails(includeActivity = false)
+
     @Suppress("UNCHECKED_CAST")
-    override fun observeAllDetails(): Flow<List<MediaDetail>> = combine(
+    private fun observeDetails(includeActivity: Boolean): Flow<List<MediaDetail>> = combine(
         mediaDao.observeAll(),
         mediaDao.observeAllCreatorNames(),
         mediaDao.observeAllGenreNames(),
         consumptionDao.observeAll(),
-        consumptionDao.observeAllProgress(),
-        consumptionDao.observeAllReflections(),
+        if (includeActivity) consumptionDao.observeAllProgress() else flowOf(emptyList<ProgressEntryEntity>()),
+        if (includeActivity) consumptionDao.observeAllReflections() else flowOf(emptyList<ReflectionEntity>()),
         mediaDao.observeAllTags(),
         mediaDao.observeAllExternalRefs(),
     ) { values ->

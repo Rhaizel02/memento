@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.memento.app.domain.model.MediaType
 import com.memento.app.data.local.entity.RecommendationCandidateEntity
 import com.memento.app.data.local.entity.RecommendationFeedbackEntity
 import kotlinx.coroutines.flow.Flow
@@ -34,9 +35,9 @@ interface RecommendationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertFeedback(feedback: RecommendationFeedbackEntity)
 
-    @Query("SELECT MAX(fetchedAt) FROM recommendation_candidates")
-    suspend fun latestCandidateFetchAt(): Instant?
+    @Query("SELECT MAX(fetchedAt) FROM recommendation_candidates WHERE mediaType = :type")
+    suspend fun latestCandidateFetchAt(type: MediaType): Instant?
 
-    @Query("DELETE FROM recommendation_candidates WHERE fetchedAt < :threshold")
-    suspend fun deleteCandidatesOlderThan(threshold: Instant)
+    @Query("DELETE FROM recommendation_candidates WHERE mediaType = :type AND fetchedAt < :threshold")
+    suspend fun deleteCandidatesOlderThan(type: MediaType, threshold: Instant)
 }

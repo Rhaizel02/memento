@@ -12,20 +12,17 @@ import com.memento.app.domain.recommendation.Recommendation
 import com.memento.app.domain.recommendation.RecommendationKey
 import com.memento.app.domain.repository.MediaRepository
 import com.memento.app.domain.repository.MetadataRepository
+import com.memento.app.domain.repository.MetadataDetailsOutcome
 import com.memento.app.domain.repository.RecommendationRepository
 import com.memento.app.domain.repository.WatchAvailabilityRepository
 import com.memento.app.domain.watch.WatchAvailabilityRequest
 import com.memento.app.ui.watch.WatchAvailabilityUiState
 import com.memento.app.ui.watch.toUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -41,6 +38,7 @@ data class RecommendationDetailUiState(
     val savedMediaId: String? = null,
     val wasDismissed: Boolean = false,
     val watchAvailability: WatchAvailabilityUiState = WatchAvailabilityUiState.Hidden,
+    val isPopular: Boolean = false,
 )
 
 private data class RecommendationOperationState(
@@ -51,7 +49,6 @@ private data class RecommendationOperationState(
 )
 
 @HiltViewModel
-@OptIn(ExperimentalCoroutinesApi::class)
 class RecommendationDetailViewModel @Inject constructor(
     private val recommendationRepository: RecommendationRepository,
     private val metadataRepository: MetadataRepository,
@@ -59,31 +56,26 @@ class RecommendationDetailViewModel @Inject constructor(
     private val watchAvailabilityRepository: WatchAvailabilityRepository,
 ) : ViewModel() {
     private val key = MutableStateFlow<RecommendationKey?>(null)
-    private val detailedCandidate = MutableStateFlow<MetadataSearchResult?>(null)
+    private data class OpenedWork(val candidate: MetadataSearchResult, val recommendation: Recommendation?, val popular: Boolean)
+
+    private val opened = MutableStateFlow<OpenedWork?>(null)
+    private val loading = MutableStateFlow(true)
     private val operation = MutableStateFlow(RecommendationOperationState())
     private val watchAvailability = MutableStateFlow<WatchAvailabilityUiState>(WatchAvailabilityUiState.Hidden)
     private var watchAvailabilityJob: Job? = null
-    private val recommendation = key.flatMapLatest { currentKey ->
-        currentKey?.let { wanted ->
-            recommendationRepository.observeFeed().map { feed ->
-                feed.recommendations.firstOrNull { item ->
-                    val candidate = item.candidate
-                    candidate.provider == wanted.provider && candidate.externalId == wanted.externalId && candidate.type == wanted.mediaType
-                }
-            }
-        } ?: flowOf(null)
-    }
+    private var detailsJob: Job? = null
 
-    val state = combine(recommendation, detailedCandidate, operation, watchAvailability) { item, details, currentOperation, availability ->
+    val state = combine(opened, loading, operation, watchAvailability) { work, isLoading, currentOperation, availability ->
         RecommendationDetailUiState(
-            recommendation = item,
-            candidate = details ?: item?.candidate,
-            isLoading = key.value != null && details == null && item == null,
+            recommendation = work?.recommendation,
+            candidate = work?.candidate,
+            isLoading = isLoading,
             isWorking = currentOperation.isWorking,
             error = currentOperation.error,
             savedMediaId = currentOperation.savedMediaId,
             wasDismissed = currentOperation.wasDismissed,
             watchAvailability = availability,
+            isPopular = work?.popular == true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecommendationDetailUiState())
 
@@ -95,7 +87,9 @@ class RecommendationDetailViewModel @Inject constructor(
         )
         if (key.value == loadedKey) return
         key.value = loadedKey
-        detailedCandidate.value = null
+        detailsJob?.cancel()
+        opened.value = null
+        loading.value = true
         operation.value = RecommendationOperationState()
         watchAvailabilityJob?.cancel()
         val watchRequest = WatchAvailabilityRequest.create(
@@ -112,23 +106,37 @@ class RecommendationDetailViewModel @Inject constructor(
                 if (key.value == loadedKey) watchAvailability.value = availability
             }
         }
-        viewModelScope.launch {
-            val item = recommendationRepository.observeFeed().map { feed ->
-                feed.recommendations.firstOrNull { recommendation ->
-                    val candidate = recommendation.candidate
-                    candidate.provider == loadedKey.provider && candidate.externalId == loadedKey.externalId && candidate.type == loadedKey.mediaType
-                }
-            }.firstNonNull() ?: return@launch
-            detailedCandidate.value = item.candidate
-            val details = metadataRepository.fetchDetails(item.candidate).result
-            if (key.value == loadedKey) detailedCandidate.value = details.copy(
-                externalRating = details.externalRating ?: item.candidate.externalRating,
-                externalVoteCount = details.externalVoteCount ?: item.candidate.externalVoteCount,
-                popularity = details.popularity ?: item.candidate.popularity,
-                externalTags = details.externalTags.ifEmpty { item.candidate.externalTags },
-                sourceAnchorMediaIds = item.candidate.sourceAnchorMediaIds,
-                sourceAnchorTitles = item.candidate.sourceAnchorTitles,
-            )
+        detailsJob = viewModelScope.launch {
+            try {
+                val feed = recommendationRepository.observeFeed().first()
+                val recommendation = feed.findRecommendation(loadedKey)
+                val popular = feed.findPopular(loadedKey)
+                val candidate = recommendation?.candidate ?: popular
+                if (candidate != null) opened.value = OpenedWork(candidate, recommendation, popular != null && recommendation == null)
+                val locator = candidate ?: MetadataSearchResult(
+                    provider = loadedKey.provider, externalId = externalId, externalUrl = null,
+                    type = loadedKey.mediaType, title = "",
+                )
+                val outcome = metadataRepository.fetchDetails(locator)
+                if (key.value != loadedKey) return@launch
+                if (candidate == null && outcome !is MetadataDetailsOutcome.Complete) return@launch
+                val details = outcome.result
+                if (details.title.isBlank()) return@launch
+                opened.value = OpenedWork(
+                    candidate = details.copy(
+                        externalRating = details.externalRating ?: candidate?.externalRating,
+                        externalVoteCount = details.externalVoteCount ?: candidate?.externalVoteCount,
+                        popularity = details.popularity ?: candidate?.popularity,
+                        externalTags = details.externalTags.ifEmpty { candidate?.externalTags.orEmpty() },
+                        sourceAnchorMediaIds = candidate?.sourceAnchorMediaIds.orEmpty(),
+                        sourceAnchorTitles = candidate?.sourceAnchorTitles.orEmpty(),
+                    ),
+                    recommendation = recommendation,
+                    popular = popular != null && recommendation == null,
+                )
+            } finally {
+                if (key.value == loadedKey) loading.value = false
+            }
         }
     }
 
@@ -164,6 +172,3 @@ class RecommendationDetailViewModel @Inject constructor(
         if (error is IllegalArgumentException) error.message ?: "No se pudo completar la acción."
         else "No se pudo completar la acción. Inténtalo de nuevo."
 }
-
-private suspend fun <T : Any> kotlinx.coroutines.flow.Flow<T?>.firstNonNull(): T? =
-    first { it != null }

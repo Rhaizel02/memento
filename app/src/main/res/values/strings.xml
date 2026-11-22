@@ -1,4 +1,13 @@
 <resources>
+    <string name="discover_popular_title">Selección popular</string>
+    <string name="discover_popular_body">Obras populares del catálogo para seguir explorando.</string>
+    <string name="discover_source_issue">%1$s: %2$s</string>
+    <string name="discover_issue_not_configured">Falta configurar el acceso al catálogo.</string>
+    <string name="discover_issue_authentication">El catálogo rechazó las credenciales.</string>
+    <string name="discover_issue_rate_limit">El catálogo ha limitado las consultas. Prueba más tarde.</string>
+    <string name="discover_issue_connection">No hay conexión con el catálogo.</string>
+    <string name="discover_issue_unavailable">El catálogo no está disponible en este momento.</string>
+    <string name="discover_work_unavailable">Esta obra ya no está disponible en Descubrir.</string>
     <string name="library_subtitle_compact">Tu colección personal.</string>
     <string name="library_advanced_filters_count">Filtros avanzados: %1$d activos</string>
     <string name="library_sort_description">Ordenar: %1$s</string>

@@ -76,6 +76,7 @@ fun RecommendationDetailScreen(
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
             }
             if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = MementoSpacing.large))
+            else Text(stringResource(R.string.discover_work_unavailable), Modifier.padding(MementoSpacing.large))
         }
         return
     }
@@ -90,6 +91,7 @@ fun RecommendationDetailScreen(
             Column(Modifier.fillMaxWidth().padding(MementoSpacing.normal),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 state.recommendation?.let { com.memento.app.ui.components.RecommendationTierLabel(it.category) }
+                if (state.isPopular) StaticTag(stringResource(R.string.discover_popular_title))
                 candidate.externalRating?.let { rating ->
                     Text("★ " + rating + " · " + when (candidate.provider) {
                         com.memento.app.domain.model.MetadataProvider.TMDB -> "TMDB"
